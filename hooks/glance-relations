@@ -10,7 +10,7 @@ else
 fi
 
 function install_hook {
-  juju-log "Installing nova packages"
+  juju-log "Installing glance packages"
   apt-get -y install python-software-properties || exit 1
 
   add_ppa

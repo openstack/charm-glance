@@ -96,8 +96,20 @@ function add_ppa {
   # Install from archive instead of PPA.
   [[ $PPA == "distro" ]] && return 0
   . /etc/lsb-release
-  juju-log "glance: Setting up PPA for $PPA"
   [[ -z $PPA ]] && return 0
-  PPA_URL="deb http://ppa.launchpad.net/nova-core/$PPA/ubuntu $DISTRIB_CODENAME main"
-  add-apt-repository "$PPA_URL" || exit 1
+  # if referenced by name, setup ppa to upstream PPAs
+  if [[ "$PPA" == "trunk" ]] ||
+     [[ "$PPA" == "milestone" ]] ||
+     [[ "$PPA" == "milestone-proposed" ]] ; then 
+      juju-log "glance: Configuring installation from upstream PPA ($PPA)"
+      PPA_URL="deb http://ppa.launchpad.net/glance-core/$PPA/ubuntu $DISTRIB_CODENAME main"
+      add-apt-repository "$PPA_URL" || exit 1
+      return
+  fi
+  if [[ "${PPA:0:4}" == "ppa:" ]] ; then
+    juju-log "glance: Configuring installation from custom PPA ($PPA)"
+    add-apt-repository -y "$PPA" || exit 1
+    return
+  fi
+  juju-log "glance: No PPA specified. Falling back to installation from Ubuntu archive."
 }
