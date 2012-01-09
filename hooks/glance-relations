@@ -10,13 +10,13 @@ else
 fi
 
 function install_hook {
-  juju-log "Installing nova packages"
+  juju-log "Installing glance packages"
   apt-get -y install python-software-properties || exit 1
 
   add_ppa
 
   apt-get update || exit 1
-  apt-get -y install glance python-mysqldb python-swift || exit 1
+  apt-get -y install $PACKAGES || exit 1
 
   glance_ctl all stop
 
@@ -77,6 +77,42 @@ function object-store_changed {
   glance_ctl glance-api restart
 }
 
+function keystone_joined {
+  # advertise our API endpoint to keystone
+  url="http://$(unit-get private-address):9292/v1.1/"
+  relation-set service="glance" \
+    region="RegionOne" public_url=$url admin_url=$url internal_url=$url
+}
+
+function keystone_changed {
+  # we hopefully get a token in return.  configure middleware accordingly
+  token=$(relation-get admin_token)
+  service_port=$(relation-get service_port)
+  auth_port=$(relation-get auth_port)
+  [[ -z "$token" ]] || [[ -z "$service_port" ]] || [[ -z "$auth_port" ]] &&
+     juju-log "keystone_changed: Peer not ready"  && exit 0
+  [[ "$token" == "-1" ]] &&
+     juju-log "keystone_changed: admin token error" && exit 1
+  juju-log "keystone_changed: Acquired admin. token"
+  keystone_host=`dig +short +search $(relation-get private-address)`
+
+  # update the pipeline settings in both configs
+  update_pipeline "glance-api" \
+    "versionnegotiation authtoken auth-context apiv1app" "api"
+  update_pipeline "glance-registry" \
+    "authtoken auth-context registryapp" "registry"
+
+  for i in api registry ; do
+    set_or_update "service_host" "$keystone_host" $i
+    set_or_update "service_port" "$service_port" $i
+    set_or_update "auth_host" "$keystone_host" $i
+    set_or_update "auth_port" "$auth_port" $i
+    set_or_update "auth_uri" "http://$keystone_host:$service_port/" $i
+    set_or_update "admin_token" "$token" $i
+  done 
+  glance_ctl all restart
+}
+
 case $ARG0 in
   "start"|"stop") glance_ctl all $ARG0 ;;
   "install") install_hook ;;
@@ -86,5 +122,7 @@ case $ARG0 in
   "image-service-relation-changed") exit 0 ;;
   "object-store-relation-joined") exit 0 ;;
   "object-store-relation-changed") object-store_changed ;;
+  "identity-service-relation-joined") keystone_joined ;;
+  "identity-service-relation-changed") keystone_changed ;;
 esac
 

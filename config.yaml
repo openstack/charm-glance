@@ -2,7 +2,7 @@ options:
   glance-release:
     default: distro
     type: string
-    description: Glance PPA from which to install. (distro, trunk, milestone, milestone-proposed)
+    description: Glance PPA from which to install. (distro, trunk, milestone, milestone-proposed or ppa:somewhere/else)
   api-config:
     default: /etc/glance/glance-api.conf
     type: string

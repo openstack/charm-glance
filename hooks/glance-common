@@ -1,6 +1,8 @@
 #!/bin/bash
 
 SERVICES="glance-api glance-registry"
+PACKAGES="glance python-mysqldb python-swift python-keystone"
+
 GLANCE_REGISTRY_CONF=$(config-get registry-config)
 GLANCE_API_CONF=$(config-get api-config)
 
@@ -47,6 +49,27 @@ function glance_ctl {
   done
 }
 
+function update_pipeline {
+  # updates pipeline middleware definitions in api-paste.ini
+  local pipeline="$1"
+  local new="$2"
+  local config="$3"
+
+  case $config in
+    "api") local api_conf=$GLANCE_API_CONF ;;
+    "registry") local api_conf=$GLANCE_REGISTRY_CONF ;;
+    *) juju-log "ERROR: update_pipeline: invalid config=$config" && exit 1 ;;
+  esac    
+
+  local tag="\[pipeline:$pipeline\]"
+  if ! grep -q "$tag" $api_conf ; then
+      juju-log "ERROR: update_pipeline: pipeline not found: $pipeline"
+      return 1
+  fi
+  juju-log "Updating pipeline:$pipeline in $api_conf"
+  sed -i "/$tag/, +1 s/\(pipeline = \).*/\1$new/g" $api_conf
+}
+
 function set_or_update {
   # This handles configuration of both api and registry server
   # until LP #806241 is resolved.  Until then, $3 is either
@@ -56,6 +79,8 @@ function set_or_update {
   VALUE=$2
   [[ $3 == "api" ]] && CONF=$GLANCE_API_CONF
   [[ $3 == "registry" ]] && CONF=$GLANCE_REGISTRY_CONF
+  [[ -z $CONF ]] && juju-log "ERROR: set_or_update: No config file specified" &&
+    exit 1
   [[ -z $KEY ]] && exit 1
   [[ -z $VALUE ]] && exit 1
   cat $CONF | grep "$KEY = $VALUE" >/dev/null \
@@ -71,8 +96,20 @@ function add_ppa {
   # Install from archive instead of PPA.
   [[ $PPA == "distro" ]] && return 0
   . /etc/lsb-release
-  juju-log "glance: Setting up PPA for $PPA"
   [[ -z $PPA ]] && return 0
-  PPA_URL="deb http://ppa.launchpad.net/nova-core/$PPA/ubuntu $DISTRIB_CODENAME main"
-  add-apt-repository "$PPA_URL" || exit 1
+  # if referenced by name, setup ppa to upstream PPAs
+  if [[ "$PPA" == "trunk" ]] ||
+     [[ "$PPA" == "milestone" ]] ||
+     [[ "$PPA" == "milestone-proposed" ]] ; then 
+      juju-log "glance: Configuring installation from upstream PPA ($PPA)"
+      PPA_URL="deb http://ppa.launchpad.net/glance-core/$PPA/ubuntu $DISTRIB_CODENAME main"
+      add-apt-repository "$PPA_URL" || exit 1
+      return
+  fi
+  if [[ "${PPA:0:4}" == "ppa:" ]] ; then
+    juju-log "glance: Configuring installation from custom PPA ($PPA)"
+    add-apt-repository -y "$PPA" || exit 1
+    return
+  fi
+  juju-log "glance: No PPA specified. Falling back to installation from Ubuntu archive."
 }
