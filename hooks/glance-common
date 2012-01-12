@@ -106,10 +106,28 @@ function add_ppa {
       add-apt-repository "$PPA_URL" || exit 1
       return
   fi
-  if [[ "${PPA:0:4}" == "ppa:" ]] ; then
+  if [[ "${PPA:0:4}" == "ppa:" ]] ; then 
     juju-log "glance: Configuring installation from custom PPA ($PPA)"
     add-apt-repository -y "$PPA" || exit 1
     return
   fi
+  if [[ "${PPA:0:3}" == "deb" ]] ; then
+    juju-log "glance: Configuring installation from custom PPA URL ($PPA)"
+    if echo "$PPA" | grep -q "|" ; then
+      # gpg key id tagged to end of url folloed by a |
+      url=$(echo $PPA | cut -d'|' -f1)
+      key=$(echo $PPA | cut -d'|' -f2)
+      if [[ -n "$key" ]] ; then
+        juju-log "Importing repository key: $key"
+        apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "$key" || \
+          juju-log "WARN: Could not import key from keyserver: $key"
+      else
+        juju-log "No repository key specified"
+        url="$PPA"
+      fi 
+      add-apt-repository -y "$url"
+    fi
+    return    
+  fi 
   juju-log "glance: No PPA specified. Falling back to installation from Ubuntu archive."
 }
