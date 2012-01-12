@@ -94,8 +94,7 @@ function keystone_changed {
   [[ "$token" == "-1" ]] &&
      juju-log "keystone_changed: admin token error" && exit 1
   juju-log "keystone_changed: Acquired admin. token"
-  keystone_host=`dig +short +search $(relation-get private-address)`
-
+  keystone_host=$(relation-get private-address)
   # update the pipeline settings in both configs
   update_pipeline "glance-api" \
     "versionnegotiation authtoken auth-context apiv1app" "api"
