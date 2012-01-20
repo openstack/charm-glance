@@ -1,10 +1,12 @@
-#!/bin/bash
+#$!/bin/bash
 
 SERVICES="glance-api glance-registry"
 PACKAGES="glance python-mysqldb python-swift python-keystone"
 
 GLANCE_REGISTRY_CONF=$(config-get registry-config)
+GLANCE_REGISTRY_PASTE_INI="/etc/glance/glance-registry-paste.ini"
 GLANCE_API_CONF=$(config-get api-config)
+GLANCE_API_PASTE_INI="/etc/glance/glance-api-paste.ini"
 
 DB_USER=$(config-get db-user)
 NOVA_DB=$(config-get nova-db)
@@ -49,6 +51,25 @@ function glance_ctl {
   done
 }
 
+function set_paste_deploy_flavor {
+  local flavor="$1"
+  local config="$2"
+  case $config in
+    "api") local conf=$GLANCE_API_CONF ;;
+    "registry") local conf=$GLANCE_REGISTRY_CONF ;;
+    *) juju-log "ERROR: set_paste_deploy: invalid config=$config" && exit 1 ;;
+  esac    
+  if ! grep -q "\[paste_deploy\]" "$conf" ; then
+    juju-log "Updating $conf: Setting new paste_deploy flavor = $flavor"
+    echo -e "\n[paste_deploy]\nflavor = keystone\n" >>$conf && return 0
+    juju-log "ERROR: Could not update paste_deploy flavor in $conf" && return 1
+  fi
+  juju-log "Updating $conf: Setting paste_deploy flavor = $flavor"
+  local tag="[paste_deploy]"
+  sed -i "/$tag/, +1 s/\(flavor = \).*/\1$flavor/g" $conf && return 0
+  juju-log "ERROR: Could not update paste_deploy flavor in $conf" && return 1
+}
+
 function update_pipeline {
   # updates pipeline middleware definitions in api-paste.ini
   local pipeline="$1"
@@ -77,10 +98,14 @@ function set_or_update {
   # set or update a key=value config option in glance.conf
   KEY=$1
   VALUE=$2
-  [[ $3 == "api" ]] && CONF=$GLANCE_API_CONF
-  [[ $3 == "registry" ]] && CONF=$GLANCE_REGISTRY_CONF
-  [[ -z $CONF ]] && juju-log "ERROR: set_or_update: No config file specified" &&
-    exit 1
+  case "$3" in
+    "api") CONF=$GLANCE_API_CONF ;;
+    "api-paste") CONF=$GLANCE_API_PASTE_INI ;;
+    "registry") CONF=$GLANCE_REGISTRY_CONF ;;
+    "registry-paste") CONF=$GLANCE_REGISTRY_PASTE_INI ;;
+    *) juju-log "ERROR: set_or_update(): Invalid or no config file specified." \
+        && exit 1 ;;
+  esac
   [[ -z $KEY ]] && exit 1
   [[ -z $VALUE ]] && exit 1
   cat $CONF | grep "$KEY = $VALUE" >/dev/null \
