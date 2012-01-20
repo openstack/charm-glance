@@ -97,9 +97,9 @@ function keystone_changed {
   keystone_host=$(relation-get private-address)
   # update the pipeline settings in both configs
   update_pipeline "glance-api" \
-    "versionnegotiation authtoken auth-context apiv1app" "api"
+    "versionnegotiation authtoken auth-context apiv1app" "api" || exit 1
   update_pipeline "glance-registry" \
-    "authtoken auth-context registryapp" "registry"
+    "authtoken auth-context registryapp" "registry" || exit 1
 
   for i in api registry ; do
     set_or_update "service_host" "$keystone_host" $i
