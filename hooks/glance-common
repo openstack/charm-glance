@@ -106,8 +106,10 @@ function set_or_update {
     *) juju-log "ERROR: set_or_update(): Invalid or no config file specified." \
         && exit 1 ;;
   esac
-  [[ -z $KEY ]] && exit 1
-  [[ -z $VALUE ]] && exit 1
+  [[ -z $KEY ]] && juju-log "ERROR: set_or_update(): value $VALUE missing key" \
+        && exit 1
+  [[ -z $VALUE ]] && juju-log "ERROR: set_or_update(): key $KEY missing value" \
+        && exit 1
   cat $CONF | grep "$KEY = $VALUE" >/dev/null \
    && juju-log "glance: $KEY = $VALUE already set" exit 0
   if cat $CONF | grep "$KEY =" >/dev/null ; then

@@ -79,7 +79,7 @@ function object-store_changed {
 
 function keystone_joined {
   # advertise our API endpoint to keystone
-  url="http://$(unit-get private-address):9292/v1.1/"
+  url="http://$(unit-get private-address):9292/v1"
   relation-set service="glance" \
     region="RegionOne" public_url=$url admin_url=$url internal_url=$url
 }
@@ -89,8 +89,13 @@ function keystone_changed {
   token=$(relation-get admin_token)
   service_port=$(relation-get service_port)
   auth_port=$(relation-get auth_port)
-  [[ -z "$token" ]] || [[ -z "$service_port" ]] || [[ -z "$auth_port" ]] &&
-     juju-log "keystone_changed: Peer not ready"  && exit 0
+  service_username=$(relation-get service_username)
+  service_password=$(relation-get service_password)
+  service_tenant=$(relation-get service_tenant)
+  [[ -z "$token" ]] || [[ -z "$service_port" ]] || [[ -z "$auth_port" ]] ||
+    [[ -z "$service_username" ]] || [[ -z "$service_password" ]] ||
+    [[ -z "$service_tenant" ]] && juju-log "keystone_changed: Peer not ready" &&
+      exit 0
   [[ "$token" == "-1" ]] &&
      juju-log "keystone_changed: admin token error" && exit 1
   juju-log "keystone_changed: Acquired admin. token"
@@ -106,6 +111,9 @@ function keystone_changed {
     set_or_update "auth_port" "$auth_port" $i
     set_or_update "auth_uri" "http://$keystone_host:$service_port/" $i
     set_or_update "admin_token" "$token" $i
+    set_or_update "admin_tenant_name" "$service_tenant" $i
+    set_or_update "admin_user" "$service_username" $i
+    set_or_update "admin_password" "$service_password" $i 
   done 
   glance_ctl all restart
 }
