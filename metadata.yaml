@@ -1,5 +1,6 @@
 ensemble: formula
 name: glance
+maintainer: Adam Gandelman <adamg@canonical.com>
 summary: "OpenStack Image Registry and Delivery Service"
 description: |
  The Glance project provides an image registration and discovery service
