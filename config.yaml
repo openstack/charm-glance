@@ -15,7 +15,7 @@ options:
     default: glance
     type: string
     description: Database username
-  nova-db:
-    default: nova
+  glance-db:
+    default: glance
     type: string
-    description: Nova database name
+    description: Glance database name.

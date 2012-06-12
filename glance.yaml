@@ -1,6 +1,0 @@
-glance:
-  glance-release: trunk
-  registry-config: /etc/glance/glance-registry.conf
-  api-config: /etc/glance/glance-api.conf
-  db-user: glance
-  nova-db: nova
