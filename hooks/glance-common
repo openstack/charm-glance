@@ -9,7 +9,7 @@ GLANCE_API_CONF=$(config-get api-config)
 GLANCE_API_PASTE_INI="/etc/glance/glance-api-paste.ini"
 
 DB_USER=$(config-get db-user)
-GLANCE_DB=$(config-get glance)
+GLANCE_DB=$(config-get glance-db)
 PPA=$(config-get glance-release)
 
 HOSTNAME=`hostname -f`
