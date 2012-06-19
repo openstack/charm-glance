@@ -53,6 +53,7 @@ function db_changed {
   juju-log "glance: db_changed: Configuring registry for access to $GLANCE_DB@$DB_HOST"
   glance_ctl all stop
   set_or_update sql_connection "mysql://$DB_USER:$DB_PASSWORD@$DB_HOST/$GLANCE_DB" registry
+  set_or_update sql_connection "mysql://$DB_USER:$DB_PASSWORD@$DB_HOST/$GLANCE_DB" api
   # Set the db version to 0 if its not under version control. We assume that any existing
   # database we are being related to was created WITH version control.
   if ! glance-manage db_version ; then
