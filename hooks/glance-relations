@@ -1,33 +1,26 @@
-#!/bin/bash
+#!/bin/bash -e
 
-FORMULA_DIR=$(dirname $0)
+CHARM_DIR=$(dirname $0)
 ARG0=${0##*/}
 
-if [[ -e $FORMULA_DIR/glance-common ]] ; then
-  . $FORMULA_DIR/glance-common
+if [[ -e $CHARM_DIR/glance-common ]] ; then
+  . $CHARM_DIR/glance-common
 else
-  echo "ERROR: Could nto load glance-common from $FORMULA_DIR"
+  echo "ERROR: Could nto load glance-common from $CHARM_DIR"
 fi
 
 function install_hook {
   juju-log "Installing glance packages"
   apt-get -y install python-software-properties || exit 1
 
-  add_ppa
+  configure_install_source $(config-get glance-release)
 
   apt-get update || exit 1
   apt-get -y install $PACKAGES || exit 1
 
-  glance_ctl all stop
+  service_ctl all stop
 
-  # work around LP #784837 until its fixed.
-  [[ ! -d /var/log/glance ]] && mkdir /var/log/glance
-  chown glance /var/log/glance
-  [[ ! -e /var/log/glance/api.log ]] && touch /var/log/glance/api.log
-  [[ ! -e /var/log/glance/registry.log ]] && touch /var/log/glance/registry.log
-  chown glance /var/log/glance/*.log
-
-  # XXX turn up the logging for now.
+  # TODO: Make debug logging a config option.
   set_or_update verbose True api
   set_or_update debug True api
   set_or_update verbose True registry
@@ -35,33 +28,66 @@ function install_hook {
 }
 
 function db_joined {
-  juju-log "glance: db_joined: requesting access to $GLANCE_DB for $DB_USER@`unit-get private-address`"
-  relation-set database=$GLANCE_DB
-  relation-set username=$DB_USER
-  relation-set hostname=`unit-get private-address`
+  local glance_db=$(config-get glance-db)
+  local db_user=$(config-get db-user)
+  local hostname=$(unit-get private-address)
+  juju-log "$CHARM - db_joined: requesting database access to $glance_db for "\
+           "$db_user@$hostname"
+  relation-set database=$glance_db username=$db_user hostname=$hostname
 }
 
 function db_changed {
-  DB_HOST=`relation-get private-address`
-  DB_PASSWORD=`relation-get password`
-  if [[ -z $DB_HOST ]] || [[ -z $DB_PASSWORD ]] ; then
-    echo "db_changed: DB_HOST || DB_PASSWORD not yet set. Exit 0 and retry"
+  # serves as the main shared-db changed hook but may also be called with a
+  # relation-id to configure new config files for existing relations.
+  local r_id="$1"
+  local r_args=""
+  if [[ -n "$r_id" ]] ; then
+    # set up environment for an existing relation to a single unit.
+    export JUJU_REMOTE_UNIT=$(relation-list -r $r_id | head -n1)
+    export JUJU_RELATION="shared-db"
+    export JUJU_RELATION_ID="$r_id"
+    local r_args="-r $JUJU_RELATION_ID"
+    juju-log "$CHARM - db_changed: Running hook for existing relation to "\
+             "$JUJU_REMOTE_UNIT-$JUJU_RELATION_ID"
+  fi
+
+  local db_host=$(relation-get $r_args private-address)
+  local db_password=$(relation-get $r_args password)
+
+  if [[ -z "$db_host" ]] || [[ -z "$db_password" ]] ; then
+    juju-log "$CHARM - db_changed: db_host||db_password set, will retry."
     exit 0
-  else
-    echo "db_changed: Received password from $DB_HOST"
   fi
-  juju-log "glance: db_changed: Configuring registry for access to $GLANCE_DB@$DB_HOST"
-  glance_ctl all stop
-  set_or_update sql_connection "mysql://$DB_USER:$DB_PASSWORD@$DB_HOST/$GLANCE_DB" registry
-  set_or_update sql_connection "mysql://$DB_USER:$DB_PASSWORD@$DB_HOST/$GLANCE_DB" api
-  # Set the db version to 0 if its not under version control. We assume that any existing
-  # database we are being related to was created WITH version control.
-  if ! glance-manage db_version ; then
-    juju-log "Setting glance database version to 0"
-    glance-manage version_control 0
+
+  local glance_db=$(config-get glance-db)
+  local db_user=$(config-get db-user)
+  local rel=$(get_os_codename_package glance-common)
+
+  if [[ -n "$r_id" ]] ; then
+    unset JUJU_REMOTE_UNIT JUJU_RELATION JUJU_RELATION_ID
   fi
+
+  juju-log "$CHARM - db_changed: Configuring glance.conf for access to $glance_db"
+
+  service_ctl all stop
+
+  set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" registry
+
+  # folsom requires a db connection setting in glance-api.conf, as well.
+  [[ "$rel" == "folsom" ]] &&
+    set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" api
+
+  if [[ "$rel" == "essex" ]] ; then
+    # Essex required initializing new databases to version 0
+    if ! glance-manage db_version >/dev/null 2>&1; then
+      juju-log "Setting glance database version to 0"
+      glance-manage version_control 0
+    fi
+  fi
+
+  juju-log "$CHARM - db_changed: Running database migrations for $rel."
   glance-manage db_sync
-  glance_ctl all restart
+  service_ctl all restart
 }
 
 function image-service_joined {
@@ -83,7 +109,7 @@ function object-store_changed {
   set_or_update swift_store_key $PASSWORD api
   set_or_update swift_store_auth_address $URL api
   set_or_update swift_store_create_container_on_put true api
-  glance_ctl glance-api restart
+  service_ctl glance-api restart
 }
 
 function keystone_joined {
@@ -94,13 +120,26 @@ function keystone_joined {
 }
 
 function keystone_changed {
-  # we hopefully get a token in return.  configure middleware accordingly
-  token=$(relation-get admin_token)
-  service_port=$(relation-get service_port)
-  auth_port=$(relation-get auth_port)
-  service_username=$(relation-get service_username)
-  service_password=$(relation-get service_password)
-  service_tenant=$(relation-get service_tenant)
+  # serves as the main identity-service changed hook, but may also be called
+  # with a relation-id to configure new config files for existing relations.
+  local r_id="$1"
+  local r_args=""
+  if [[ -n "$r_id" ]] ; then
+    # set up environment for an existing relation to a single unit.
+    export JUJU_REMOTE_UNIT=$(relation-list -r $r_id | head -n1)
+    export JUJU_RELATION="identity-service"
+    export JUJU_RELATION_ID="$r_id"
+    local r_args="-r $JUJU_RELATION_ID"
+    juju-log "$CHARM - db_changed: Running hook for existing relation to "\
+             "$JUJU_REMOTE_UNIT-$JUJU_RELATION_ID"
+  fi
+
+  token=$(relation-get $r_args $r_args admin_token)
+  service_port=$(relation-get $r_args service_port)
+  auth_port=$(relation-get $r_args auth_port)
+  service_username=$(relation-get $r_args service_username)
+  service_password=$(relation-get $r_args service_password)
+  service_tenant=$(relation-get $r_args service_tenant)
   [[ -z "$token" ]] || [[ -z "$service_port" ]] || [[ -z "$auth_port" ]] ||
     [[ -z "$service_username" ]] || [[ -z "$service_password" ]] ||
     [[ -z "$service_tenant" ]] && juju-log "keystone_changed: Peer not ready" &&
@@ -108,7 +147,11 @@ function keystone_changed {
   [[ "$token" == "-1" ]] &&
      juju-log "keystone_changed: admin token error" && exit 1
   juju-log "keystone_changed: Acquired admin. token"
-  keystone_host=$(relation-get private-address)
+  keystone_host=$(relation-get $r_args private-address)
+
+  if [[ -n "$r_id" ]] ; then
+    unset JUJU_REMOTE_UNIT JUJU_RELATION JUJU_RELATION_ID
+  fi
 
   set_paste_deploy_flavor "keystone" "api" || exit 1
   set_paste_deploy_flavor "keystone" "registry" || exit 1
@@ -122,14 +165,31 @@ function keystone_changed {
     set_or_update "admin_token" "$token" $i
     set_or_update "admin_tenant_name" "$service_tenant" $i
     set_or_update "admin_user" "$service_username" $i
-    set_or_update "admin_password" "$service_password" $i 
-  done 
-  glance_ctl all restart
+    set_or_update "admin_password" "$service_password" $i
+  done
+  service_ctl all restart
+}
+
+function config_changed() {
+  # Determine whether or not we should do an upgrade, based on whether or not
+  # the version offered in glance-release is greater than what is installed.
+
+  local install_src=$(config-get glance-release)
+  local cur=$(get_os_codename_package "glance-common")
+  local available=$(get_os_codename_install_source "$install_src")
+
+  if dpkg --compare-versions $(get_os_version_codename "$cur") lt \
+                             $(get_os_version_codename "$available") ; then
+    juju-log "$CHARM: Upgrading OpenStack release: $cur -> $available."
+    do_openstack_upgrade "$install_src" $PACKAGES
+  fi
+  service_ctl all restart
 }
 
 case $ARG0 in
-  "start"|"stop") glance_ctl all $ARG0 ;;
+  "start"|"stop") service_ctl all $ARG0 ;;
   "install") install_hook ;;
+  "config-changed") config_changed ;;
   "shared-db-relation-joined") db_joined ;;
   "shared-db-relation-changed") db_changed;;
   "image-service-relation-joined") image-service_joined ;;
@@ -139,4 +199,3 @@ case $ARG0 in
   "identity-service-relation-joined") keystone_joined ;;
   "identity-service-relation-changed") keystone_changed ;;
 esac
-

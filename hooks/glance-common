@@ -1,55 +1,21 @@
-#$!/bin/bash
+#!/bin/bash
+
+CHARM="glance"
 
 SERVICES="glance-api glance-registry"
-PACKAGES="glance python-mysqldb python-swift python-keystone"
+PACKAGES="glance python-mysqldb python-swift python-keystone uuid"
 
-GLANCE_REGISTRY_CONF=$(config-get registry-config)
+GLANCE_REGISTRY_CONF="/etc/glance/glance-registry.conf"
 GLANCE_REGISTRY_PASTE_INI="/etc/glance/glance-registry-paste.ini"
-GLANCE_API_CONF=$(config-get api-config)
+GLANCE_API_CONF="/etc/glance/glance-api.conf"
 GLANCE_API_PASTE_INI="/etc/glance/glance-api-paste.ini"
+CONF_DIR="/etc/glance"
 
-DB_USER=$(config-get db-user)
-GLANCE_DB=$(config-get glance-db)
-PPA=$(config-get glance-release)
-
-HOSTNAME=`hostname -f`
-
-function glance_ctl_status {
-  SERVICE=$1
-  # workaround upstarts lack of scriptable return codes
-  STATUS=$(service $SERVICE status | cut -d/ -f1 | awk '{ print $2 }')
-  case $STATUS in
-    "start") return 0 ;;
-    "stop") return 1 ;;
-    *) echo "ERROR: Unexpected status of service $SERVICE: $STATUS" && exit 1 ;;
-  esac
-}
-
-function glance_ctl {
-  if [[ $1 == "all" ]] ; then
-    CTL=$SERVICES
-  else
-    CTL=$1
-  fi
-  ACTION=$2
-  if [[ -z $CTL ]] || [[ -z $ACTION ]] ; then
-    juju-log "ERROR glance_ctl: Not enough arguments"
-    exit 1
-  fi
-  for i in $CTL ; do
-    case $ACTION in
-      "start")
-        glance_ctl_status $i || service $i start ;;
-      "stop")
-        glance_ctl_status $i && service $i stop || return 0 ;;
-      "restart")
-        glance_ctl_status $i && service $i restart || service $i start ;;
-    esac
-    if [[ $? != 0 ]] ; then
-      juju-log "glance_ctl: ERROR - Service $i failed to $ACTION"
-    fi
-  done
-}
+if [[ -e "$CHARM_DIR/lib/openstack-common" ]] ; then
+  . $CHARM_DIR/lib/openstack-common
+else
+  juju-log "ERROR: Couldn't load $CHARM_DIR/lib/openstack-common." && exit 1
+fi
 
 function set_paste_deploy_flavor {
   local flavor="$1"
@@ -58,7 +24,7 @@ function set_paste_deploy_flavor {
     "api") local conf=$GLANCE_API_CONF ;;
     "registry") local conf=$GLANCE_REGISTRY_CONF ;;
     *) juju-log "ERROR: set_paste_deploy: invalid config=$config" && exit 1 ;;
-  esac    
+  esac
   if ! grep -q "\[paste_deploy\]" "$conf" ; then
     juju-log "Updating $conf: Setting new paste_deploy flavor = $flavor"
     echo -e "\n[paste_deploy]\nflavor = keystone\n" >>$conf && return 0
@@ -80,7 +46,7 @@ function update_pipeline {
     "api") local api_conf=$GLANCE_API_CONF ;;
     "registry") local api_conf=$GLANCE_REGISTRY_CONF ;;
     *) juju-log "ERROR: update_pipeline: invalid config=$config" && exit 1 ;;
-  esac    
+  esac
 
   local tag="\[pipeline:$pipeline\]"
   if ! grep -q "$tag" $api_conf ; then
@@ -119,42 +85,37 @@ function set_or_update {
   fi
 }
 
-function add_ppa {
-  # Install from archive instead of PPA.
-  [[ $PPA == "distro" ]] && return 0
-  . /etc/lsb-release
-  [[ -z $PPA ]] && return 0
-  # if referenced by name, setup ppa to upstream PPAs
-  if [[ "$PPA" == "trunk" ]] ||
-     [[ "$PPA" == "milestone" ]] ||
-     [[ "$PPA" == "milestone-proposed" ]] ; then 
-      juju-log "glance: Configuring installation from upstream PPA ($PPA)"
-      PPA_URL="deb http://ppa.launchpad.net/glance-core/$PPA/ubuntu $DISTRIB_CODENAME main"
-      add-apt-repository "$PPA_URL" || exit 1
-      return
+do_openstack_upgrade() {
+  # update openstack components to those provided by a new installation source
+  # it is assumed the calling hook has confirmed that the upgrade is sane.
+  local rel="$1"
+  shift
+  local packages=$@
+  orig_os_rel=$(get_os_codename_package "glance-common")
+  new_rel=$(get_os_codename_install_source "$rel")
+
+  # Backup the config directory.
+  local stamp=$(date +"%Y%m%d%M%S")
+  tar -pcf /var/lib/juju/$CHARM-backup-$stamp.tar $CONF_DIR
+
+  # Setup apt repository access and kick off the actual package upgrade.
+  configure_install_source "$rel"
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive apt-get --option Dpkg::Options::=--force-confnew -y \
+     install --no-install-recommends $packages
+
+  # Update the new config files for existing relations.
+  local r_id=""
+
+  r_id=$(relation-ids shared-db)
+  if [[ -n "$r_id" ]] ; then
+    juju-log "$CHARM: Configuring database after upgrade to $rel."
+    db_changed $r_id
   fi
-  if [[ "${PPA:0:4}" == "ppa:" ]] ; then 
-    juju-log "glance: Configuring installation from custom PPA ($PPA)"
-    add-apt-repository -y "$PPA" || exit 1
-    return
+
+  r_id=$(relation-ids identity-service)
+  if [[ -n "$r_id" ]] ; then
+    juju-log "$CHARM: Configuring identity service after upgrade to $rel."
+    keystone_changed $r_id
   fi
-  if [[ "${PPA:0:3}" == "deb" ]] ; then
-    juju-log "glance: Configuring installation from custom PPA URL ($PPA)"
-    if echo "$PPA" | grep -q "|" ; then
-      # gpg key id tagged to end of url folloed by a |
-      url=$(echo $PPA | cut -d'|' -f1)
-      key=$(echo $PPA | cut -d'|' -f2)
-      if [[ -n "$key" ]] ; then
-        juju-log "Importing repository key: $key"
-        apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "$key" || \
-          juju-log "WARN: Could not import key from keyserver: $key"
-      else
-        juju-log "No repository key specified"
-        url="$PPA"
-      fi 
-      add-apt-repository -y "$url"
-    fi
-    return    
-  fi 
-  juju-log "glance: No PPA specified. Falling back to installation from Ubuntu archive."
 }

@@ -3,14 +3,6 @@ options:
     default: distro
     type: string
     description: Glance PPA from which to install. (distro, trunk, milestone, milestone-proposed or ppa:somewhere/else)
-  api-config:
-    default: /etc/glance/glance-api.conf
-    type: string
-    description: Full path to Glance API configuration.
-  registry-config:
-    default: /etc/glance/glance-registry.conf
-    type: string
-    description: Full path to Glance registry configuration.
   db-user:
     default: glance
     type: string
