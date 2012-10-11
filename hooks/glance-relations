@@ -86,6 +86,54 @@ function object-store_changed {
   glance_ctl glance-api restart
 }
 
+
+function ceph-store_joined {
+  apt-get -y install ceph-common python-ceph || exit 1
+}
+
+function ceph-store_changed {
+  SERVICE_NAME=`echo $JUJU_UNIT_NAME | cut -d / -f 1`
+  KEYRING=/etc/ceph/ceph.client.$SERVICE_NAME.keyring
+  KEY=`relation-get key`
+  if [ -n "$KEY" ]; then
+    # But only once
+    if [ ! -f $KEYRING ]; then
+      ceph-authtool $KEYRING \
+        --create-keyring --name=client.$SERVICE_NAME \
+        --add-key="$KEY"
+      chmod +r $KEYRING
+    fi
+  else
+    # No key - bail for the time being
+    exit 0
+  fi
+
+  MONS=`relation-list`
+  mon_hosts=""
+  for mon in $MONS; do
+    mon_hosts="$mon_hosts `relation-get private-address $mon`:6789"
+  done
+  cat > /etc/ceph/ceph.conf << EOF
+[global]
+ auth supported = cephx
+ keyring = /etc/ceph/\$cluster.\$name.keyring
+ mon host = $mon_hosts
+EOF
+
+  # Create the images pool if it does not already exist
+  if ! rados --id $SERVICE_NAME lspools | grep -q images; then
+    rados --id $SERVICE_NAME mkpool images
+  fi
+
+  # Configure glance for ceph storage options
+  set_or_update default_store rbd api
+  set_or_update rbd_store_ceph_conf /etc/ceph/ceph.conf api
+  set_or_update rbd_store_user $SERVICE_NAME api
+  set_or_update rbd_store_pool images api
+  set_or_update rbd_store_chunk_size 8 api
+  glance_ctl glance-api restart
+}
+
 function keystone_joined {
   # advertise our API endpoint to keystone
   url="http://$(unit-get private-address):9292/v1"
@@ -138,5 +186,7 @@ case $ARG0 in
   "object-store-relation-changed") object-store_changed ;;
   "identity-service-relation-joined") keystone_joined ;;
   "identity-service-relation-changed") keystone_changed ;;
+  "ceph-store-relation-joined") ceph-store_joined;;
+  "ceph-store-relation-changed") ceph-store_changed;;
 esac
 
