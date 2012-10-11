@@ -88,6 +88,7 @@ function object-store_changed {
 
 
 function ceph-store_joined {
+  mkdir -p /etc/ceph
   apt-get -y install ceph-common python-ceph || exit 1
 }
 
