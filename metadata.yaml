@@ -17,5 +17,5 @@ requires:
     interface: swift
   identity-service:
     interface: keystone
-  ceph-store:
+  ceph:
     interface: ceph-client

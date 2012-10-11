@@ -87,12 +87,12 @@ function object-store_changed {
 }
 
 
-function ceph-store_joined {
+function ceph_joined {
   mkdir -p /etc/ceph
   apt-get -y install ceph-common python-ceph || exit 1
 }
 
-function ceph-store_changed {
+function ceph_changed {
   SERVICE_NAME=`echo $JUJU_UNIT_NAME | cut -d / -f 1`
   KEYRING=/etc/ceph/ceph.client.$SERVICE_NAME.keyring
   KEY=`relation-get key`
@@ -187,7 +187,7 @@ case $ARG0 in
   "object-store-relation-changed") object-store_changed ;;
   "identity-service-relation-joined") keystone_joined ;;
   "identity-service-relation-changed") keystone_changed ;;
-  "ceph-store-relation-joined") ceph-store_joined;;
-  "ceph-store-relation-changed") ceph-store_changed;;
+  "ceph-relation-joined") ceph_joined;;
+  "ceph-relation-changed") ceph_changed;;
 esac
 
