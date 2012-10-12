@@ -45,19 +45,6 @@ function service_ctl {
   done
 }
 
-function conditional_service_restart {
-  # restart specified service ($1) if contents of file differ from $2
-  local svc="$1"
-  local new_contents="$2"
-  local file="/var/lib/juju/$CHARM-restart"
-  if [[ -e "$file" ]] && [[ "$(cat $file)" == "$new_contents" ]] ; then
-    juju-log "$CHARM: Skipping conditional restart, not needed."
-    return 0
-  fi
-  echo "$new_contents" >$file
-  service_ctl "$svc" restart
-}
-
 function configure_install_source {
   # Setup and configure installation source based on a config flag.
   local src="$1"
