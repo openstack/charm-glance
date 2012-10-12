@@ -13,7 +13,7 @@ function install_hook {
   juju-log "Installing glance packages"
   apt-get -y install python-software-properties || exit 1
 
-  configure_install_source $(config-get glance-release)
+  configure_install_source $(config-get openstack-origin)
 
   apt-get update || exit 1
   apt-get -y install $PACKAGES || exit 1
@@ -172,9 +172,9 @@ function keystone_changed {
 
 function config_changed() {
   # Determine whether or not we should do an upgrade, based on whether or not
-  # the version offered in glance-release is greater than what is installed.
+  # the version offered in openstack-origin is greater than what is installed.
 
-  local install_src=$(config-get glance-release)
+  local install_src=$(config-get openstack-origin)
   local cur=$(get_os_codename_package "glance-common")
   local available=$(get_os_codename_install_source "$install_src")
 
