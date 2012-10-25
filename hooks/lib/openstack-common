@@ -1,0 +1,167 @@
+#!/bin/bash -e
+
+# Common utility functions used across all OpenStack charms.
+
+error_out() {
+  juju-log "$CHARM ERROR: $@"
+  exit 1
+}
+
+function service_ctl_status {
+  # Return 0 if a service is running, 1 otherwise.
+  local svc="$1"
+  local status=$(service $svc status | cut -d/ -f1 | awk '{ print $2 }')
+  case $status in
+    "start") return 0 ;;
+    "stop") return 1 ;;
+    *) error_out "Unexpected status of service $svc: $status" ;;
+  esac
+}
+
+function service_ctl {
+  # control a specific service, or all (as defined by $SERVICES)
+  if [[ $1 == "all" ]] ; then
+    ctl="$SERVICES"
+  else
+    ctl="$1"
+  fi
+  action="$2"
+  if [[ -z "$ctl" ]] || [[ -z "$action" ]] ; then
+    error_out "ERROR service_ctl: Not enough arguments"
+  fi
+
+  for i in $ctl ; do
+    case $action in
+      "start")
+        service_ctl_status $i || service $i start ;;
+      "stop")
+        service_ctl_status $i && service $i stop || return 0 ;;
+      "restart")
+        service_ctl_status $i && service $i restart || service $i start ;;
+    esac
+    if [[ $? != 0 ]] ; then
+      juju-log "$CHARM: service_ctl ERROR - Service $i failed to $action"
+    fi
+  done
+}
+
+function configure_install_source {
+  # Setup and configure installation source based on a config flag.
+  local src="$1"
+
+  # Default to installing from the main Ubuntu archive.
+  [[ $src == "distro" ]] || [[ -z "$src" ]] && return 0
+
+  . /etc/lsb-release
+
+  # standard 'ppa:someppa/name' format.
+   if [[ "${src:0:4}" == "ppa:" ]] ; then
+    juju-log "$CHARM: Configuring installation from custom src ($src)"
+    add-apt-repository -y "$src" || error_out "Could not configure PPA access."
+    return 0
+  fi
+
+  # standard 'deb http://url/ubuntu main' entries. gpg key ids must
+  # be appended to the end of url after a |, ie:
+  # 'deb http://url/ubuntu main|$GPGKEYID'
+  if [[ "${src:0:3}" == "deb" ]] ; then
+    juju-log "$CHARM: Configuring installation from custom src URL ($src)"
+    if echo "$src" | grep -q "|" ; then
+      # gpg key id tagged to end of url folloed by a |
+      url=$(echo $src | cut -d'|' -f1)
+      key=$(echo $src | cut -d'|' -f2)
+      if [[ -n "$key" ]] ; then
+        juju-log "$CHARM: Importing repository key: $key"
+        apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "$key" || \
+          juju-log "$CHARM WARN: Could not import key from keyserver: $key"
+      else
+        juju-log "$CHARM No repository key specified"
+        url="$src"
+      fi
+      add-apt-repository -y "$url"
+    fi
+    return 0
+  fi
+
+  # Cloud Archive
+  if [[ "${src:0:6}" == "cloud:" ]] ; then
+    local archive_key="5EDB1B62EC4926EA"
+    local rel=$(echo $src | cut -d: -f2)
+    local u_rel=$(echo $rel | cut -d- -f1)
+    local ca_rel=$(echo $rel | cut -d- -f2)
+
+    [[ "$u_rel" != "$DISTRIB_CODENAME" ]] &&
+      error_out "Cannot install from Cloud Archive pocket $src " \
+                "on this Ubuntu version ($DISTRIB_CODENAME)!"
+
+    if [[ "$ca_rel" == "folsom/staging" ]] ; then
+      # cloud archive staging is just a regular PPA.
+      add-apt-repository -y ppa:ubuntu-cloud-archive/folsom-staging
+      return 0
+    fi
+
+    case "$ca_rel" in
+      "folsom"|"folsom/updates") pocket="precise-updates/folsom" ;;
+      "folsom/proposed") pocket="precise-proposed/folsom" ;;
+      *) error_out "Invalid Cloud Archive repo specified: $src"
+    esac
+
+    entry="deb http://ubuntu-cloud.archive.canonical.com/ubuntu $pocket main"
+    echo "$entry" \
+      >/etc/apt/sources.list.d/ubuntu-cloud-archive-$DISTRIB_CODENAME.list
+    apt-key  adv --keyserver keyserver.ubuntu.com --recv-keys $archive_key
+    return 0
+  fi
+
+  error_out "Invalid installation source specified in config: $src"
+
+}
+
+get_os_codename_install_source() {
+  # derive the openstack release provided by a supported installation source.
+  local rel="$1"
+  local codename="unknown"
+  . /etc/lsb-release
+
+  # map ubuntu releases to the openstack version shipped with it.
+  if [[ "$rel" == "distro" ]] ; then
+    case "$DISTRIB_CODENAME" in
+      "oneiric") codename="diablo" ;;
+      "precise") codename="essex" ;;
+      "quantal") codename="folsom" ;;
+    esac
+  fi
+
+  # derive version from cloud archive strings.
+  if [[ "${rel:0:6}" == "cloud:" ]] ; then
+    rel=$(echo $rel | cut -d: -f2)
+    local u_rel=$(echo $rel | cut -d- -f1)
+    local ca_rel=$(echo $rel | cut -d- -f2)
+    if [[ "$u_rel" == "$DISTRIB_CODENAME" ]] ; then
+      case "$ca_rel" in
+        "folsom"|"folsom/updates"|"folsom/proposed"|"folsom/staging")
+          codename="folsom" ;;
+      esac
+    fi
+  fi
+  echo $codename
+}
+
+get_os_codename_package() {
+  local pkg_vers=$(dpkg -l | grep "$1" | awk '{ print $3 }')
+  case "${pkg_vers:0:6}" in
+    "2011.2") echo "diablo" ;;
+    "2012.1") echo "essex" ;;
+    "2012.2") echo "folsom" ;;
+    "2013.1") echo "grizzly" ;;
+  esac
+}
+
+get_os_version_codename() {
+  case "$1" in
+    "diablo") echo "2011.2" ;;
+    "essex") echo "2012.1" ;;
+    "folsom") echo "2012.2" ;;
+    "grizzly") echo "2012.3" ;;
+  esac
+}
