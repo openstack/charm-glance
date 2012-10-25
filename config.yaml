@@ -1,16 +1,19 @@
 options:
-  glance-release:
+  openstack-origin:
     default: distro
     type: string
-    description: Glance PPA from which to install. (distro, trunk, milestone, milestone-proposed or ppa:somewhere/else)
-  api-config:
-    default: /etc/glance/glance-api.conf
-    type: string
-    description: Full path to Glance API configuration.
-  registry-config:
-    default: /etc/glance/glance-registry.conf
-    type: string
-    description: Full path to Glance registry configuration.
+    description: |
+      Repository from which to install.  May be one of the following:
+      distro (default), ppa:somecustom/ppa, a deb url sources entry,
+      or a supported Cloud Archive release pocket.
+
+      Supported Cloud Archive sources include: cloud:precise-folsom,
+      cloud:precise-folsom/updates, cloud:precise-folsom/staging,
+      cloud:precise-folsom/proposed.
+
+      Note that updating this setting to a source that is known to
+      provide a later version of OpenStack will trigger a software
+      upgrade.
   db-user:
     default: glance
     type: string
