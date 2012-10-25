@@ -158,7 +158,7 @@ EOF
   set_or_update rbd_store_user $SERVICE_NAME api
   set_or_update rbd_store_pool images api
   set_or_update rbd_store_chunk_size 8 api
-  glance_ctl glance-api restart
+  service_ctl glance-api restart
 }
 
 function keystone_joined {
