@@ -129,6 +129,7 @@ get_os_codename_install_source() {
       "oneiric") codename="diablo" ;;
       "precise") codename="essex" ;;
       "quantal") codename="folsom" ;;
+      "raring")  codename="grizzly" ;;
     esac
   fi
 
@@ -141,8 +142,20 @@ get_os_codename_install_source() {
       case "$ca_rel" in
         "folsom"|"folsom/updates"|"folsom/proposed"|"folsom/staging")
           codename="folsom" ;;
+        "grizzly"|"grizzly/updates"|"grizzly/proposed"|"grizzy/staging")
+          codename="grizly" ;;
       esac
     fi
+  fi
+
+  # have a guess based on the deb string provided
+  if [[ "${rel:0:3}" == "deb" ]]; then
+    CODENAMES="diablo essex folsom grizzly"
+    for cname in $CODENAME; do
+      if echo $rel | grep -q $cname; then
+        codename=$cname
+      fi
+    done
   fi
   echo $codename
 }
