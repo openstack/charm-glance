@@ -78,7 +78,7 @@ function configure_install_source {
         juju-log "$CHARM No repository key specified"
         url="$src"
       fi
-      add-apt-repository -y "$url"
+      echo $url > /etc/apt/sources.list.d/juju_deb.list
     fi
     return 0
   fi
