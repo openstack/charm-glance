@@ -13,7 +13,7 @@ function install_hook {
   juju-log "Installing glance packages"
   apt-get -y install python-software-properties || exit 1
 
-  configure_install_source $(config-get openstack-origin)
+  configure_install_source "$(config-get openstack-origin)"
 
   apt-get update || exit 1
   apt-get -y install $PACKAGES || exit 1
