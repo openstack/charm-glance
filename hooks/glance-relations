@@ -114,10 +114,17 @@ function object-store_joined {
     local svc_password=$(relation-get -r $relid service_password $unit)
     local auth_host=$(relation-get -r $relid private-address $unit)
     local port=$(relation-get -r $relid service_port $unit)
-    local auth_url="http://$auth_host:$port/v2.0/"
-    set_or_update swift_store_user $svc_tenant:$svc_username api
-    set_or_update swift_store_key $svc_password api
-    set_or_update swift_store_auth_address $auth_url api
+    local auth_url=""
+
+    [[ -n "$auth_host" ]] && [[ -n "$port" ]] &&
+      auth_url="http://$auth_host:$port/v2.0/"
+
+    [[ -n "$svc_tenant" ]] && [[ -n "$svc_username" ]] &&
+      set_or_update swift_store_user "$svc_tenant:$svc_username" api
+    [[ -n "$svc_password" ]] &&
+      set_or_update swift_store_key "$svc_password" api
+    [[ -n "$auth_url" ]] &&
+      set_or_update swift_store_auth_address "$auth_url" api
   done
   service_ctl glance-api restart
 }
