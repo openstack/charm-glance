@@ -14,7 +14,7 @@ requires:
   shared-db:
     interface: mysql-shared
   object-store:
-    interface: swift
+    interface: swift-proxy
   identity-service:
     interface: keystone
   ceph:
