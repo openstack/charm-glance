@@ -227,11 +227,14 @@ function config_changed() {
   local cur=$(get_os_codename_package "glance-common")
   local available=$(get_os_codename_install_source "$install_src")
 
-  if dpkg --compare-versions $(get_os_version_codename "$cur") lt \
-                             $(get_os_version_codename "$available") ; then
-    juju-log "$CHARM: Upgrading OpenStack release: $cur -> $available."
-    do_openstack_upgrade "$install_src" $PACKAGES
+  if [[ "$available" != "unknown" ]] ; then
+    if dpkg --compare-versions $(get_os_version_codename "$cur") lt \
+                               $(get_os_version_codename "$available") ; then
+      juju-log "$CHARM: Upgrading OpenStack release: $cur -> $available."
+      do_openstack_upgrade "$install_src" $PACKAGES
+    fi
   fi
+
   service_ctl all restart
 }
 
