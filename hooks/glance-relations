@@ -98,20 +98,40 @@ function image-service_joined {
   relation-set glance-api-server="$bind_host:$bind_port"
 }
 
-function object-store_changed {
-  URL=`relation-get url`
-  USER=`relation-get user`
-  PASSWORD=`relation-get password`
-  [[ -z $URL ]] || [[ -z $USER ]] || [[ -z $PASSWORD ]] && \
-    echo "URL||USER||PASSWORD not set, peer not ready?" && exit 0
+function object-store_joined {
+  local relids="$(relation-ids identity-service)"
+  [[ -z "$relids" ]] && \
+    juju-log "$CHARM: Deferring swift store configuration until " \
+             "an identity-service relation exists." && exit 0
+
   set_or_update default_store swift api
-  set_or_update swift_store_user system:$USER api
-  set_or_update swift_store_key $PASSWORD api
-  set_or_update swift_store_auth_address $URL api
   set_or_update swift_store_create_container_on_put true api
+
+  for relid in $relids ; do
+    local unit=$(relation-list -r $relid)
+    local svc_tenant=$(relation-get -r $relid service_tenant $unit)
+    local svc_username=$(relation-get -r $relid service_username $unit)
+    local svc_password=$(relation-get -r $relid service_password $unit)
+    local auth_host=$(relation-get -r $relid private-address $unit)
+    local port=$(relation-get -r $relid service_port $unit)
+    local auth_url=""
+
+    [[ -n "$auth_host" ]] && [[ -n "$port" ]] &&
+      auth_url="http://$auth_host:$port/v2.0/"
+
+    [[ -n "$svc_tenant" ]] && [[ -n "$svc_username" ]] &&
+      set_or_update swift_store_user "$svc_tenant:$svc_username" api
+    [[ -n "$svc_password" ]] &&
+      set_or_update swift_store_key "$svc_password" api
+    [[ -n "$auth_url" ]] &&
+      set_or_update swift_store_auth_address "$auth_url" api
+  done
   service_ctl glance-api restart
 }
 
+function object-store_changed {
+  exit 0
+}
 
 function ceph_joined {
   mkdir -p /etc/ceph
@@ -217,6 +237,10 @@ function keystone_changed {
     set_or_update "admin_password" "$service_password" $i
   done
   service_ctl all restart
+
+  # Configure any object-store / swift relations now that we have an
+  # identity-service
+  object-store_joined
 }
 
 function config_changed() {
@@ -246,7 +270,7 @@ case $ARG0 in
   "shared-db-relation-changed") db_changed;;
   "image-service-relation-joined") image-service_joined ;;
   "image-service-relation-changed") exit 0 ;;
-  "object-store-relation-joined") exit 0 ;;
+  "object-store-relation-joined") object-store_joined ;;
   "object-store-relation-changed") object-store_changed ;;
   "identity-service-relation-joined") keystone_joined ;;
   "identity-service-relation-changed") keystone_changed ;;
