@@ -70,16 +70,14 @@ function configure_install_source {
       # gpg key id tagged to end of url folloed by a |
       url=$(echo $src | cut -d'|' -f1)
       key=$(echo $src | cut -d'|' -f2)
-      if [[ -n "$key" ]] ; then
-        juju-log "$CHARM: Importing repository key: $key"
-        apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "$key" || \
-          juju-log "$CHARM WARN: Could not import key from keyserver: $key"
-      else
-        juju-log "$CHARM No repository key specified"
-        url="$src"
-      fi
-      echo $url > /etc/apt/sources.list.d/juju_deb.list
+      juju-log "$CHARM: Importing repository key: $key"
+      apt-key adv --keyserver keyserver.ubuntu.com --recv-keys "$key" || \
+        juju-log "$CHARM WARN: Could not import key from keyserver: $key"
+    else
+      juju-log "$CHARM No repository key specified."
+      url="$src"
     fi
+    echo "$url" > /etc/apt/sources.list.d/juju_deb.list
     return 0
   fi
 
@@ -94,12 +92,14 @@ function configure_install_source {
       error_out "Cannot install from Cloud Archive pocket $src " \
                 "on this Ubuntu version ($DISTRIB_CODENAME)!"
 
-    if [[ "$ca_rel" == "folsom/staging" ]] ; then
-      # cloud archive staging is just a regular PPA.
-      add-apt-repository -y ppa:ubuntu-cloud-archive/folsom-staging
+    # CA staging repos are standard PPAs.
+    if echo $ca_rel | grep -q "staging" ; then
+      ca_rel=$(echo $ca_rel | sed -e 's,/,-,g')
+      add-apt-repository -y ppa:ubuntu-cloud-archive/$ca_rel
       return 0
     fi
 
+    # the others are LP-external deb repos.
     case "$ca_rel" in
       "folsom"|"folsom/updates") pocket="precise-updates/folsom" ;;
       "folsom/proposed") pocket="precise-proposed/folsom" ;;
@@ -142,8 +142,8 @@ get_os_codename_install_source() {
       case "$ca_rel" in
         "folsom"|"folsom/updates"|"folsom/proposed"|"folsom/staging")
           codename="folsom" ;;
-        "grizzly"|"grizzly/updates"|"grizzly/proposed"|"grizzy/staging")
-          codename="grizly" ;;
+        "grizzly"|"grizzly/updates"|"grizzly/proposed"|"grizzly/staging")
+          codename="grizzly" ;;
       esac
     fi
   fi
@@ -151,7 +151,7 @@ get_os_codename_install_source() {
   # have a guess based on the deb string provided
   if [[ "${rel:0:3}" == "deb" ]]; then
     CODENAMES="diablo essex folsom grizzly"
-    for cname in $CODENAME; do
+    for cname in $CODENAMES; do
       if echo $rel | grep -q $cname; then
         codename=$cname
       fi
@@ -161,7 +161,7 @@ get_os_codename_install_source() {
 }
 
 get_os_codename_package() {
-  local pkg_vers=$(dpkg -l | grep "$1" | awk '{ print $3 }')
+  local pkg_vers=$(dpkg -l | grep "$1" | awk '{ print $3 }') || echo "none"
   case "${pkg_vers:0:6}" in
     "2011.2") echo "diablo" ;;
     "2012.1") echo "essex" ;;
@@ -177,4 +177,124 @@ get_os_version_codename() {
     "folsom") echo "2012.2" ;;
     "grizzly") echo "2012.3" ;;
   esac
+}
+
+get_ip() {
+  dpkg -l | grep -q python-dnspython || {
+    apt-get -y install python-dnspython 2>&1 > /dev/null
+  }
+  hostname=$1
+  python -c "
+import dns.resolver
+import socket
+try:
+  # Test to see if already an IPv4 address
+  socket.inet_aton('$hostname')
+  print '$hostname'
+except socket.error:
+  try:
+    answers = dns.resolver.query('$hostname', 'A')
+    if answers:
+      print answers[0].address
+  except dns.resolver.NXDOMAIN:
+    pass
+"
+}
+
+# Common storage routines used by cinder, nova-volume and swift-storage.
+clean_storage() {
+  # if configured to overwrite existing storage, we unmount the block-dev
+  # if mounted and clear any previous pv signatures
+  local block_dev="$1"
+  juju-log "Cleaining storage '$block_dev'"
+  if grep -q "^$block_dev" /proc/mounts ; then
+    mp=$(grep "^$block_dev" /proc/mounts   | awk '{ print $2 }')
+    juju-log "Unmounting $block_dev from $mp"
+    umount "$mp" || error_out "ERROR: Could not unmount storage from $mp"
+  fi
+  if pvdisplay "$block_dev" >/dev/null 2>&1 ; then
+    juju-log "Removing existing LVM PV signatures from $block_dev"
+
+    # deactivate any volgroups that may be built on this dev
+    vg=$(pvdisplay $block_dev | grep "VG Name" | awk '{ print $3 }')
+    if [[ -n "$vg" ]] ; then
+      juju-log "Deactivating existing volume group: $vg"
+      vgchange -an "$vg" ||
+        error_out "ERROR: Could not deactivate volgroup $vg.  Is it in use?"
+    fi
+    echo "yes" | pvremove -ff "$block_dev" ||
+      error_out "Could not pvremove $block_dev"
+  else
+    juju-log "Zapping disk of all GPT and MBR structures"
+    sgdisk --zap-all $block_dev ||
+      error_out "Unable to zap $block_dev"
+  fi
+}
+
+function get_block_device() {
+  # given a string, return full path to the block device for that
+  # if input is not a block device, find a loopback device
+  local input="$1"
+
+  case "$input" in
+    /dev/*) [[ ! -b "$input" ]] && error_out "$input does not exist."
+            echo "$input"; return 0;;
+    /*) :;;
+    *)  [[ ! -b "/dev/$input" ]] && error_out "/dev/$input does not exist."
+        echo "/dev/$input"; return 0;;
+  esac
+
+  # this represents a file
+  # support "/path/to/file|5G"
+  local fpath size oifs="$IFS"
+  if [ "${input#*|}" != "${input}" ]; then
+    size=${input##*|}
+    fpath=${input%|*}
+  else
+    fpath=${input}
+    size=5G
+  fi
+
+  ## loop devices are not namespaced.  This is bad for containers.
+  ## it means that the output of 'losetup' may have the given $fpath
+  ## in it, but that may not represent this containers $fpath, but
+  ## another containers.  To address that, we really need to
+  ## allow some uniq container-id to be expanded within path.
+  ## TODO: find a unique container-id that will be consistent for
+  ##       this container throughout its lifetime and expand it
+  ##       in the fpath.
+  # fpath=${fpath//%{id}/$THAT_ID}
+
+  local found=""
+  # parse through 'losetup -a' output, looking for this file
+  # output is expected to look like:
+  #   /dev/loop0: [0807]:961814 (/tmp/my.img)
+  found=$(losetup -a |
+    awk 'BEGIN { found=0; }
+         $3 == f { sub(/:$/,"",$1); print $1; found=found+1; }
+         END { if( found == 0 || found == 1 ) { exit(0); }; exit(1); }' \
+         f="($fpath)")
+
+  if [ $? -ne 0 ]; then
+    echo "multiple devices found for $fpath: $found" 1>&2
+    return 1;
+  fi
+
+  [ -n "$found" -a -b "$found" ] && { echo "$found"; return 1; }
+
+  if [ -n "$found" ]; then
+    echo "confused, $found is not a block device for $fpath";
+    return 1;
+  fi
+
+  # no existing device was found, create one
+  mkdir -p "${fpath%/*}"
+  truncate --size "$size" "$fpath" ||
+    { echo "failed to create $fpath of size $size"; return 1; }
+
+  found=$(losetup --find --show "$fpath") ||
+    { echo "failed to setup loop device for $fpath" 1>&2; return 1; }
+
+  echo "$found"
+  return 0
 }
