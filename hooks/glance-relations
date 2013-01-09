@@ -240,7 +240,9 @@ function keystone_changed {
 
   # Configure any object-store / swift relations now that we have an
   # identity-service
-  object-store_joined
+  if [[ -n "$(relation-ids object-store)" ]] ; then
+    object-store_joined
+  fi
 }
 
 function config_changed() {
