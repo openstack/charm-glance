@@ -109,8 +109,7 @@ function configure_install_source {
 
     # CA staging repos are standard PPAs.
     if echo $ca_rel | grep -q "staging" ; then
-      ca_rel=$(echo $ca_rel | sed -e 's,/,-,g')
-      add-apt-repository -y ppa:ubuntu-cloud-archive/$ca_rel
+      add-apt-repository -y ppa:ubuntu-cloud-archive/${os_rel}-staging
       return 0
     fi
 
