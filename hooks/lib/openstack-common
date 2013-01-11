@@ -83,14 +83,29 @@ function configure_install_source {
 
   # Cloud Archive
   if [[ "${src:0:6}" == "cloud:" ]] ; then
-    local archive_key="5EDB1B62EC4926EA"
-    local rel=$(echo $src | cut -d: -f2)
-    local u_rel=$(echo $rel | cut -d- -f1)
-    local ca_rel=$(echo $rel | cut -d- -f2)
+
+    # current os releases supported by the UCA.
+    local cloud_archive_versions="folsom grizzly"
+
+    local ca_rel=$(echo $src | cut -d: -f2)
+    local u_rel=$(echo $ca_rel | cut -d- -f1)
+    local os_rel=$(echo $ca_rel | cut -d- -f2 | cut -d/ -f1)
 
     [[ "$u_rel" != "$DISTRIB_CODENAME" ]] &&
       error_out "Cannot install from Cloud Archive pocket $src " \
                 "on this Ubuntu version ($DISTRIB_CODENAME)!"
+
+    valid_release=""
+    for rel in $cloud_archive_versions ; do
+      if [[ "$os_rel" == "$rel" ]] ; then
+        valid_release=1
+        juju-log "Installing OpenStack ($os_rel) from the Ubuntu Cloud Archive."
+      fi
+    done
+    if [[ -z "$valid_release" ]] ; then
+      error_out "OpenStack release ($os_rel) not supported by "\
+                "the Ubuntu Cloud Archive."
+    fi
 
     # CA staging repos are standard PPAs.
     if echo $ca_rel | grep -q "staging" ; then
@@ -101,15 +116,17 @@ function configure_install_source {
 
     # the others are LP-external deb repos.
     case "$ca_rel" in
-      "folsom"|"folsom/updates") pocket="precise-updates/folsom" ;;
-      "folsom/proposed") pocket="precise-proposed/folsom" ;;
+      "$u_rel-$os_rel"|"$u_rel-$os_rel/updates") pocket="$u_rel-updates/$os_rel" ;;
+      "$u_rel-$os_rel/proposed") pocket="$u_rel-proposed/$os_rel" ;;
+      "$u_rel-$os_rel"|"$os_rel/updates") pocket="$u_rel-updates/$os_rel" ;;
+      "$u_rel-$os_rel/proposed") pocket="$u_rel-proposed/$os_rel" ;;
       *) error_out "Invalid Cloud Archive repo specified: $src"
     esac
 
+    apt-get -y install ubuntu-cloud-keyring
     entry="deb http://ubuntu-cloud.archive.canonical.com/ubuntu $pocket main"
     echo "$entry" \
       >/etc/apt/sources.list.d/ubuntu-cloud-archive-$DISTRIB_CODENAME.list
-    apt-key  adv --keyserver keyserver.ubuntu.com --recv-keys $archive_key
     return 0
   fi
 
