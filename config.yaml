@@ -22,3 +22,27 @@ options:
     default: glance
     type: string
     description: Glance database name.
+  # HA configuration settings
+  vip:
+    type: string
+    description: "Virtual IP to use to front Glance API in ha configuration"
+  vip_iface:
+    type: string
+    default: eth0
+    description: "Network Interface where to place the Virtual IP"
+  vip_cidr:
+    type: int
+    default: 24
+    description: "Netmask that will be used for the Virtual IP"
+  ha-bindiface:
+    type: string
+    default: eth0
+    description: |
+      Default network interface on which HA cluster will bind to communication
+      with the other members of the HA Cluster.
+  ha-mcastport:
+    type: int
+    default: 5408
+    description: |
+      Default multicast port number that will be used to communicate between
+      HA Cluster nodes.

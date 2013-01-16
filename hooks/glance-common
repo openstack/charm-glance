@@ -3,7 +3,7 @@
 CHARM="glance"
 
 SERVICES="glance-api glance-registry"
-PACKAGES="glance python-mysqldb python-swift python-keystone uuid"
+PACKAGES="glance python-mysqldb python-swift python-keystone uuid haproxy"
 
 GLANCE_REGISTRY_CONF="/etc/glance/glance-registry.conf"
 GLANCE_REGISTRY_PASTE_INI="/etc/glance/glance-registry-paste.ini"

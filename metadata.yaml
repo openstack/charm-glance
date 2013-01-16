@@ -1,4 +1,3 @@
-ensemble: formula
 name: glance
 maintainer: Adam Gandelman <adamg@canonical.com>
 summary: "OpenStack Image Registry and Delivery Service"
@@ -19,3 +18,9 @@ requires:
     interface: keystone
   ceph:
     interface: ceph-client
+  ha:
+    interface: hacluster
+    scope: container
+peers:
+  cluster:
+    interface: glance-ha

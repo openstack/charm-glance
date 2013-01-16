@@ -83,49 +83,33 @@ function configure_install_source {
 
   # Cloud Archive
   if [[ "${src:0:6}" == "cloud:" ]] ; then
-
-    # current os releases supported by the UCA.
-    local cloud_archive_versions="folsom grizzly"
-
-    local ca_rel=$(echo $src | cut -d: -f2)
-    local u_rel=$(echo $ca_rel | cut -d- -f1)
-    local os_rel=$(echo $ca_rel | cut -d- -f2 | cut -d/ -f1)
+    local archive_key="5EDB1B62EC4926EA"
+    local rel=$(echo $src | cut -d: -f2)
+    local u_rel=$(echo $rel | cut -d- -f1)
+    local ca_rel=$(echo $rel | cut -d- -f2)
 
     [[ "$u_rel" != "$DISTRIB_CODENAME" ]] &&
       error_out "Cannot install from Cloud Archive pocket $src " \
                 "on this Ubuntu version ($DISTRIB_CODENAME)!"
 
-    valid_release=""
-    for rel in $cloud_archive_versions ; do
-      if [[ "$os_rel" == "$rel" ]] ; then
-        valid_release=1
-        juju-log "Installing OpenStack ($os_rel) from the Ubuntu Cloud Archive."
-      fi
-    done
-    if [[ -z "$valid_release" ]] ; then
-      error_out "OpenStack release ($os_rel) not supported by "\
-                "the Ubuntu Cloud Archive."
-    fi
-
     # CA staging repos are standard PPAs.
     if echo $ca_rel | grep -q "staging" ; then
-      add-apt-repository -y ppa:ubuntu-cloud-archive/${os_rel}-staging
+      ca_rel=$(echo $ca_rel | sed -e 's,/,-,g')
+      add-apt-repository -y ppa:ubuntu-cloud-archive/$ca_rel
       return 0
     fi
 
     # the others are LP-external deb repos.
     case "$ca_rel" in
-      "$u_rel-$os_rel"|"$u_rel-$os_rel/updates") pocket="$u_rel-updates/$os_rel" ;;
-      "$u_rel-$os_rel/proposed") pocket="$u_rel-proposed/$os_rel" ;;
-      "$u_rel-$os_rel"|"$os_rel/updates") pocket="$u_rel-updates/$os_rel" ;;
-      "$u_rel-$os_rel/proposed") pocket="$u_rel-proposed/$os_rel" ;;
+      "folsom"|"folsom/updates") pocket="precise-updates/folsom" ;;
+      "folsom/proposed") pocket="precise-proposed/folsom" ;;
       *) error_out "Invalid Cloud Archive repo specified: $src"
     esac
 
-    apt-get -y install ubuntu-cloud-keyring
     entry="deb http://ubuntu-cloud.archive.canonical.com/ubuntu $pocket main"
     echo "$entry" \
       >/etc/apt/sources.list.d/ubuntu-cloud-archive-$DISTRIB_CODENAME.list
+    apt-key  adv --keyserver keyserver.ubuntu.com --recv-keys $archive_key
     return 0
   fi
 
@@ -238,6 +222,7 @@ clean_storage() {
       vgchange -an "$vg" ||
         error_out "ERROR: Could not deactivate volgroup $vg.  Is it in use?"
     fi
+
     echo "yes" | pvremove -ff "$block_dev" ||
       error_out "Could not pvremove $block_dev"
   else
@@ -313,4 +298,106 @@ function get_block_device() {
 
   echo "$found"
   return 0
+}
+
+HAPROXY_CFG=/etc/haproxy/haproxy.cfg
+HAPROXY_DEFAULT=/etc/default/haproxy
+
+##########################################################################
+# Description: Configures HAProxy services for Openstack API's
+# Parameters: 
+#   Space delimited list of service:port combinations for which
+#   haproxy service configuration should be generated for.  The function
+#   assumes the name of the peer relation is 'cluster' and that every
+#   service unit in the peer relation is running the same services.
+#
+#   The HAProxy service will listen on port + 10000.
+# Example:
+#   configure_haproxy cinder_api:12345 nova_api:9999 
+##########################################################################
+configure_haproxy() {
+  local address=`unit-get private-address`
+  local name=${JUJU_UNIT_NAME////-}
+  cat > $HAPROXY_CFG << EOF
+global
+  log 127.0.0.1 local0
+  log 127.0.0.1 local1 notice
+  maxconn 4096
+  user haproxy
+  group haproxy
+  spread-checks 0
+
+defaults
+  log global
+  mode http
+  option httplog
+  option dontlognull
+  retries 3
+  timeout queue 1000
+  timeout connect 1000
+  timeout client 1000
+  timeout server 1000
+
+listen stats :8888
+  mode http
+  stats enable
+  stats hide-version
+  stats realm Haproxy\ Statistics
+  stats uri /
+  stats auth admin:password
+
+EOF
+  for service in $@; do
+    local service_name=$(echo $service | cut -d : -f 1)
+    local api_listen_port=$(echo $service | cut -d : -f 2)
+    local haproxy_listen_port=$(($api_listen_port + 10000))
+    cat >> $HAPROXY_CFG << EOF
+listen $service_name 0.0.0.0:$haproxy_listen_port
+  balance roundrobin
+  option tcplog
+  server $name $address:$api_listen_port check
+EOF
+    for r_id in `relation-ids cluster`; do
+      for unit in `relation-list -r $r_id`; do
+        local unit_name=${unit////-}
+        local unit_address=`relation-get -r $r_id private-address $unit`
+        if [ -n "$unit_address" ]; then
+          echo "  server $unit_name $unit_address:$api_listen_port check" \
+            >> $HAPROXY_CFG
+        fi
+      done
+    done
+  done
+  echo "ENABLED=1" > $HAPROXY_DEFAULT
+}
+
+##########################################################################
+# Description: Query HA interface to determine is cluster is configured
+# Returns: 0 if configured, 1 if not configured
+##########################################################################
+is_clustered() {
+  for r_id in `relation-ids ha`; do
+    for unit in `relation-list -r $r_id`; do
+       clustered=`relation-get -r $r_id clustered $unit`
+       if [ -n "$clustered" ]; then
+         return 0
+       fi
+    done
+  done
+  return 1
+}
+
+##########################################################################
+# Description: Determines whether host is owner of clustered services
+# Parameters: Name of CRM resource to check ownership of
+# Returns: 0 if leader, 1 if not leader
+##########################################################################
+is_leader() {
+  hostname=`hostname`
+  if [ -x /usr/sbin/crm ]; then
+    if crm resource show $1 | grep -q $hostname; then
+      return 0
+    fi
+  fi
+  return 1
 }
