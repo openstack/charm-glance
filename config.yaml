@@ -22,6 +22,10 @@ options:
     default: glance
     type: string
     description: Glance database name.
+  region:
+    default: RegionOne
+    type: string
+    description: OpenStack Region
   # HA configuration settings
   vip:
     type: string

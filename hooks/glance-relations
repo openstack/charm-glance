@@ -195,7 +195,7 @@ function keystone_joined {
     url="http://$(unit-get private-address):$port/v1"
   fi
   relation-set service="glance" \
-    region="RegionOne" public_url=$url admin_url=$url internal_url=$url
+    region="$(config-get region)" public_url=$url admin_url=$url internal_url=$url
 }
 
 function keystone_changed {
