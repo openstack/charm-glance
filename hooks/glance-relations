@@ -162,7 +162,7 @@ function ceph_changed {
   MONS=`relation-list`
   mon_hosts=""
   for mon in $MONS; do
-    mon_hosts="$mon_hosts `relation-get private-address $mon`:6789"
+    mon_hosts="$mon_hosts`relation-get private-address $mon`:6789,"
   done
   cat > /etc/ceph/ceph.conf << EOF
 [global]
