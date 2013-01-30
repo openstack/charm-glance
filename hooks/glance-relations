@@ -91,6 +91,16 @@ function db_changed {
 }
 
 function image-service_joined {
+  if is_peered && ! is_clustered; then
+    # Unit is in peering state - don't do anything as it
+    # will probably cluster soon
+    return 0
+  fi
+  if is_clustered && ! is_leader 'res_glance_vip'; then
+    # Clustered but not the current leader
+    # do nothing
+    return 0
+  fi
   bind_port=9292
   if is_clustered && is_leader 'res_glance_vip'; then
     bind_port=$(($bind_port + 10000))
@@ -186,6 +196,17 @@ EOF
 }
 
 function keystone_joined {
+  if is_peered && ! is_clustered; then
+    # Unit is in peering state - don't do anything as it
+    # will probably cluster soon in which case keystone
+    # already knows about its VIP
+    return 0
+  fi
+  if is_clustered && ! is_leader 'res_glance_vip'; then
+    # Clustered but not the current leader
+    # do nothing
+    return 0
+  fi
   # advertise our API endpoint to keystone
   port=9292
   if is_clustered && is_leader 'res_glance_vip'; then

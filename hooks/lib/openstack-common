@@ -83,33 +83,49 @@ function configure_install_source {
 
   # Cloud Archive
   if [[ "${src:0:6}" == "cloud:" ]] ; then
-    local archive_key="5EDB1B62EC4926EA"
-    local rel=$(echo $src | cut -d: -f2)
-    local u_rel=$(echo $rel | cut -d- -f1)
-    local ca_rel=$(echo $rel | cut -d- -f2)
+
+    # current os releases supported by the UCA.
+    local cloud_archive_versions="folsom grizzly"
+
+    local ca_rel=$(echo $src | cut -d: -f2)
+    local u_rel=$(echo $ca_rel | cut -d- -f1)
+    local os_rel=$(echo $ca_rel | cut -d- -f2 | cut -d/ -f1)
 
     [[ "$u_rel" != "$DISTRIB_CODENAME" ]] &&
       error_out "Cannot install from Cloud Archive pocket $src " \
                 "on this Ubuntu version ($DISTRIB_CODENAME)!"
 
+    valid_release=""
+    for rel in $cloud_archive_versions ; do
+      if [[ "$os_rel" == "$rel" ]] ; then
+        valid_release=1
+        juju-log "Installing OpenStack ($os_rel) from the Ubuntu Cloud Archive."
+      fi
+    done
+    if [[ -z "$valid_release" ]] ; then
+      error_out "OpenStack release ($os_rel) not supported by "\
+                "the Ubuntu Cloud Archive."
+    fi
+
     # CA staging repos are standard PPAs.
     if echo $ca_rel | grep -q "staging" ; then
-      ca_rel=$(echo $ca_rel | sed -e 's,/,-,g')
-      add-apt-repository -y ppa:ubuntu-cloud-archive/$ca_rel
+      add-apt-repository -y ppa:ubuntu-cloud-archive/${os_rel}-staging
       return 0
     fi
 
     # the others are LP-external deb repos.
     case "$ca_rel" in
-      "folsom"|"folsom/updates") pocket="precise-updates/folsom" ;;
-      "folsom/proposed") pocket="precise-proposed/folsom" ;;
+      "$u_rel-$os_rel"|"$u_rel-$os_rel/updates") pocket="$u_rel-updates/$os_rel" ;;
+      "$u_rel-$os_rel/proposed") pocket="$u_rel-proposed/$os_rel" ;;
+      "$u_rel-$os_rel"|"$os_rel/updates") pocket="$u_rel-updates/$os_rel" ;;
+      "$u_rel-$os_rel/proposed") pocket="$u_rel-proposed/$os_rel" ;;
       *) error_out "Invalid Cloud Archive repo specified: $src"
     esac
 
+    apt-get -y install ubuntu-cloud-keyring
     entry="deb http://ubuntu-cloud.archive.canonical.com/ubuntu $pocket main"
     echo "$entry" \
       >/etc/apt/sources.list.d/ubuntu-cloud-archive-$DISTRIB_CODENAME.list
-    apt-key  adv --keyserver keyserver.ubuntu.com --recv-keys $archive_key
     return 0
   fi
 
@@ -222,7 +238,6 @@ clean_storage() {
       vgchange -an "$vg" ||
         error_out "ERROR: Could not deactivate volgroup $vg.  Is it in use?"
     fi
-
     echo "yes" | pvremove -ff "$block_dev" ||
       error_out "Could not pvremove $block_dev"
   else
@@ -380,11 +395,28 @@ is_clustered() {
     for unit in `relation-list -r $r_id`; do
        clustered=`relation-get -r $r_id clustered $unit`
        if [ -n "$clustered" ]; then
+         echo "Unit is clustered"
          return 0
        fi
     done
   done
+  echo "Unit is not clustered"
   return 1
+}
+
+##########################################################################
+# Description: Query Cluster peer interface to see if peered
+# Returns: 0 if peered, 1 if not peered
+##########################################################################
+is_peered() {
+  r_id=$(relation-ids cluster)
+  if [ -z "$(relation-list -r $r_id)" ]; then
+    echo "Unit not yet peered"
+    return 1
+  else
+    echo "Unit peered"
+    return 0
+  fi
 }
 
 ##########################################################################
@@ -396,8 +428,11 @@ is_leader() {
   hostname=`hostname`
   if [ -x /usr/sbin/crm ]; then
     if crm resource show $1 | grep -q $hostname; then
+      echo "$hostname is cluster leader"
       return 0
     fi
   fi
+  echo "$hostname is not cluster leader"
   return 1
 }
+
