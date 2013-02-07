@@ -329,7 +329,8 @@ function ha_relation_changed() {
     local host=$(config-get vip)
     local url="http://$host:$port/v1"
     for r_id in `relation-ids identity-service`; do
-      relation-set -r $r_id \
+      relation-set -r $r_id service="glance" \
+        region="$(config-get region)" \
         public_url="$url" admin_url="$url" internal_url="$url"
     done
     for r_id in `relation-ids image-service`; do
