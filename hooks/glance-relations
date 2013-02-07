@@ -324,7 +324,7 @@ function ha_relation_joined() {
 
 function ha_relation_changed() {
   local clustered=`relation-get clustered`
-  if eligible_leader 'res_glance_vip'; then
+  if [ -n "$clustered" ] && is_leader 'res_glance_vip'; then
     local port=$((9292 + 10000))
     local host=$(config-get vip)
     local url="http://$host:$port/v1"
