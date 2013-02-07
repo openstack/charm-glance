@@ -337,7 +337,7 @@ configure_haproxy() {
 global
   log 127.0.0.1 local0
   log 127.0.0.1 local1 notice
-  maxconn 4096
+  maxconn 20000
   user haproxy
   group haproxy
   spread-checks 0
@@ -391,17 +391,73 @@ EOF
 # Returns: 0 if configured, 1 if not configured
 ##########################################################################
 is_clustered() {
-  for r_id in `relation-ids ha`; do
-    for unit in `relation-list -r $r_id`; do
-       clustered=`relation-get -r $r_id clustered $unit`
-       if [ -n "$clustered" ]; then
-         echo "Unit is clustered"
-         return 0
-       fi
-    done
+  for r_id in $(relation-ids ha); do
+    if [ -n "$r_id" ]; then
+      for unit in $(relation-list -r $r_id); do
+         clustered=$(relation-get -r $r_id clustered $unit)
+         if [ -n "$clustered" ]; then
+           echo "Unit is clustered"
+           return 0
+         fi
+      done
+    fi
   done
   echo "Unit is not clustered"
   return 1
+}
+
+##########################################################################
+# Description: Return a list of all peers in cluster relations
+##########################################################################
+peer_units() {
+  local peers=""
+  for r_id in $(relation-ids cluster); do
+    peers="$peers $(relation-list -r $r_id)"
+  done
+  echo $peers
+}
+
+##########################################################################
+# Description: Determines whether the current unit is the oldest of all
+#              its peers - supports partial leader election
+# Returns: 0 if oldest, 1 if not
+##########################################################################
+oldest_peer() {
+  peers=$1
+  local l_unit_no=$(echo $JUJU_UNIT_NAME | cut -d / -f 2)
+  for peer in $peers; do
+    echo "Comparing $JUJU_UNIT_NAME with peers: $peers"
+    local r_unit_no=$(echo $peer | cut -d / -f 2)
+    if (($r_unit_no<$l_unit_no)); then
+        echo "Not oldest peer; deferring"
+        return 1
+    fi
+  done
+  echo "Oldest peer; might take charge?"
+  return 0
+}
+
+##########################################################################
+# Description: Determines whether the current service units is the
+#              leader within a) a cluster of its peers or b) across a
+#              set of unclustered peers.
+# Parameters: CRM resource to check ownership of if clustered
+# Returns: 0 if leader, 1 if not
+##########################################################################
+eligible_leader() {
+  if is_clustered; then
+    if ! is_leader $1; then
+      echo 'Deferring action to CRM leader'
+      return 1
+    fi
+  else
+    peers=$(peer_units)
+    if [ -n "$peers" ] && ! oldest_peer "$peers"; then
+      echo 'Deferring action to oldest service unit.'
+      return 1
+    fi
+  fi
+  return 0
 }
 
 ##########################################################################
@@ -410,13 +466,14 @@ is_clustered() {
 ##########################################################################
 is_peered() {
   r_id=$(relation-ids cluster)
-  if [ -z "$(relation-list -r $r_id)" ]; then
-    echo "Unit not yet peered"
-    return 1
-  else
-    echo "Unit peered"
-    return 0
+  if [ -n "$r_id" ]; then
+    if [ -n "$(relation-list -r $r_id)" ]; then
+      echo "Unit peered"
+      return 0
+    fi
   fi
+  echo "Unit not peered"
+  return 1
 }
 
 ##########################################################################

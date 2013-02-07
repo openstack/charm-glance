@@ -77,35 +77,28 @@ function db_changed {
   [[ "$rel" == "folsom" ]] &&
     set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" api
 
-  if [[ "$rel" == "essex" ]] ; then
-    # Essex required initializing new databases to version 0
-    if ! glance-manage db_version >/dev/null 2>&1; then
-      juju-log "Setting glance database version to 0"
-      glance-manage version_control 0
+  if eligible_leader 'res_glance_vip'; then
+    if [[ "$rel" == "essex" ]] ; then
+      # Essex required initializing new databases to version 0
+      if ! glance-manage db_version >/dev/null 2>&1; then
+        juju-log "Setting glance database version to 0"
+        glance-manage version_control 0
+      fi
     fi
+    juju-log "$CHARM - db_changed: Running database migrations for $rel."
+    glance-manage db_sync
   fi
-
-  juju-log "$CHARM - db_changed: Running database migrations for $rel."
-  glance-manage db_sync
   service_ctl all restart
 }
 
 function image-service_joined {
-  if is_peered && ! is_clustered; then
-    # Unit is in peering state - don't do anything as it
-    # will probably cluster soon
-    return 0
-  fi
-  if is_clustered && ! is_leader 'res_glance_vip'; then
-    # Clustered but not the current leader
-    # do nothing
-    return 0
-  fi
+  # Check to see if unit is potential leader
+  eligible_leader 'res_glance_vip' || return 0
   bind_port=9292
-  if is_clustered && is_leader 'res_glance_vip'; then
+  if is_clustered; then
     bind_port=$(($bind_port + 10000))
     bind_host=`config-get vip`
-  elif ! is_clustered; then
+  else
     bind_host=`unit-get private-address`
   fi
   juju-log "glance: image-service_joined: To peer glance-api-server=$bind_host:$bind_port"
@@ -196,23 +189,14 @@ EOF
 }
 
 function keystone_joined {
-  if is_peered && ! is_clustered; then
-    # Unit is in peering state - don't do anything as it
-    # will probably cluster soon in which case keystone
-    # already knows about its VIP
-    return 0
-  fi
-  if is_clustered && ! is_leader 'res_glance_vip'; then
-    # Clustered but not the current leader
-    # do nothing
-    return 0
-  fi
+  # Leadership check
+  eligible_leader 'res_glance_vip' || return 0
   # advertise our API endpoint to keystone
   port=9292
-  if is_clustered && is_leader 'res_glance_vip'; then
+  if is_clustered; then
     port=$(($port + 10000))
     url="http://$(config-get vip):$port/v1"
-  elif ! is_clustered; then
+  else
     url="http://$(unit-get private-address):$port/v1"
   fi
   relation-set service="glance" \
@@ -340,7 +324,7 @@ function ha_relation_joined() {
 
 function ha_relation_changed() {
   local clustered=`relation-get clustered`
-  if [ -n "$clustered" ] && is_leader 'res_glance_vip'; then
+  if eligible_leader 'res_glance_vip'; then
     local port=$((9292 + 10000))
     local host=$(config-get vip)
     local url="http://$host:$port/v1"
