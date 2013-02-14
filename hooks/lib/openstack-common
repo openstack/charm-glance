@@ -452,6 +452,9 @@ eligible_leader() {
     fi
   else
     peers=$(peer_units)
+    for peer in $peers ; do
+      echo "$peer"
+    done
     if [ -n "$peers" ] && ! oldest_peer "$peers"; then
       echo 'Deferring action to oldest service unit.'
       return 1
@@ -493,3 +496,166 @@ is_leader() {
   return 1
 }
 
+##########################################################################
+# Description: Determines whether enough data has been provided in
+# configuration or relation data to configure HTTPS.
+# Parameters:  None
+# Returns: 0 if HTTPS can be configured, 1 if not.
+##########################################################################
+https() {
+  # determine whether enough data exists in config or relation to satisfy
+  # https configuration.
+  local r_id="$1"
+  [[ -n "$r_id" ]] && r_id="-r $r_id"
+  if [[ -n "$(config-get ssl_cert)" ]] &&
+     [[ -n "$(config-get ssl_key)" ]] ; then
+    return 0
+  elif [[ "$(relation-get $r_id https_keystone)" != "True" ]] ; then
+    juju-log "HTTPS_KEYSTONE NOT ENABLED BY KS PEER."
+    return 1
+  elif [[ -n "$(relation-get $r_id ssl_cert)" ]] &&
+       [[ -n "$(relation-get $r_id ssl_key)" ]] &&
+       [[ -n "$(relation-get $r_id ca_cert)" ]] ; then
+    juju-log "HTTPS_KEYSTONE ENABLED BY KS PEER."
+    return 0
+  else
+    juju-log "WTF."
+    return 1
+  fi
+}
+
+##########################################################################
+# Description: For a given number of port mappings, configures apache2
+# HTTPs local reverse proxying using certficates and keys provided in
+# either configuration data (preferred) or relation data.  Assumes ports
+# are not in use (calling charm should ensure that).
+# Parameters:  Variable number of proxy port mappings as
+# $internal:$external.
+# Returns: 0 if reverse proxy(s) have been configured, 0 if not.
+##########################################################################
+enable_https() {
+  local port_maps="$@"
+  local http_restart=""
+  juju-log "Enabling HTTPS for port mappings: $port_maps."
+
+  # allow overriding of keystone provided certs with those set manually
+  # in config.
+  cert=$(config-get ssl_cert)
+  key=$(config-get ssl_key)
+  if [[ -z "$cert" ]] || [[ -z "$key" ]] ; then
+    juju-log "Inspecting identity-service relations for SSL certificate."
+    local r_ids=$(relation-ids identity-service)
+    for r_id in $r_ids ; do
+      cert="$(relation-get -r $r_id ssl_cert)"
+      key="$(relation-get -r $r_id ssl_key)"
+      ca_cert="$(relation-get -r $r_id ca_cert)"
+    done
+    [[ -n "$cert" ]] && cert=$(echo $cert | base64 -di)
+    [[ -n "$key" ]] && key=$(echo $key | base64 -di)
+    [[ -n "$ca_cert" ]] && ca_cert=$(echo $ca_cert | base64 -di)
+  else
+    juju-log "Using SSL certificate provided in service config."
+  fi
+
+  [[ -z "$cert" ]] || [[ -z "$key" ]] &&
+    juju-log "Expected but could not find SSL certificate data, not "\
+             "configuring HTTPS!" && return 1
+
+  apt-get -y install apache2
+  a2enmod ssl proxy proxy_http | grep -v "To activate the new configuration" &&
+    http_restart=1
+
+  mkdir -p /etc/apache2/ssl/$CHARM
+  echo "$cert" >/etc/apache2/ssl/$CHARM/cert
+  echo "$key" >/etc/apache2/ssl/$CHARM/key
+  if [[ -n "$ca_cert" ]] ; then
+    juju-log "Installing Keystone supplied CA cert."
+    echo "$ca_cert" >/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt
+    update-ca-certificates --fresh
+  fi
+  for port_map in $port_maps ; do
+    local ext_port=$(echo $port_map | cut -d: -f1)
+    local int_port=$(echo $port_map | cut -d: -f2)
+    juju-log "Creating apache2 reverse proxy vhost for $port_map."
+    cat >/etc/apache2/sites-available/${CHARM}_${ext_port} <<END
+Listen $ext_port
+NameVirtualHost *:$ext_port
+<VirtualHost *:$ext_port>
+    ServerName $(unit-get private-address)
+    SSLEngine on
+    SSLCertificateFile /etc/apache2/ssl/$CHARM/cert
+    SSLCertificateKeyFile /etc/apache2/ssl/$CHARM/key
+    ProxyPass / http://localhost:$int_port/
+    ProxyPassReverse / http://localhost:$int_port/
+    ProxyPreserveHost on
+</VirtualHost>
+<Proxy *>
+    Order deny,allow
+    Allow from all
+</Proxy>
+<Location />
+    Order allow,deny
+    Allow from all
+</Location>
+END
+    a2ensite ${CHARM}_${ext_port} | grep -v "To activate the new configuration" &&
+      http_restart=1
+  done
+  if [[ -n "$http_restart" ]] ; then
+    service apache2 restart
+  fi
+}
+
+##########################################################################
+# Description: Ensure HTTPS reverse proxying is disabled for given port
+# mappings.
+# Parameters:  Variable number of proxy port mappings as
+# $internal:$external.
+# Returns: 0 if reverse proxy is not active for all portmaps, 1 on error.
+##########################################################################
+disable_https() {
+  local port_maps="$@"
+  local http_restart=""
+  juju-log "DISABLE HTTPS"
+  ( [[ ! -d /etc/apache2 ]] || [[ ! -d /etc/apache2/ssl/$CHARM ]] ) && juju-log "NOTHIN" && return 0
+  for port_map in $port_maps ; do
+    juju-log "looking for active sites."
+    local ext_port=$(echo $port_map | cut -d: -f1)
+    local int_port=$(echo $port_map | cut -d: -f2)
+    if [[ -e /etc/apache2/sites-available/${CHARM}_${ext_port} ]] ; then
+      juju-log "Disabling HTTPS reverse proxy for $CHARM $port_map."
+      a2dissite ${CHARM}_${ext_port} | grep -v "To activate the new configuration" &&
+        http_restart=1
+    fi
+  done
+  juju-log "done disable: $http_restart http_restart"
+  if [[ -n "$http_restart" ]] ; then
+    service apache2 restart
+  fi
+}
+
+
+##########################################################################
+# Description: Ensures HTTPS is either enabled or disabled for given port
+# mapping.
+# Parameters:  Variable number of proxy port mappings as
+# $internal:$external.
+# Returns: 0 if HTTPS reverse proxy is in place, 1 if it is not.
+##########################################################################
+setup_https() {
+  # configure https via apache reverse proxying either
+  # using certs provided by config or keystone.
+  juju-log "setup https"
+  [[ -z "$CHARM" ]] &&
+    error_out "setup_https(): CHARM not set."
+  if ! https ; then
+    juju-log "ENSURE NO HTTPS"
+    if disable_https $@ ; then
+      return 1
+    else
+      error_out "Could not ensure HTTPS disabled for $@"
+    fi
+  fi
+  juju-log "ENSURE HTTPS"
+  enable_https $@
+}

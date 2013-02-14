@@ -25,6 +25,8 @@ function install_hook {
   set_or_update debug True api
   set_or_update verbose True registry
   set_or_update debug True registry
+
+  configure_https
 }
 
 function db_joined {
@@ -73,8 +75,8 @@ function db_changed {
 
   set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" registry
 
-  # folsom requires a db connection setting in glance-api.conf, as well.
-  [[ "$rel" == "folsom" ]] &&
+  # since folsom, a db connection setting in glance-api.conf is required.
+  [[ "$rel" != "essex" ]] &&
     set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" api
 
   if eligible_leader 'res_glance_vip'; then
@@ -191,13 +193,16 @@ EOF
 function keystone_joined {
   # Leadership check
   eligible_leader 'res_glance_vip' || return 0
+  local r_id="$1"
+  [[ -n "$r_id" ]] && r_id=" -r $r_id"
   # advertise our API endpoint to keystone
+  https && scheme="https" || scheme="http"
   port=9292
   if is_clustered; then
     port=$(($port + 10000))
-    url="http://$(config-get vip):$port/v1"
+    url="$scheme://$(config-get vip):$port/v1"
   else
-    url="http://$(unit-get private-address):$port/v1"
+    url="$scheme://$(unit-get private-address):$port/v1"
   fi
   relation-set service="glance" \
     region="$(config-get region)" public_url=$url admin_url=$url internal_url=$url
@@ -258,6 +263,9 @@ function keystone_changed {
   if [[ -n "$(relation-ids object-store)" ]] ; then
     object-store_joined
   fi
+
+  # possibly configure HTTPS for API and registry
+  configure_https
 }
 
 function config_changed() {
@@ -275,7 +283,7 @@ function config_changed() {
       do_openstack_upgrade "$install_src" $PACKAGES
     fi
   fi
-
+  configure_https
   service_ctl all restart
 }
 
