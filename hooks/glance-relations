@@ -25,6 +25,8 @@ function install_hook {
   set_or_update debug True api
   set_or_update verbose True registry
   set_or_update debug True registry
+
+  configure_https
 }
 
 function db_joined {
@@ -182,9 +184,12 @@ EOF
 }
 
 function keystone_joined {
+  local r_id="$1"
+  [[ -n "$r_id" ]] && r_id=" -r $r_id"
   # advertise our API endpoint to keystone
-  url="http://$(unit-get private-address):9292/v1"
-  relation-set service="glance" \
+  https && scheme="https" || scheme="http"
+  url="$scheme://$(unit-get private-address):9292/v1"
+  relation-set $r_id service="glance" \
     region="RegionOne" public_url=$url admin_url=$url internal_url=$url
 }
 
@@ -243,6 +248,9 @@ function keystone_changed {
   if [[ -n "$(relation-ids object-store)" ]] ; then
     object-store_joined
   fi
+
+  # possibly configure HTTPS for API and registry
+  configure_https
 }
 
 function config_changed() {
@@ -260,7 +268,7 @@ function config_changed() {
       do_openstack_upgrade "$install_src" $PACKAGES
     fi
   fi
-
+  configure_https
   service_ctl all restart
 }
 

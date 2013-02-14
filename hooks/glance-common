@@ -119,3 +119,23 @@ do_openstack_upgrade() {
     keystone_changed $r_id
   fi
 }
+
+
+configure_https() {
+  # request openstack-common setup reverse proxy mapping for API and registry
+  # servers
+  service_ctl all stop
+  if setup_https 9191:9181 9292:9282 ; then
+    juju-log "$CHARM: Configuring glance for HTTPS reverse proxying."
+    # configure servers to listen on new ports accordingly.
+    set_or_update bind_port "9181" "registry"
+    set_or_update bind_port "9282" "api"
+    set_or_update registry_port "9181" "api"
+    juju-log "$CHARM: Reverse proxy in place, updating Keystone catalog via "\
+             "identiy-service relation (if it exists)."
+    for r_id in "$(relation-ids identity-service)" ; do
+      keystone_joined "$r_id"
+    done
+  fi
+  service_ctl all start
+}

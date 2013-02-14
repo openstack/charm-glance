@@ -314,3 +314,98 @@ function get_block_device() {
   echo "$found"
   return 0
 }
+
+https() {
+  # determine whether enough data exists in config or relation to satisfy
+  # https configuration.
+  local r_id="$1"
+  [[ -n "$r_id" ]] && r_id="-r $r_id"
+  if [[ -n "$(config-get ssl_cert)" ]] &&
+     [[ -n "$(config-get ssl_key)" ]] ; then
+    return 0
+  elif [[ -n "$(relation-get $r_id ssl_cert)" ]] &&
+       [[ -n "$(relation-get $r_id ssl_key)" ]] &&
+       [[ -n "$(relation-get $r_id ca_cert)" ]] ; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+setup_https() {
+  # configure https via apache reverse proxying either
+  # using certs provided by config or keystone.
+  local cert=""
+  local key=""
+  local port_maps="$@"
+  local http_restart=""
+
+  [[ -z "$CHARM" ]] &&
+    error_out "setup_https(): CHARM not set."
+
+  # look for ssl certs in service config first, then keystone.
+  # allows per-service overriding of auto-created certs from keystone.
+  cert=$(config-get ssl_cert)
+  key=$(config-get ssl_key)
+  if [[ -z "$cert" ]] || [[ -z "$key" ]] ; then
+    juju-log "Inspecting identity-service relations for SSL certificate."
+    local r_ids=$(relation-ids identity-service)
+    for r_id in $r_ids ; do
+      cert="$(relation-get -r $r_id ssl_cert)"
+      key="$(relation-get -r $r_id ssl_key)"
+      ca_cert="$(relation-get -r $r_id ca_cert)"
+    done
+    [[ -n "$cert" ]] && cert=$(echo $cert | base64 -di)
+    [[ -n "$key" ]] && key=$(echo $key | base64 -di)
+    [[ -n "$ca_cert" ]] && ca_cert=$(echo $ca_cert | base64 -di)
+  else
+    juju-log "Using SSL certificate provided in service config."
+  fi
+
+  [[ -z "$cert" ]] || [[ -z "$key" ]] &&
+    juju-log "Could not find SSL certificate data, not configuring HTTPS." &&
+      return 1
+
+  apt-get -y install apache2
+
+  a2enmod ssl proxy proxy_http | grep -v "To activate the new configuration" &&
+    http_restart=1
+
+  mkdir -p /etc/apache2/ssl/$CHARM
+  echo "$cert" >/etc/apache2/ssl/$CHARM/cert
+  echo "$key" >/etc/apache2/ssl/$CHARM/key
+  if [[ -n "$ca_cert" ]] ; then
+    juju-log "Installing Keystone supplied CA cert."
+    echo "$ca_cert" >/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt
+    update-ca-certificates --fresh
+  fi
+  for port_map in $port_maps ; do
+    local ext_port=$(echo $port_map | cut -d: -f1)
+    local int_port=$(echo $port_map | cut -d: -f2)
+    juju-log "Creating apache2 reverse proxy vhost for $port_map."
+    cat >/etc/apache2/sites-available/${CHARM}_${ext_port} <<END
+Listen $ext_port
+NameVirtualHost *:$ext_port
+<VirtualHost *:$ext_port>
+    ServerName $(unit-get private-address)
+    SSLEngine on
+    SSLCertificateFile /etc/apache2/ssl/$CHARM/cert
+    SSLCertificateKeyFile /etc/apache2/ssl/$CHARM/key
+    ProxyPass / http://localhost:$int_port/
+    ProxyPassReverse / http://localhost:$int_port/
+    ProxyPreserveHost on
+</VirtualHost>
+<Proxy *>
+    Order deny,allow
+    Allow from all
+</Proxy>
+<Location />
+    Order allow,deny
+    Allow from all
+</Location>
+END
+    a2ensite ${CHARM}_${ext_port} | grep -v "To activate the new configuration" &&
+      http_restart=1
+  done
+  [[ -n "$http_restart" ]] && service apache2 restart
+}
