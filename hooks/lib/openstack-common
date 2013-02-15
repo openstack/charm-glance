@@ -384,13 +384,7 @@ EOF
     done
   done
   echo "ENABLED=1" > $HAPROXY_DEFAULT
-  if is_clustered ; then
-    if is_leader ; then
-      service haproxy restart
-    fi
-  else
-    service haproxy restart
-  fi
+  service haproxy restart
 }
 
 ##########################################################################
