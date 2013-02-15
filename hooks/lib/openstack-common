@@ -317,18 +317,16 @@ function get_block_device() {
 
 HAPROXY_CFG=/etc/haproxy/haproxy.cfg
 HAPROXY_DEFAULT=/etc/default/haproxy
-
 ##########################################################################
 # Description: Configures HAProxy services for Openstack API's
-# Parameters: 
-#   Space delimited list of service:port combinations for which
+# Parameters:
+#   Space delimited list of service:ext_port:int_port combinations for which
 #   haproxy service configuration should be generated for.  The function
 #   assumes the name of the peer relation is 'cluster' and that every
 #   service unit in the peer relation is running the same services.
 #
-#   The HAProxy service will listen on port + 10000.
-# Example:
-#   configure_haproxy cinder_api:12345 nova_api:9999 
+# Example
+#   configure_haproxy cinder_api:8776:8756i nova_api:8774:8764
 ##########################################################################
 configure_haproxy() {
   local address=`unit-get private-address`
@@ -364,8 +362,10 @@ listen stats :8888
 EOF
   for service in $@; do
     local service_name=$(echo $service | cut -d : -f 1)
-    local api_listen_port=$(echo $service | cut -d : -f 2)
-    local haproxy_listen_port=$(($api_listen_port + 10000))
+    local haproxy_listen_port=$(echo $service | cut -d : -f 2)
+    local api_listen_port=$(echo $service | cut -d : -f 3)
+    juju-log "Adding haproxy configuration entry for $service "\
+             "($haproxy_listen_port -> $api_listen_port)"
     cat >> $HAPROXY_CFG << EOF
 listen $service_name 0.0.0.0:$haproxy_listen_port
   balance roundrobin
@@ -384,6 +384,13 @@ EOF
     done
   done
   echo "ENABLED=1" > $HAPROXY_DEFAULT
+  if is_clustered ;
+    if is_leader ; then
+      service haproxy restart
+    fi
+  else
+    service haproxy restart
+  fi
 }
 
 ##########################################################################
@@ -649,13 +656,35 @@ setup_https() {
   [[ -z "$CHARM" ]] &&
     error_out "setup_https(): CHARM not set."
   if ! https ; then
-    juju-log "ENSURE NO HTTPS"
-    if disable_https $@ ; then
-      return 1
-    else
-      error_out "Could not ensure HTTPS disabled for $@"
-    fi
+    disable_https $@
+  else
+    enable_https $@
   fi
-  juju-log "ENSURE HTTPS"
-  enable_https $@
+}
+
+##########################################################################
+# Description: Determine correct API server listening port based on
+# existence of HTTPS reverse proxy and/or haproxy.
+# Paremeters: The standard public port for given service.
+# Returns: The correct listening port for API service.
+##########################################################################
+determine_api_port() {
+  local public_port="$1"
+  local i=0
+  ( [[ -n "$(peer_units)" ]] || is_clustered >/dev/null 2>&1 ) && i=$[$i + 1]
+  https >/dev/null 2>&1 && i=$[$i + 1]
+  echo $[$public_port - $[$i * 10]]
+}
+
+##########################################################################
+# Description: Determine correct proxy listening port based on public IP +
+# existence of HTTPS reverse proxy.
+# Paremeters: The standard public port for given service.
+# Returns: The correct listening port for haproxy service public address.
+##########################################################################
+determine_haproxy_port() {
+  local public_port="$1"
+  local i=0
+  https >/dev/null 2>&1 && i=$[$i + 1]
+  echo $[$public_port - $[$i * 10]]
 }

@@ -195,15 +195,14 @@ function keystone_joined {
   eligible_leader 'res_glance_vip' || return 0
   local r_id="$1"
   [[ -n "$r_id" ]] && r_id=" -r $r_id"
-  # advertise our API endpoint to keystone
+
+  # determine correct endpoint URL
   https && scheme="https" || scheme="http"
-  port=9292
-  if is_clustered; then
-    port=$(($port + 10000))
-    url="$scheme://$(config-get vip):$port/v1"
-  else
-    url="$scheme://$(unit-get private-address):$port/v1"
-  fi
+  is_clustered && local host=$(config-get vip) ||
+    local host=$(unit-get private-address)
+  url="$scheme://$host:9292/v1"
+
+  # advertise our API endpoint to keystone
   relation-set service="glance" \
     region="$(config-get region)" public_url=$url admin_url=$url internal_url=$url
 }
@@ -288,7 +287,15 @@ function config_changed() {
 }
 
 function cluster_changed() {
-  configure_haproxy "glance_api:9292"
+  echo "CLUSTER CHANGED"
+  local haproxy_port=$(determine_haproxy_port 9292)
+  local backend_port=$(determine_api_port 9292)
+  echo "haproxy_port: $haproxy_port"
+  echo "backend_port: $backend_port"
+  service glance-api stop
+  configure_haproxy "glance_api:$haproxy_port:$backend_port"
+  set_or_update bind_port "$backend_port" "api"
+  service glance-api start
 }
 
 function upgrade_charm() {
@@ -333,9 +340,10 @@ function ha_relation_joined() {
 function ha_relation_changed() {
   local clustered=`relation-get clustered`
   if [ -n "$clustered" ] && is_leader 'res_glance_vip'; then
-    local port=$((9292 + 10000))
     local host=$(config-get vip)
-    local url="http://$host:$port/v1"
+    https && local scheme="https" || local scheme="http"
+    local url="$scheme://$host:9292/v1"
+
     for r_id in `relation-ids identity-service`; do
       relation-set -r $r_id service="glance" \
         region="$(config-get region)" \
@@ -343,7 +351,7 @@ function ha_relation_changed() {
     done
     for r_id in `relation-ids image-service`; do
       relation-set -r $r_id \
-        glance-api-server="$host:$port"         
+        glance-api-server="$host:9292"
     done
   fi
 }

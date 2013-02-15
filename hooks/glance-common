@@ -123,23 +123,32 @@ do_openstack_upgrade() {
 configure_https() {
   # request openstack-common setup reverse proxy mapping for API and registry
   # servers
-  service_ctl all stop
-  if setup_https 9191:9181 9292:9282 ; then
-    juju-log "$CHARM: Configuring glance for HTTPS reverse proxying."
-    # configure servers to listen on new ports accordingly.
-    set_or_update bind_port "9181" "registry"
-    set_or_update bind_port "9282" "api"
-    set_or_update registry_port "9181" "api"
-    juju-log "$CHARM: Reverse proxy in place, updating Keystone catalog via "\
-             "identiy-service relation (if it exists)."
+  service_ctl glance-api stop
+  if [[ -n "$(peer_units)" ]] || is_clustered ; then
+    echo "configure_https clustered."
+    # haproxy may already be configured. need to push it back in the request
+    # pipeline in preparation for a change from:
+    #  from:  haproxy (9292) -> glance_api (9282)
+    #  to:    ssl (9292) -> haproxy (9291) -> glance_api (9272)
+    local next_server=$(determine_haproxy_port 9292)
+    local api_port=$(determine_api_port 9292)
+    echo "configure_haproxy glance_api:$next_server:$api_port"
+    configure_haproxy "glance_api:$next_server:$api_port"
   else
-    set_or_update bind_port "9191" "registry"
-    set_or_update bind_port "9292" "api"
-    set_or_update registry_port "9191" "api"
+    echo "configure_https NOT clustered."
+    # if not clustered, the glance-api is next in the pipeline.
+    local api_port=$(determine_api_port 9292)
+    local next_server=$api_port
   fi
+  echo "CONF PIPELINE: 9292 -> $next_server -> $api_port"
+  setup_https 9292:$next_server
+
+  # configure servers to listen on new ports accordingly.
+  set_or_update bind_port "$api_port" "api"
+  service_ctl all start
+
   # (re)configure ks endpoint accordingly
   for r_id in "$(relation-ids identity-service)" ; do
     keystone_joined "$r_id"
   done
-  service_ctl all start
 }
