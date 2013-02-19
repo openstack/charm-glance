@@ -397,13 +397,13 @@ is_clustered() {
       for unit in $(relation-list -r $r_id); do
          clustered=$(relation-get -r $r_id clustered $unit)
          if [ -n "$clustered" ]; then
-           echo "Unit is clustered"
+           juju-log "Unit is haclustered"
            return 0
          fi
       done
     fi
   done
-  echo "Unit is not clustered"
+  echo "Unit is not haclustered"
   return 1
 }
 
@@ -430,11 +430,11 @@ oldest_peer() {
     echo "Comparing $JUJU_UNIT_NAME with peers: $peers"
     local r_unit_no=$(echo $peer | cut -d / -f 2)
     if (($r_unit_no<$l_unit_no)); then
-        echo "Not oldest peer; deferring"
+        juju-log "Not oldest peer; deferring"
         return 1
     fi
   done
-  echo "Oldest peer; might take charge?"
+  juju-log "Oldest peer; might take charge?"
   return 0
 }
 
@@ -448,7 +448,7 @@ oldest_peer() {
 eligible_leader() {
   if is_clustered; then
     if ! is_leader $1; then
-      echo 'Deferring action to CRM leader'
+      juju-log 'Deferring action to CRM leader'
       return 1
     fi
   else
@@ -457,7 +457,7 @@ eligible_leader() {
       echo "$peer"
     done
     if [ -n "$peers" ] && ! oldest_peer "$peers"; then
-      echo 'Deferring action to oldest service unit.'
+      juju-log 'Deferring action to oldest service unit.'
       return 1
     fi
   fi
@@ -472,11 +472,11 @@ is_peered() {
   r_id=$(relation-ids cluster)
   if [ -n "$r_id" ]; then
     if [ -n "$(relation-list -r $r_id)" ]; then
-      echo "Unit peered"
+      juju-log "Unit peered"
       return 0
     fi
   fi
-  echo "Unit not peered"
+  juju-log "Unit not peered"
   return 1
 }
 
@@ -489,11 +489,11 @@ is_leader() {
   hostname=`hostname`
   if [ -x /usr/sbin/crm ]; then
     if crm resource show $1 | grep -q $hostname; then
-      echo "$hostname is cluster leader"
+      juju-log "$hostname is cluster leader"
       return 0
     fi
   fi
-  echo "$hostname is not cluster leader"
+  juju-log "$hostname is not cluster leader"
   return 1
 }
 
@@ -504,25 +504,21 @@ is_leader() {
 # Returns: 0 if HTTPS can be configured, 1 if not.
 ##########################################################################
 https() {
-  # determine whether enough data exists in config or relation to satisfy
-  # https configuration.
-  local r_id="$1"
-  [[ -n "$r_id" ]] && r_id="-r $r_id"
   if [[ -n "$(config-get ssl_cert)" ]] &&
      [[ -n "$(config-get ssl_key)" ]] ; then
     return 0
-  elif [[ "$(relation-get $r_id https_keystone)" != "True" ]] ; then
-    juju-log "HTTPS_KEYSTONE NOT ENABLED BY KS PEER."
-    return 1
-  elif [[ -n "$(relation-get $r_id ssl_cert)" ]] &&
-       [[ -n "$(relation-get $r_id ssl_key)" ]] &&
-       [[ -n "$(relation-get $r_id ca_cert)" ]] ; then
-    juju-log "HTTPS_KEYSTONE ENABLED BY KS PEER."
-    return 0
-  else
-    juju-log "WTF."
-    return 1
   fi
+  for r_id in $(relation-ids identity-service) ; do
+    for unit in $(relation-list -r $r_id) ; do
+      if [[ "$(relation-get -r $r_id https_keystone $unit)" == "True" ]] &&
+         [[ -n "$(relation-get -r $r_id ssl_cert $unit)" ]] &&
+         [[ -n "$(relation-get -r $r_id ssl_key $unit)" ]] &&
+         [[ -n "$(relation-get -r $r_id ca_cert $unit)" ]] ; then
+          return 0
+      fi
+    done
+  done
+  return 1
 }
 
 ##########################################################################
@@ -546,10 +542,12 @@ enable_https() {
   if [[ -z "$cert" ]] || [[ -z "$key" ]] ; then
     juju-log "Inspecting identity-service relations for SSL certificate."
     local r_ids=$(relation-ids identity-service)
-    for r_id in $r_ids ; do
-      cert="$(relation-get -r $r_id ssl_cert)"
-      key="$(relation-get -r $r_id ssl_key)"
-      ca_cert="$(relation-get -r $r_id ca_cert)"
+    for r_id in $(relation-ids identity-service) ; do
+      for unit in $(relation-list -r $r_id) ; do
+        cert="$(relation-get -r $r_id ssl_cert $unit)"
+        key="$(relation-get -r $r_id ssl_key $unit)"
+        ca_cert="$(relation-get -r $r_id ca_cert $unit)"
+      done
     done
     [[ -n "$cert" ]] && cert=$(echo $cert | base64 -di)
     [[ -n "$key" ]] && key=$(echo $key | base64 -di)
@@ -617,10 +615,9 @@ END
 disable_https() {
   local port_maps="$@"
   local http_restart=""
-  juju-log "DISABLE HTTPS"
+  juju-log "Ensuring HTTPS disabled for $port_maps."
   ( [[ ! -d /etc/apache2 ]] || [[ ! -d /etc/apache2/ssl/$CHARM ]] ) && juju-log "NOTHIN" && return 0
   for port_map in $port_maps ; do
-    juju-log "looking for active sites."
     local ext_port=$(echo $port_map | cut -d: -f1)
     local int_port=$(echo $port_map | cut -d: -f2)
     if [[ -e /etc/apache2/sites-available/${CHARM}_${ext_port} ]] ; then
@@ -629,7 +626,6 @@ disable_https() {
         http_restart=1
     fi
   done
-  juju-log "done disable: $http_restart http_restart"
   if [[ -n "$http_restart" ]] ; then
     service apache2 restart
   fi
@@ -646,7 +642,6 @@ disable_https() {
 setup_https() {
   # configure https via apache reverse proxying either
   # using certs provided by config or keystone.
-  juju-log "setup https"
   [[ -z "$CHARM" ]] &&
     error_out "setup_https(): CHARM not set."
   if ! https ; then
