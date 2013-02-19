@@ -95,16 +95,15 @@ function db_changed {
 
 function image-service_joined {
   # Check to see if unit is potential leader
+  local r_id="$r_id"
+  [[ -n "$r_id" ]] && r_id="-r $r_id"
   eligible_leader 'res_glance_vip' || return 0
-  bind_port=9292
-  if is_clustered; then
-    bind_port=$(($bind_port + 10000))
-    bind_host=`config-get vip`
-  else
-    bind_host=`unit-get private-address`
-  fi
-  juju-log "glance: image-service_joined: To peer glance-api-server=$bind_host:$bind_port"
-  relation-set glance-api-server="$bind_host:$bind_port"
+  https && scheme="https" || scheme="http"
+  is_clustered && local host=$(config-get vip) ||
+    local host=$(unit-get private-address)
+  url="$scheme://$host:9292"
+  juju-log "glance: image-service_joined: To peer glance-api-server=$url"
+  relation-set $r_id glance-api-server="$url"
 }
 
 function object-store_joined {
