@@ -95,7 +95,7 @@ function db_changed {
 
 function image-service_joined {
   # Check to see if unit is potential leader
-  local r_id="$r_id"
+  local r_id="$1"
   [[ -n "$r_id" ]] && r_id="-r $r_id"
   eligible_leader 'res_glance_vip' || return 0
   https && scheme="https" || scheme="http"
@@ -103,7 +103,7 @@ function image-service_joined {
     local host=$(unit-get private-address)
   url="$scheme://$host:9292"
   juju-log "glance: image-service_joined: To peer glance-api-server=$url"
-  relation-set $r_id glance-api-server="$url"
+  relation-set $r_id glance-api-server=$url
 }
 
 function object-store_joined {

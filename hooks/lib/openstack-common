@@ -372,6 +372,8 @@ listen $service_name 0.0.0.0:$haproxy_listen_port
   option tcplog
   server $name $address:$api_listen_port check
 EOF
+    local r_id=""
+    local unit=""
     for r_id in `relation-ids cluster`; do
       for unit in `relation-list -r $r_id`; do
         local unit_name=${unit////-}
@@ -392,6 +394,8 @@ EOF
 # Returns: 0 if configured, 1 if not configured
 ##########################################################################
 is_clustered() {
+  local r_id=""
+  local unit=""
   for r_id in $(relation-ids ha); do
     if [ -n "$r_id" ]; then
       for unit in $(relation-list -r $r_id); do
@@ -412,6 +416,7 @@ is_clustered() {
 ##########################################################################
 peer_units() {
   local peers=""
+  local r_id=""
   for r_id in $(relation-ids cluster); do
     peers="$peers $(relation-list -r $r_id)"
   done
@@ -469,7 +474,7 @@ eligible_leader() {
 # Returns: 0 if peered, 1 if not peered
 ##########################################################################
 is_peered() {
-  r_id=$(relation-ids cluster)
+  local r_id=$(relation-ids cluster)
   if [ -n "$r_id" ]; then
     if [ -n "$(relation-list -r $r_id)" ]; then
       juju-log "Unit peered"
@@ -504,6 +509,7 @@ is_leader() {
 # Returns: 0 if HTTPS can be configured, 1 if not.
 ##########################################################################
 https() {
+  local r_id=""
   if [[ -n "$(config-get ssl_cert)" ]] &&
      [[ -n "$(config-get ssl_key)" ]] ; then
     return 0
@@ -541,7 +547,7 @@ enable_https() {
   key=$(config-get ssl_key)
   if [[ -z "$cert" ]] || [[ -z "$key" ]] ; then
     juju-log "Inspecting identity-service relations for SSL certificate."
-    local r_ids=$(relation-ids identity-service)
+    local r_id=""
     for r_id in $(relation-ids identity-service) ; do
       for unit in $(relation-list -r $r_id) ; do
         cert="$(relation-get -r $r_id ssl_cert $unit)"

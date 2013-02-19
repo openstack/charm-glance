@@ -145,6 +145,7 @@ configure_https() {
   set_or_update bind_port "$api_port" "api"
   service_ctl all start
 
+  local r_id=""
   # (re)configure ks endpoint accordingly in ks and nova.
   for r_id in "$(relation-ids identity-service)" ; do
     keystone_joined "$r_id"
