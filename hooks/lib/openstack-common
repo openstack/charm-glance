@@ -622,7 +622,7 @@ disable_https() {
   local port_maps="$@"
   local http_restart=""
   juju-log "Ensuring HTTPS disabled for $port_maps."
-  ( [[ ! -d /etc/apache2 ]] || [[ ! -d /etc/apache2/ssl/$CHARM ]] ) && juju-log "NOTHIN" && return 0
+  ( [[ ! -d /etc/apache2 ]] || [[ ! -d /etc/apache2/ssl/$CHARM ]] ) && return 0
   for port_map in $port_maps ; do
     local ext_port=$(echo $port_map | cut -d: -f1)
     local int_port=$(echo $port_map | cut -d: -f2)
