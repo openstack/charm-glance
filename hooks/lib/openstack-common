@@ -543,16 +543,20 @@ enable_https() {
 
   # allow overriding of keystone provided certs with those set manually
   # in config.
-  cert=$(config-get ssl_cert)
-  key=$(config-get ssl_key)
+  local cert=$(config-get ssl_cert)
+  local key=$(config-get ssl_key)
+  local ca_cert=""
   if [[ -z "$cert" ]] || [[ -z "$key" ]] ; then
     juju-log "Inspecting identity-service relations for SSL certificate."
     local r_id=""
+    cert=""
+    key=""
+    ca_cert=""
     for r_id in $(relation-ids identity-service) ; do
       for unit in $(relation-list -r $r_id) ; do
-        cert="$(relation-get -r $r_id ssl_cert $unit)"
-        key="$(relation-get -r $r_id ssl_key $unit)"
-        ca_cert="$(relation-get -r $r_id ca_cert $unit)"
+        [[ -z "$cert" ]] && cert="$(relation-get -r $r_id ssl_cert $unit)"
+        [[ -z "$key" ]] && key="$(relation-get -r $r_id ssl_key $unit)"
+        [[ -z "$ca_cert" ]] && ca_cert="$(relation-get -r $r_id ca_cert $unit)"
       done
     done
     [[ -n "$cert" ]] && cert=$(echo $cert | base64 -di)
