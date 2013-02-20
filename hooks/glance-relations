@@ -286,11 +286,10 @@ function config_changed() {
 }
 
 function cluster_changed() {
-  echo "CLUSTER CHANGED"
+  [[ -z "$(peer_units)" ]] &&
+    juju-log "cluster_changed() with no peers." && exit 0
   local haproxy_port=$(determine_haproxy_port 9292)
   local backend_port=$(determine_api_port 9292)
-  echo "haproxy_port: $haproxy_port"
-  echo "backend_port: $backend_port"
   service glance-api stop
   configure_haproxy "glance_api:$haproxy_port:$backend_port"
   set_or_update bind_port "$backend_port" "api"
