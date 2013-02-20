@@ -234,7 +234,7 @@ function keystone_changed {
   [[ "$token" == "-1" ]] &&
      juju-log "keystone_changed: admin token error" && exit 1
   juju-log "keystone_changed: Acquired admin. token"
-  keystone_host=$(relation-get $r_args private-address)
+  keystone_host=$(relation-get $r_args auth_host)
 
   if [[ -n "$r_id" ]] ; then
     unset JUJU_REMOTE_UNIT JUJU_RELATION JUJU_RELATION_ID
