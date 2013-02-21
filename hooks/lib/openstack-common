@@ -581,6 +581,13 @@ enable_https() {
     juju-log "Installing Keystone supplied CA cert."
     echo "$ca_cert" >/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt
     update-ca-certificates --fresh
+
+    # XXX TODO: Find a better way of exporting this?
+    if [[ "$CHARM" == "nova-cloud-controller" ]] ; then
+      ln -s  /usr/local/share/ca-certificates/keystone_juju_ca_cert.crt \
+             /var/www/keystone_juju_ca_cert.crt
+    fi
+
   fi
   for port_map in $port_maps ; do
     local ext_port=$(echo $port_map | cut -d: -f1)
