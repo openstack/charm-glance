@@ -584,6 +584,8 @@ enable_https() {
 
     # XXX TODO: Find a better way of exporting this?
     if [[ "$CHARM" == "nova-cloud-controller" ]] ; then
+      [[ -e /var/www/keystone_juju_ca_cert.crt ]] &&
+        rm -rf /var/www/keystone_juju_ca_cert.crt
       ln -s  /usr/local/share/ca-certificates/keystone_juju_ca_cert.crt \
              /var/www/keystone_juju_ca_cert.crt
     fi
