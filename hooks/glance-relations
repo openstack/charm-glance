@@ -349,7 +349,7 @@ function ha_relation_changed() {
     done
     for r_id in `relation-ids image-service`; do
       relation-set -r $r_id \
-        glance-api-server="$scheme:$host:9292"
+        glance-api-server="$scheme://$host:9292"
     done
   fi
 }
