@@ -494,11 +494,11 @@ is_leader() {
   hostname=`hostname`
   if [ -x /usr/sbin/crm ]; then
     if crm resource show $1 | grep -q $hostname; then
-      juju-log "$hostname is cluster leader"
+      juju-log "$hostname is cluster leader."
       return 0
     fi
   fi
-  juju-log "$hostname is not cluster leader"
+  juju-log "$hostname is not cluster leader."
   return 1
 }
 
@@ -695,4 +695,33 @@ determine_haproxy_port() {
   local i=0
   https >/dev/null 2>&1 && i=$[$i + 1]
   echo $[$public_port - $[$i * 10]]
+}
+
+##########################################################################
+# Description: Print the value for a given config option in an OpenStack
+# .ini style configuration file.
+# Parameters: File path, option to retrieve, optional
+# section name (default=DEFAULT)
+# Returns: Prints value if set, prints nothing otherwise.
+##########################################################################
+local_config_get() {
+  # return config values set in openstack .ini config files.
+  # default placeholders starting (eg, %AUTH_HOST%) treated as
+  # unset values.
+  local file="$1"
+  local option="$2"
+  local section="$3"
+  [[ -z "$section" ]] && section="DEFAULT"
+  python -c "
+import ConfigParser
+config = ConfigParser.RawConfigParser()
+config.read('$file')
+try:
+  value = config.get('$section', '$option')
+except:
+  print ''
+  exit(0)
+if value.startswith('%'): exit(0)
+print value
+"
 }
