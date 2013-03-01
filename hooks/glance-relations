@@ -277,6 +277,13 @@ function config_changed() {
   fi
 
   service_ctl all restart
+
+  # Save our scriptrc env variables for health checks
+  declare -a env_vars=(
+      'OPENSTACK_PORT_MCASTPORT="$(config-get ha-mcastport)"'
+      'OPENSTACK_SERVICE_API=glance-api'
+      'OPENSTACK_SERVICE_REGISTRY=cinder-scheduler'
+  save_script_rc ${env_vars[@]}
 }
 
 function cluster_changed() {

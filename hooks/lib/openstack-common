@@ -315,6 +315,43 @@ function get_block_device() {
   return 0
 }
 
+##########################################################################
+# Description: Creates an rc file exporting environment variables to a
+# script_path local to the charm's installed directory.
+# Any charm scripts run outside the juju hook environment can source this
+# scriptrc to obtain updated config information necessary to perform health
+# checks or service changes
+#
+# Parameters: 
+#   An array of '=' delimited  ENV_VAR:value combinations to export.
+#   If optional script_path key is not provided in the array, script_path
+#     defaults to scripts/scriptrc
+##########################################################################
+function save_script_rc {
+  if [ ! -n "$JUJU_UNIT_NAME" ]; then
+     echo "Error: Missing JUJU_UNIT_NAME environment variable"
+     exit 1
+  fi
+  # our default unit_path
+  unit_path="/var/lib/juju/units/${JUJU_UNIT_NAME/\//-}/charm/scripts/scriptrc"
+  echo $unit_path
+  tmp_rc="/tmp/${JUJU_UNIT_NAME/\//-}rc"
+
+  echo "#!/bin/bash" > $tmp_rc
+  for env_var in "${@}"
+  do
+    if `echo $env_var | grep -q script_path`; then
+       # well then we need to reset the new unit-local script path
+       unit_path="/var/lib/juju/units/${JUJU_UNIT_NAME/\//-}/charm/${env_var/script_path=/}"
+    else
+       echo "export $env_var" >> $tmp_rc
+    fi 
+  done
+  chmod 755 $tmp_rc
+  mv $tmp_rc $unit_path
+}
+
+
 HAPROXY_CFG=/etc/haproxy/haproxy.cfg
 HAPROXY_DEFAULT=/etc/default/haproxy
 
