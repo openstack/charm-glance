@@ -282,7 +282,7 @@ function config_changed() {
   declare -a env_vars=(
       "OPENSTACK_PORT_MCASTPORT=\"$(config-get ha-mcastport)\""
       'OPENSTACK_SERVICE_API=glance-api'
-      'OPENSTACK_SERVICE_REGISTRY=cinder-scheduler')
+      'OPENSTACK_SERVICE_REGISTRY=glance-registry')
   save_script_rc ${env_vars[@]}
 }
 
