@@ -73,8 +73,8 @@ function db_changed {
 
   set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" registry
 
-  # folsom requires a db connection setting in glance-api.conf, as well.
-  [[ "$rel" == "folsom" ]] &&
+  # since folsom, a db connection setting in glance-api.conf is required.
+  [[ "$rel" != "essex" ]] &&
     set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" api
 
   if eligible_leader 'res_glance_vip'; then
