@@ -9,5 +9,5 @@ set -e
 openstack_ports=`env| awk -F '=' '(/OPENSTACK_PORT/){print $2}'`
 for port in $openstack_ports
 do
-    netstat -ln | grep -q $port
+    netstat -ln | grep -q ":$port "
 done
