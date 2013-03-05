@@ -493,3 +493,31 @@ is_leader() {
   return 1
 }
 
+##########################################################################
+# Description: Print the value for a given config option in an OpenStack
+# .ini style configuration file.
+# Parameters: File path, option to retrieve, optional
+# section name (default=DEFAULT)
+# Returns: Prints value if set, prints nothing otherwise.
+##########################################################################
+local_config_get() {
+  # return config values set in openstack .ini config files.
+  # default placeholders starting (eg, %AUTH_HOST%) treated as
+  # unset values.
+  local file="$1"
+  local option="$2"
+  local section="$3"
+  [[ -z "$section" ]] && section="DEFAULT"
+  python -c "
+import ConfigParser
+config = ConfigParser.RawConfigParser()
+config.read('$file')
+try:
+  value = config.get('$section', '$option')
+except:
+  print ''
+  exit(0)
+if value.startswith('%'): exit(0)
+print value
+"
+}
