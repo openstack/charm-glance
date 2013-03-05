@@ -165,8 +165,9 @@ get_os_codename_install_source() {
   fi
 
   # have a guess based on the deb string provided
-  if [[ "${rel:0:3}" == "deb" ]]; then
-    CODENAMES="diablo essex folsom grizzly"
+  if [[ "${rel:0:3}" == "deb" ]] || \
+     [[ "${rel:0:3}" == "ppa" ]] ; then
+    CODENAMES="diablo essex folsom grizzly havan"
     for cname in $CODENAMES; do
       if echo $rel | grep -q $cname; then
         codename=$cname
@@ -178,11 +179,13 @@ get_os_codename_install_source() {
 
 get_os_codename_package() {
   local pkg_vers=$(dpkg -l | grep "$1" | awk '{ print $3 }') || echo "none"
+  pkg_vers=$(echo $pkg_vers | cut -d: -f2) # epochs
   case "${pkg_vers:0:6}" in
     "2011.2") echo "diablo" ;;
     "2012.1") echo "essex" ;;
     "2012.2") echo "folsom" ;;
     "2013.1") echo "grizzly" ;;
+    "2013.2") echo "havana" ;;
   esac
 }
 
@@ -191,7 +194,8 @@ get_os_version_codename() {
     "diablo") echo "2011.2" ;;
     "essex") echo "2012.1" ;;
     "folsom") echo "2012.2" ;;
-    "grizzly") echo "2012.3" ;;
+    "grizzly") echo "2013.1" ;;
+    "havana") echo "2013.2" ;;
   esac
 }
 
