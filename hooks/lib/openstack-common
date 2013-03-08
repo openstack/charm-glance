@@ -167,7 +167,7 @@ get_os_codename_install_source() {
   # have a guess based on the deb string provided
   if [[ "${rel:0:3}" == "deb" ]] || \
      [[ "${rel:0:3}" == "ppa" ]] ; then
-    CODENAMES="diablo essex folsom grizzly havan"
+    CODENAMES="diablo essex folsom grizzly havana"
     for cname in $CODENAMES; do
       if echo $rel | grep -q $cname; then
         codename=$cname
