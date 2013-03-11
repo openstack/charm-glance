@@ -119,3 +119,38 @@ do_openstack_upgrade() {
     keystone_changed $r_id
   fi
 }
+
+configure_https() {
+  # request openstack-common setup reverse proxy mapping for API and registry
+  # servers
+  service_ctl glance-api stop
+  if [[ -n "$(peer_units)" ]] || is_clustered ; then
+    # haproxy may already be configured. need to push it back in the request
+    # pipeline in preparation for a change from:
+    #  from:  haproxy (9292) -> glance_api (9282)
+    #  to:    ssl (9292) -> haproxy (9291) -> glance_api (9272)
+    local next_server=$(determine_haproxy_port 9292)
+    local api_port=$(determine_api_port 9292)
+    configure_haproxy "glance_api:$next_server:$api_port"
+  else
+    # if not clustered, the glance-api is next in the pipeline.
+    local api_port=$(determine_api_port 9292)
+    local next_server=$api_port
+  fi
+
+  # setup https to point to either haproxy or directly to api server, depending.
+  setup_https 9292:$next_server
+
+  # configure servers to listen on new ports accordingly.
+  set_or_update bind_port "$api_port" "api"
+  service_ctl all start
+
+  local r_id=""
+  # (re)configure ks endpoint accordingly in ks and nova.
+  for r_id in $(relation-ids identity-service) ; do
+    keystone_joined "$r_id"
+  done
+  for r_id in $(relation-ids image-service) ; do
+    image-service_joined "$r_id"
+  done
+}

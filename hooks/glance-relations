@@ -25,6 +25,8 @@ function install_hook {
   set_or_update debug True api
   set_or_update verbose True registry
   set_or_update debug True registry
+
+  configure_https
 }
 
 function db_joined {
@@ -93,16 +95,15 @@ function db_changed {
 
 function image-service_joined {
   # Check to see if unit is potential leader
+  local r_id="$1"
+  [[ -n "$r_id" ]] && r_id="-r $r_id"
   eligible_leader 'res_glance_vip' || return 0
-  bind_port=9292
-  if is_clustered; then
-    bind_port=$(($bind_port + 10000))
-    bind_host=`config-get vip`
-  else
-    bind_host=`unit-get private-address`
-  fi
-  juju-log "glance: image-service_joined: To peer glance-api-server=$bind_host:$bind_port"
-  relation-set glance-api-server="$bind_host:$bind_port"
+  https && scheme="https" || scheme="http"
+  is_clustered && local host=$(config-get vip) ||
+    local host=$(unit-get private-address)
+  url="$scheme://$host:9292"
+  juju-log "glance: image-service_joined: To peer glance-api-server=$url"
+  relation-set $r_id glance-api-server=$url
 }
 
 function object-store_joined {
@@ -191,14 +192,16 @@ EOF
 function keystone_joined {
   # Leadership check
   eligible_leader 'res_glance_vip' || return 0
+  local r_id="$1"
+  [[ -n "$r_id" ]] && r_id=" -r $r_id"
+
+  # determine correct endpoint URL
+  https && scheme="https" || scheme="http"
+  is_clustered && local host=$(config-get vip) ||
+    local host=$(unit-get private-address)
+  url="$scheme://$host:9292/v1"
+
   # advertise our API endpoint to keystone
-  port=9292
-  if is_clustered; then
-    port=$(($port + 10000))
-    url="http://$(config-get vip):$port/v1"
-  else
-    url="http://$(unit-get private-address):$port/v1"
-  fi
   relation-set service="glance" \
     region="$(config-get region)" public_url=$url admin_url=$url internal_url=$url
 }
@@ -231,7 +234,7 @@ function keystone_changed {
   [[ "$token" == "-1" ]] &&
      juju-log "keystone_changed: admin token error" && exit 1
   juju-log "keystone_changed: Acquired admin. token"
-  keystone_host=$(relation-get $r_args private-address)
+  keystone_host=$(relation-get $r_args auth_host)
 
   if [[ -n "$r_id" ]] ; then
     unset JUJU_REMOTE_UNIT JUJU_RELATION JUJU_RELATION_ID
@@ -258,6 +261,9 @@ function keystone_changed {
   if [[ -n "$(relation-ids object-store)" ]] ; then
     object-store_joined
   fi
+
+  # possibly configure HTTPS for API and registry
+  configure_https
 }
 
 function config_changed() {
@@ -275,7 +281,7 @@ function config_changed() {
       do_openstack_upgrade "$install_src" $PACKAGES
     fi
   fi
-
+  configure_https
   service_ctl all restart
 
   # Save our scriptrc env variables for health checks
@@ -343,6 +349,76 @@ function ha_relation_changed() {
     for r_id in `relation-ids image-service`; do
       relation-set -r $r_id \
         glance-api-server="$host:$port"         
+    done
+  fi
+}
+
+
+function cluster_changed() {
+  [[ -z "$(peer_units)" ]] &&
+    juju-log "cluster_changed() with no peers." && exit 0
+  local haproxy_port=$(determine_haproxy_port 9292)
+  local backend_port=$(determine_api_port 9292)
+  service glance-api stop
+  configure_haproxy "glance_api:$haproxy_port:$backend_port"
+  set_or_update bind_port "$backend_port" "api"
+  service glance-api start
+}
+
+function upgrade_charm() {
+  cluster_changed
+}
+
+function ha_relation_joined() {
+  local corosync_bindiface=`config-get ha-bindiface`
+  local corosync_mcastport=`config-get ha-mcastport`
+  local vip=`config-get vip`
+  local vip_iface=`config-get vip_iface`
+  local vip_cidr=`config-get vip_cidr`
+  if [ -n "$vip" ] && [ -n "$vip_iface" ] && \
+     [ -n "$vip_cidr" ] && [ -n "$corosync_bindiface" ] && \
+     [ -n "$corosync_mcastport" ]; then
+    # TODO: This feels horrible but the data required by the hacluster
+    # charm is quite complex and is python ast parsed.
+    resources="{
+'res_glance_vip':'ocf:heartbeat:IPaddr2',
+'res_glance_haproxy':'lsb:haproxy'
+}"
+    resource_params="{
+'res_glance_vip': 'params ip=\"$vip\" cidr_netmask=\"$vip_cidr\" nic=\"$vip_iface\"',
+'res_glance_haproxy': 'op monitor interval=\"5s\"'
+}"
+    init_services="{
+'res_glance_haproxy':'haproxy'
+}"
+    clones="{
+'cl_glance_haproxy': 'res_glance_haproxy'
+}"
+    relation-set corosync_bindiface=$corosync_bindiface \
+      corosync_mcastport=$corosync_mcastport \
+      resources="$resources" resource_params="$resource_params" \
+      init_services="$init_services" clones="$clones"
+  else
+    juju-log "Insufficient configuration data to configure hacluster"
+    exit 1
+  fi
+}
+
+function ha_relation_changed() {
+  local clustered=`relation-get clustered`
+  if [ -n "$clustered" ] && is_leader 'res_glance_vip'; then
+    local host=$(config-get vip)
+    https && local scheme="https" || local scheme="http"
+    local url="$scheme://$host:9292/v1"
+
+    for r_id in `relation-ids identity-service`; do
+      relation-set -r $r_id service="glance" \
+        region="$(config-get region)" \
+        public_url="$url" admin_url="$url" internal_url="$url"
+    done
+    for r_id in `relation-ids image-service`; do
+      relation-set -r $r_id \
+        glance-api-server="$scheme://$host:9292"
     done
   fi
 }

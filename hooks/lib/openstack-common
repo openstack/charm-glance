@@ -165,9 +165,8 @@ get_os_codename_install_source() {
   fi
 
   # have a guess based on the deb string provided
-  if [[ "${rel:0:3}" == "deb" ]] || \
-     [[ "${rel:0:3}" == "ppa" ]] ; then
-    CODENAMES="diablo essex folsom grizzly havana"
+  if [[ "${rel:0:3}" == "deb" ]]; then
+    CODENAMES="diablo essex folsom grizzly"
     for cname in $CODENAMES; do
       if echo $rel | grep -q $cname; then
         codename=$cname
@@ -179,13 +178,11 @@ get_os_codename_install_source() {
 
 get_os_codename_package() {
   local pkg_vers=$(dpkg -l | grep "$1" | awk '{ print $3 }') || echo "none"
-  pkg_vers=$(echo $pkg_vers | cut -d: -f2) # epochs
   case "${pkg_vers:0:6}" in
     "2011.2") echo "diablo" ;;
     "2012.1") echo "essex" ;;
     "2012.2") echo "folsom" ;;
     "2013.1") echo "grizzly" ;;
-    "2013.2") echo "havana" ;;
   esac
 }
 
@@ -194,8 +191,7 @@ get_os_version_codename() {
     "diablo") echo "2011.2" ;;
     "essex") echo "2012.1" ;;
     "folsom") echo "2012.2" ;;
-    "grizzly") echo "2013.1" ;;
-    "havana") echo "2013.2" ;;
+    "grizzly") echo "2012.3" ;;
   esac
 }
 
@@ -321,18 +317,16 @@ function get_block_device() {
 
 HAPROXY_CFG=/etc/haproxy/haproxy.cfg
 HAPROXY_DEFAULT=/etc/default/haproxy
-
 ##########################################################################
 # Description: Configures HAProxy services for Openstack API's
 # Parameters:
-#   Space delimited list of service:port combinations for which
+#   Space delimited list of service:ext_port:int_port combinations for which
 #   haproxy service configuration should be generated for.  The function
 #   assumes the name of the peer relation is 'cluster' and that every
 #   service unit in the peer relation is running the same services.
 #
-#   The HAProxy service will listen on port + 10000.
-# Example:
-#   configure_haproxy cinder_api:12345 nova_api:9999
+# Example
+#   configure_haproxy cinder_api:8776:8756i nova_api:8774:8764
 ##########################################################################
 configure_haproxy() {
   local address=`unit-get private-address`
@@ -354,8 +348,8 @@ defaults
   retries 3
   timeout queue 1000
   timeout connect 1000
-  timeout client 10000
-  timeout server 10000
+  timeout client 30000
+  timeout server 30000
 
 listen stats :8888
   mode http
@@ -368,14 +362,18 @@ listen stats :8888
 EOF
   for service in $@; do
     local service_name=$(echo $service | cut -d : -f 1)
-    local api_listen_port=$(echo $service | cut -d : -f 2)
-    local haproxy_listen_port=$(($api_listen_port + 10000))
+    local haproxy_listen_port=$(echo $service | cut -d : -f 2)
+    local api_listen_port=$(echo $service | cut -d : -f 3)
+    juju-log "Adding haproxy configuration entry for $service "\
+             "($haproxy_listen_port -> $api_listen_port)"
     cat >> $HAPROXY_CFG << EOF
 listen $service_name 0.0.0.0:$haproxy_listen_port
   balance roundrobin
   option tcplog
   server $name $address:$api_listen_port check
 EOF
+    local r_id=""
+    local unit=""
     for r_id in `relation-ids cluster`; do
       for unit in `relation-list -r $r_id`; do
         local unit_name=${unit////-}
@@ -388,6 +386,7 @@ EOF
     done
   done
   echo "ENABLED=1" > $HAPROXY_DEFAULT
+  service haproxy restart
 }
 
 ##########################################################################
@@ -395,18 +394,20 @@ EOF
 # Returns: 0 if configured, 1 if not configured
 ##########################################################################
 is_clustered() {
+  local r_id=""
+  local unit=""
   for r_id in $(relation-ids ha); do
     if [ -n "$r_id" ]; then
       for unit in $(relation-list -r $r_id); do
          clustered=$(relation-get -r $r_id clustered $unit)
          if [ -n "$clustered" ]; then
-           echo "Unit is clustered"
+           juju-log "Unit is haclustered"
            return 0
          fi
       done
     fi
   done
-  echo "Unit is not clustered"
+  echo "Unit is not haclustered"
   return 1
 }
 
@@ -415,6 +416,7 @@ is_clustered() {
 ##########################################################################
 peer_units() {
   local peers=""
+  local r_id=""
   for r_id in $(relation-ids cluster); do
     peers="$peers $(relation-list -r $r_id)"
   done
@@ -433,11 +435,11 @@ oldest_peer() {
     echo "Comparing $JUJU_UNIT_NAME with peers: $peers"
     local r_unit_no=$(echo $peer | cut -d / -f 2)
     if (($r_unit_no<$l_unit_no)); then
-        echo "Not oldest peer; deferring"
+        juju-log "Not oldest peer; deferring"
         return 1
     fi
   done
-  echo "Oldest peer; might take charge?"
+  juju-log "Oldest peer; might take charge?"
   return 0
 }
 
@@ -451,13 +453,16 @@ oldest_peer() {
 eligible_leader() {
   if is_clustered; then
     if ! is_leader $1; then
-      echo 'Deferring action to CRM leader'
+      juju-log 'Deferring action to CRM leader'
       return 1
     fi
   else
     peers=$(peer_units)
+    for peer in $peers ; do
+      echo "$peer"
+    done
     if [ -n "$peers" ] && ! oldest_peer "$peers"; then
-      echo 'Deferring action to oldest service unit.'
+      juju-log 'Deferring action to oldest service unit.'
       return 1
     fi
   fi
@@ -469,14 +474,14 @@ eligible_leader() {
 # Returns: 0 if peered, 1 if not peered
 ##########################################################################
 is_peered() {
-  r_id=$(relation-ids cluster)
+  local r_id=$(relation-ids cluster)
   if [ -n "$r_id" ]; then
     if [ -n "$(relation-list -r $r_id)" ]; then
-      echo "Unit peered"
+      juju-log "Unit peered"
       return 0
     fi
   fi
-  echo "Unit not peered"
+  juju-log "Unit not peered"
   return 1
 }
 
@@ -489,12 +494,207 @@ is_leader() {
   hostname=`hostname`
   if [ -x /usr/sbin/crm ]; then
     if crm resource show $1 | grep -q $hostname; then
-      echo "$hostname is cluster leader"
+      juju-log "$hostname is cluster leader."
       return 0
     fi
   fi
-  echo "$hostname is not cluster leader"
+  juju-log "$hostname is not cluster leader."
   return 1
+}
+
+##########################################################################
+# Description: Determines whether enough data has been provided in
+# configuration or relation data to configure HTTPS.
+# Parameters:  None
+# Returns: 0 if HTTPS can be configured, 1 if not.
+##########################################################################
+https() {
+  local r_id=""
+  if [[ -n "$(config-get ssl_cert)" ]] &&
+     [[ -n "$(config-get ssl_key)" ]] ; then
+    return 0
+  fi
+  for r_id in $(relation-ids identity-service) ; do
+    for unit in $(relation-list -r $r_id) ; do
+      if [[ "$(relation-get -r $r_id https_keystone $unit)" == "True" ]] &&
+         [[ -n "$(relation-get -r $r_id ssl_cert $unit)" ]] &&
+         [[ -n "$(relation-get -r $r_id ssl_key $unit)" ]] &&
+         [[ -n "$(relation-get -r $r_id ca_cert $unit)" ]] ; then
+          return 0
+      fi
+    done
+  done
+  return 1
+}
+
+##########################################################################
+# Description: For a given number of port mappings, configures apache2
+# HTTPs local reverse proxying using certficates and keys provided in
+# either configuration data (preferred) or relation data.  Assumes ports
+# are not in use (calling charm should ensure that).
+# Parameters:  Variable number of proxy port mappings as
+# $internal:$external.
+# Returns: 0 if reverse proxy(s) have been configured, 0 if not.
+##########################################################################
+enable_https() {
+  local port_maps="$@"
+  local http_restart=""
+  juju-log "Enabling HTTPS for port mappings: $port_maps."
+
+  # allow overriding of keystone provided certs with those set manually
+  # in config.
+  local cert=$(config-get ssl_cert)
+  local key=$(config-get ssl_key)
+  local ca_cert=""
+  if [[ -z "$cert" ]] || [[ -z "$key" ]] ; then
+    juju-log "Inspecting identity-service relations for SSL certificate."
+    local r_id=""
+    cert=""
+    key=""
+    ca_cert=""
+    for r_id in $(relation-ids identity-service) ; do
+      for unit in $(relation-list -r $r_id) ; do
+        [[ -z "$cert" ]] && cert="$(relation-get -r $r_id ssl_cert $unit)"
+        [[ -z "$key" ]] && key="$(relation-get -r $r_id ssl_key $unit)"
+        [[ -z "$ca_cert" ]] && ca_cert="$(relation-get -r $r_id ca_cert $unit)"
+      done
+    done
+    [[ -n "$cert" ]] && cert=$(echo $cert | base64 -di)
+    [[ -n "$key" ]] && key=$(echo $key | base64 -di)
+    [[ -n "$ca_cert" ]] && ca_cert=$(echo $ca_cert | base64 -di)
+  else
+    juju-log "Using SSL certificate provided in service config."
+  fi
+
+  [[ -z "$cert" ]] || [[ -z "$key" ]] &&
+    juju-log "Expected but could not find SSL certificate data, not "\
+             "configuring HTTPS!" && return 1
+
+  apt-get -y install apache2
+  a2enmod ssl proxy proxy_http | grep -v "To activate the new configuration" &&
+    http_restart=1
+
+  mkdir -p /etc/apache2/ssl/$CHARM
+  echo "$cert" >/etc/apache2/ssl/$CHARM/cert
+  echo "$key" >/etc/apache2/ssl/$CHARM/key
+  if [[ -n "$ca_cert" ]] ; then
+    juju-log "Installing Keystone supplied CA cert."
+    echo "$ca_cert" >/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt
+    update-ca-certificates --fresh
+
+    # XXX TODO: Find a better way of exporting this?
+    if [[ "$CHARM" == "nova-cloud-controller" ]] ; then
+      [[ -e /var/www/keystone_juju_ca_cert.crt ]] &&
+        rm -rf /var/www/keystone_juju_ca_cert.crt
+      ln -s  /usr/local/share/ca-certificates/keystone_juju_ca_cert.crt \
+             /var/www/keystone_juju_ca_cert.crt
+    fi
+
+  fi
+  for port_map in $port_maps ; do
+    local ext_port=$(echo $port_map | cut -d: -f1)
+    local int_port=$(echo $port_map | cut -d: -f2)
+    juju-log "Creating apache2 reverse proxy vhost for $port_map."
+    cat >/etc/apache2/sites-available/${CHARM}_${ext_port} <<END
+Listen $ext_port
+NameVirtualHost *:$ext_port
+<VirtualHost *:$ext_port>
+    ServerName $(unit-get private-address)
+    SSLEngine on
+    SSLCertificateFile /etc/apache2/ssl/$CHARM/cert
+    SSLCertificateKeyFile /etc/apache2/ssl/$CHARM/key
+    ProxyPass / http://localhost:$int_port/
+    ProxyPassReverse / http://localhost:$int_port/
+    ProxyPreserveHost on
+</VirtualHost>
+<Proxy *>
+    Order deny,allow
+    Allow from all
+</Proxy>
+<Location />
+    Order allow,deny
+    Allow from all
+</Location>
+END
+    a2ensite ${CHARM}_${ext_port} | grep -v "To activate the new configuration" &&
+      http_restart=1
+  done
+  if [[ -n "$http_restart" ]] ; then
+    service apache2 restart
+  fi
+}
+
+##########################################################################
+# Description: Ensure HTTPS reverse proxying is disabled for given port
+# mappings.
+# Parameters:  Variable number of proxy port mappings as
+# $internal:$external.
+# Returns: 0 if reverse proxy is not active for all portmaps, 1 on error.
+##########################################################################
+disable_https() {
+  local port_maps="$@"
+  local http_restart=""
+  juju-log "Ensuring HTTPS disabled for $port_maps."
+  ( [[ ! -d /etc/apache2 ]] || [[ ! -d /etc/apache2/ssl/$CHARM ]] ) && return 0
+  for port_map in $port_maps ; do
+    local ext_port=$(echo $port_map | cut -d: -f1)
+    local int_port=$(echo $port_map | cut -d: -f2)
+    if [[ -e /etc/apache2/sites-available/${CHARM}_${ext_port} ]] ; then
+      juju-log "Disabling HTTPS reverse proxy for $CHARM $port_map."
+      a2dissite ${CHARM}_${ext_port} | grep -v "To activate the new configuration" &&
+        http_restart=1
+    fi
+  done
+  if [[ -n "$http_restart" ]] ; then
+    service apache2 restart
+  fi
+}
+
+
+##########################################################################
+# Description: Ensures HTTPS is either enabled or disabled for given port
+# mapping.
+# Parameters:  Variable number of proxy port mappings as
+# $internal:$external.
+# Returns: 0 if HTTPS reverse proxy is in place, 1 if it is not.
+##########################################################################
+setup_https() {
+  # configure https via apache reverse proxying either
+  # using certs provided by config or keystone.
+  [[ -z "$CHARM" ]] &&
+    error_out "setup_https(): CHARM not set."
+  if ! https ; then
+    disable_https $@
+  else
+    enable_https $@
+  fi
+}
+
+##########################################################################
+# Description: Determine correct API server listening port based on
+# existence of HTTPS reverse proxy and/or haproxy.
+# Paremeters: The standard public port for given service.
+# Returns: The correct listening port for API service.
+##########################################################################
+determine_api_port() {
+  local public_port="$1"
+  local i=0
+  ( [[ -n "$(peer_units)" ]] || is_clustered >/dev/null 2>&1 ) && i=$[$i + 1]
+  https >/dev/null 2>&1 && i=$[$i + 1]
+  echo $[$public_port - $[$i * 10]]
+}
+
+##########################################################################
+# Description: Determine correct proxy listening port based on public IP +
+# existence of HTTPS reverse proxy.
+# Paremeters: The standard public port for given service.
+# Returns: The correct listening port for haproxy service public address.
+##########################################################################
+determine_haproxy_port() {
+  local public_port="$1"
+  local i=0
+  https >/dev/null 2>&1 && i=$[$i + 1]
+  echo $[$public_port - $[$i * 10]]
 }
 
 ##########################################################################
@@ -524,40 +724,4 @@ except:
 if value.startswith('%'): exit(0)
 print value
 "
-}
-
-##########################################################################
-# Description: Creates an rc file exporting environment variables to a
-# script_path local to the charm's installed directory.
-# Any charm scripts run outside the juju hook environment can source this
-# scriptrc to obtain updated config information necessary to perform health
-# checks or service changes
-#
-# Parameters:
-#   An array of '=' delimited  ENV_VAR:value combinations to export.
-#   If optional script_path key is not provided in the array, script_path
-#     defaults to scripts/scriptrc
-##########################################################################
-function save_script_rc {
-  if [ ! -n "$JUJU_UNIT_NAME" ]; then
-     echo "Error: Missing JUJU_UNIT_NAME environment variable"
-     exit 1
-  fi
-  # our default unit_path
-  unit_path="/var/lib/juju/units/${JUJU_UNIT_NAME/\//-}/charm/scripts/scriptrc"
-  echo $unit_path
-  tmp_rc="/tmp/${JUJU_UNIT_NAME/\//-}rc"
-
-  echo "#!/bin/bash" > $tmp_rc
-  for env_var in "${@}"
-  do
-    if `echo $env_var | grep -q script_path`; then
-       # well then we need to reset the new unit-local script path
-       unit_path="/var/lib/juju/units/${JUJU_UNIT_NAME/\//-}/charm/${env_var/script_path=/}"
-    else
-       echo "export $env_var" >> $tmp_rc
-    fi
-  done
-  chmod 755 $tmp_rc
-  mv $tmp_rc $unit_path
 }
