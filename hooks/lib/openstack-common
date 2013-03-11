@@ -165,8 +165,9 @@ get_os_codename_install_source() {
   fi
 
   # have a guess based on the deb string provided
-  if [[ "${rel:0:3}" == "deb" ]]; then
-    CODENAMES="diablo essex folsom grizzly"
+  if [[ "${rel:0:3}" == "deb" ]] || \
+     [[ "${rel:0:3}" == "ppa" ]] ; then
+    CODENAMES="diablo essex folsom grizzly havana"
     for cname in $CODENAMES; do
       if echo $rel | grep -q $cname; then
         codename=$cname
@@ -178,11 +179,13 @@ get_os_codename_install_source() {
 
 get_os_codename_package() {
   local pkg_vers=$(dpkg -l | grep "$1" | awk '{ print $3 }') || echo "none"
+  pkg_vers=$(echo $pkg_vers | cut -d: -f2) # epochs
   case "${pkg_vers:0:6}" in
     "2011.2") echo "diablo" ;;
     "2012.1") echo "essex" ;;
     "2012.2") echo "folsom" ;;
     "2013.1") echo "grizzly" ;;
+    "2013.2") echo "havana" ;;
   esac
 }
 
@@ -191,7 +194,8 @@ get_os_version_codename() {
     "diablo") echo "2011.2" ;;
     "essex") echo "2012.1" ;;
     "folsom") echo "2012.2" ;;
-    "grizzly") echo "2012.3" ;;
+    "grizzly") echo "2013.1" ;;
+    "havana") echo "2013.2" ;;
   esac
 }
 
@@ -320,7 +324,7 @@ HAPROXY_DEFAULT=/etc/default/haproxy
 ##########################################################################
 # Description: Configures HAProxy services for Openstack API's
 # Parameters:
-#   Space delimited list of service:ext_port:int_port combinations for which
+#   Space delimited list of service:port combinations for which
 #   haproxy service configuration should be generated for.  The function
 #   assumes the name of the peer relation is 'cluster' and that every
 #   service unit in the peer relation is running the same services.
@@ -348,8 +352,8 @@ defaults
   retries 3
   timeout queue 1000
   timeout connect 1000
-  timeout client 30000
-  timeout server 30000
+  timeout client 10000
+  timeout server 10000
 
 listen stats :8888
   mode http
@@ -407,7 +411,7 @@ is_clustered() {
       done
     fi
   done
-  echo "Unit is not haclustered"
+  juju-log "Unit is not haclustered"
   return 1
 }
 
@@ -458,9 +462,6 @@ eligible_leader() {
     fi
   else
     peers=$(peer_units)
-    for peer in $peers ; do
-      echo "$peer"
-    done
     if [ -n "$peers" ] && ! oldest_peer "$peers"; then
       juju-log 'Deferring action to oldest service unit.'
       return 1
@@ -724,4 +725,40 @@ except:
 if value.startswith('%'): exit(0)
 print value
 "
+}
+
+##########################################################################
+# Description: Creates an rc file exporting environment variables to a
+# script_path local to the charm's installed directory.
+# Any charm scripts run outside the juju hook environment can source this
+# scriptrc to obtain updated config information necessary to perform health
+# checks or service changes
+#
+# Parameters:
+#   An array of '=' delimited  ENV_VAR:value combinations to export.
+#   If optional script_path key is not provided in the array, script_path
+#     defaults to scripts/scriptrc
+##########################################################################
+function save_script_rc {
+  if [ ! -n "$JUJU_UNIT_NAME" ]; then
+     echo "Error: Missing JUJU_UNIT_NAME environment variable"
+     exit 1
+  fi
+  # our default unit_path
+  unit_path="/var/lib/juju/units/${JUJU_UNIT_NAME/\//-}/charm/scripts/scriptrc"
+  echo $unit_path
+  tmp_rc="/tmp/${JUJU_UNIT_NAME/\//-}rc"
+
+  echo "#!/bin/bash" > $tmp_rc
+  for env_var in "${@}"
+  do
+    if `echo $env_var | grep -q script_path`; then
+       # well then we need to reset the new unit-local script path
+       unit_path="/var/lib/juju/units/${JUJU_UNIT_NAME/\//-}/charm/${env_var/script_path=/}"
+    else
+       echo "export $env_var" >> $tmp_rc
+    fi
+  done
+  chmod 755 $tmp_rc
+  mv $tmp_rc $unit_path
 }
