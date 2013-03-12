@@ -53,7 +53,7 @@ function db_changed {
              "$JUJU_REMOTE_UNIT-$JUJU_RELATION_ID"
   fi
 
-  local db_host=$(relation-get $r_args private-address)
+  local db_host=$(relation-get $r_args db_host)
   local db_password=$(relation-get $r_args password)
 
   if [[ -z "$db_host" ]] || [[ -z "$db_password" ]] ; then
