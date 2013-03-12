@@ -314,3 +314,29 @@ function get_block_device() {
   echo "$found"
   return 0
 }
+
+function cfg_set_or_update() {
+  local key="$1"
+  local value="$2"
+  local file="$3"
+  local section="$4"
+  [[ -z "$section" ]] && section="DEFAULT"
+  [[ -z $key ]] && juju-log "ERROR: cfg_set_or_update(): value $value missing key" \
+        && exit 1
+  [[ -z $value ]] && juju-log "ERROR: cfg_set_or_update(): key $key missing value" \
+        && exit 1
+  [[ ! -e $file ]] && juju-log "ERROR: cfg_set_or_update(): File not found $file" \
+        && exit 1
+
+  python -c "
+import ConfigParser
+config = ConfigParser.RawConfigParser()
+config.read('$file')
+if '$section' != 'DEFAULT' and not config.has_section('$section'):
+    config.add_section('$section')
+config.set('$section', '$key', '$value')
+with open('$file', 'wb') as conf_out:
+    config.write(conf_out)
+"
+  juju-log "Updated config $file, $key = $value in section $section."
+}
