@@ -324,13 +324,15 @@ HAPROXY_DEFAULT=/etc/default/haproxy
 ##########################################################################
 # Description: Configures HAProxy services for Openstack API's
 # Parameters:
-#   Space delimited list of service:port combinations for which
+#   Space delimited list of service:port:mode combinations for which
 #   haproxy service configuration should be generated for.  The function
 #   assumes the name of the peer relation is 'cluster' and that every
 #   service unit in the peer relation is running the same services.
 #
+#   Services that do not specify :mode in parameter will default to http.
+#
 # Example
-#   configure_haproxy cinder_api:8776:8756i nova_api:8774:8764
+#   configure_haproxy cinder_api:8776:8756:tcp nova_api:8774:8764:http
 ##########################################################################
 configure_haproxy() {
   local address=`unit-get private-address`
@@ -352,8 +354,8 @@ defaults
   retries 3
   timeout queue 1000
   timeout connect 1000
-  timeout client 10000
-  timeout server 10000
+  timeout client 30000
+  timeout server 30000
 
 listen stats :8888
   mode http
@@ -368,12 +370,15 @@ EOF
     local service_name=$(echo $service | cut -d : -f 1)
     local haproxy_listen_port=$(echo $service | cut -d : -f 2)
     local api_listen_port=$(echo $service | cut -d : -f 3)
+    local mode=$(echo $service | cut -d : -f 4)
+    [[ -z "$mode" ]] && mode="http"
     juju-log "Adding haproxy configuration entry for $service "\
              "($haproxy_listen_port -> $api_listen_port)"
     cat >> $HAPROXY_CFG << EOF
 listen $service_name 0.0.0.0:$haproxy_listen_port
   balance roundrobin
-  option tcplog
+  mode $mode
+  option ${mode}log
   server $name $address:$api_listen_port check
 EOF
     local r_id=""
