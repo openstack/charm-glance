@@ -199,7 +199,7 @@ function keystone_joined {
   https && scheme="https" || scheme="http"
   is_clustered && local host=$(config-get vip) ||
     local host=$(unit-get private-address)
-  url="$scheme://$host:9292/v1"
+  url="$scheme://$host:9292"
 
   # advertise our API endpoint to keystone
   relation-set service="glance" \
