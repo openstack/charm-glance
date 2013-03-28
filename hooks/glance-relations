@@ -199,7 +199,7 @@ function keystone_joined {
   https && scheme="https" || scheme="http"
   is_clustered && local host=$(config-get vip) ||
     local host=$(unit-get private-address)
-  url="$scheme://$host:9292/v1"
+  url="$scheme://$host:9292"
 
   # advertise our API endpoint to keystone
   relation-set service="glance" \
@@ -340,7 +340,7 @@ function ha_relation_changed() {
   if [ -n "$clustered" ] && is_leader 'res_glance_vip'; then
     local port=$((9292 + 10000))
     local host=$(config-get vip)
-    local url="http://$host:$port/v1"
+    local url="http://$host:$port"
     for r_id in `relation-ids identity-service`; do
       relation-set -r $r_id service="glance" \
         region="$(config-get region)" \
@@ -409,7 +409,7 @@ function ha_relation_changed() {
   if [ -n "$clustered" ] && is_leader 'res_glance_vip'; then
     local host=$(config-get vip)
     https && local scheme="https" || local scheme="http"
-    local url="$scheme://$host:9292/v1"
+    local url="$scheme://$host:9292"
 
     for r_id in `relation-ids identity-service`; do
       relation-set -r $r_id service="glance" \
