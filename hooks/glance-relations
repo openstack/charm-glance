@@ -71,8 +71,6 @@ function db_changed {
 
   juju-log "$CHARM - db_changed: Configuring glance.conf for access to $glance_db"
 
-  service_ctl all stop
-
   set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" registry
 
   # since folsom, a db connection setting in glance-api.conf is required.
