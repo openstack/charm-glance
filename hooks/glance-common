@@ -10,11 +10,12 @@ GLANCE_REGISTRY_PASTE_INI="/etc/glance/glance-registry-paste.ini"
 GLANCE_API_CONF="/etc/glance/glance-api.conf"
 GLANCE_API_PASTE_INI="/etc/glance/glance-api-paste.ini"
 CONF_DIR="/etc/glance"
+HOOKS_DIR="$CHARM_DIR/hooks"
 
-if [[ -e "$CHARM_DIR/lib/openstack-common" ]] ; then
-  . $CHARM_DIR/lib/openstack-common
+if [[ -e "$HOOKS_DIR/lib/openstack-common" ]] ; then
+  . $HOOKS_DIR/lib/openstack-common
 else
-  juju-log "ERROR: Couldn't load $CHARM_DIR/lib/openstack-common." && exit 1
+  juju-log "ERROR: Couldn't load $HOOKS_DIR/lib/openstack-common." && exit 1
 fi
 
 function set_paste_deploy_flavor {

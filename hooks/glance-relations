@@ -1,12 +1,12 @@
 #!/bin/bash -e
 
-CHARM_DIR=$(dirname $0)
+HOOKS_DIR="$CHARM_DIR/hooks"
 ARG0=${0##*/}
 
-if [[ -e $CHARM_DIR/glance-common ]] ; then
-  . $CHARM_DIR/glance-common
+if [[ -e $HOOKS_DIR/glance-common ]] ; then
+  . $HOOKS_DIR/glance-common
 else
-  echo "ERROR: Could nto load glance-common from $CHARM_DIR"
+  echo "ERROR: Could nto load glance-common from $HOOKS_DIR"
 fi
 
 function install_hook {
