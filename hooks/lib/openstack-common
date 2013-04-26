@@ -762,7 +762,7 @@ function save_script_rc {
      exit 1
   fi
   # our default unit_path
-  unit_path="/var/lib/juju/units/${JUJU_UNIT_NAME/\//-}/charm/scripts/scriptrc"
+  unit_path="$CHARM_DIR/scripts/scriptrc"
   echo $unit_path
   tmp_rc="/tmp/${JUJU_UNIT_NAME/\//-}rc"
 
@@ -771,7 +771,7 @@ function save_script_rc {
   do
     if `echo $env_var | grep -q script_path`; then
        # well then we need to reset the new unit-local script path
-       unit_path="/var/lib/juju/units/${JUJU_UNIT_NAME/\//-}/charm/${env_var/script_path=/}"
+       unit_path="$CHARM_DIR/${env_var/script_path=/}"
     else
        echo "export $env_var" >> $tmp_rc
     fi
