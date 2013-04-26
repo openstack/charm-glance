@@ -6,7 +6,7 @@ ARG0=${0##*/}
 if [[ -e $HOOKS_DIR/glance-common ]] ; then
   . $HOOKS_DIR/glance-common
 else
-  echo "ERROR: Could nto load glance-common from $HOOKS_DIR"
+  echo "ERROR: Could not load glance-common from $HOOKS_DIR"
 fi
 
 function install_hook {
