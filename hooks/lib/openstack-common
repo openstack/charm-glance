@@ -20,6 +20,9 @@ function service_ctl_status {
 
 function service_ctl {
   # control a specific service, or all (as defined by $SERVICES)
+  # service restarts will only occur depending on global $CONFIG_CHANGED,
+  # which should be updated in charm's set_or_update().
+  local config_changed=${CONFIG_CHANGED:-True}
   if [[ $1 == "all" ]] ; then
     ctl="$SERVICES"
   else
@@ -37,12 +40,21 @@ function service_ctl {
       "stop")
         service_ctl_status $i && service $i stop || return 0 ;;
       "restart")
-        service_ctl_status $i && service $i restart || service $i start ;;
+        if [[ "$config_changed" == "True" ]] ; then
+          service_ctl_status $i && service $i restart || service $i start
+        fi
+        ;;
     esac
     if [[ $? != 0 ]] ; then
       juju-log "$CHARM: service_ctl ERROR - Service $i failed to $action"
     fi
   done
+  # all configs should have been reloaded on restart of all services, reset
+  # flag if its being used.
+  if [[ "$action" == "restart" ]] && [[ -n "$CONFIG_CHANGED" ]] &&
+     [[ "$ctl" == "all" ]]; then
+    CONFIG_CHANGED="False"
+  fi
 }
 
 function configure_install_source {
