@@ -126,6 +126,13 @@ do_openstack_upgrade() {
     juju-log "$CHARM: Configuring identity service after upgrade to $rel."
     keystone_changed $r_id
   fi
+  local ceph_ids="$(relation-ids ceph)"
+  [[ -n "$ceph_ids" ]] && apt-get -y install librbd1
+  for r_id in $ceph_ids ; do
+    for unit in $(relation-list -r $r_id) ; do
+      ceph_changed "$r_id" "$unit"
+    done
+  done
 }
 
 configure_https() {
