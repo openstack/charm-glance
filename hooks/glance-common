@@ -128,7 +128,7 @@ do_openstack_upgrade() {
   fi
 
   local ceph_ids="$(relation-ids ceph)"
-  [[ -n "$ceph_ids" ]] && apt-get -y install librbd1
+  [[ -n "$ceph_ids" ]] && apt-get -y install ceph-common python-ceph
   for r_id in $ceph_ids ; do
     for unit in $(relation-list -r $r_id) ; do
       ceph_changed "$r_id" "$unit"
