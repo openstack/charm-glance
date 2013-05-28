@@ -7,6 +7,12 @@ import os
 import lib.utils as utils
 import lib.cluster_utils as cluster
 
+from lib.cluster_utils import (
+    https,
+    )
+
+config=json.loads(subprocess.check_output(['config-get','--format=json']))
+
 HOOKS_DIR="$CHARM_DIR/hooks"
 ARG0=${0##*/}
 
@@ -413,25 +419,30 @@ function ha_relation_joined() {
   fi
 }
 
-function ha_relation_changed() {
-  local clustered=`relation-get clustered`
-  if [ -n "$clustered" ] && is_leader 'res_glance_vip'; then
-    local host=$(config-get vip)
-    https && local scheme="https" || local scheme="http"
-    local url="$scheme://$host:9292"
+def ha_relation_changed():
+    relation_data = utils.relation_get_dict()
+    if ('clustered' in relation_data and
+        utils.is_leader()):
+        host = config["vip"]
+        if https():
+            scheme = "https"
+        else
+            scheme = "http"
+        url = "%s://%s:9292" % (scheme, host)
+        utils.juju_log('INFO', 'Cluster configured, notifying other services')
+        # Tell all related services to start using
+        # the VIP
+        for r_id in utils.relation_ids('identity-service'):
+            utils.relation_set(rid=r_id,
+                           service="glance",
+                           region=config["region"],
+                           public_url=url,
+                           admin_url=url,
+                           internal_url=url)
 
-    for r_id in `relation-ids identity-service`; do
-      relation-set -r $r_id service="glance" \
-        region="$(config-get region)" \
-        public_url="$url" admin_url="$url" internal_url="$url"
-    done
-    for r_id in `relation-ids image-service`; do
-      relation-set -r $r_id \
-        glance-api-server="$scheme://$host:9292"
-    done
-  fi
-}
-
+        for r_id in utils.relation_ids('identity-service'):
+            utils.relation_set(rid=r_id,
+                           glance-api-server=url)
 
 def exit():
     sys.exit(0)
