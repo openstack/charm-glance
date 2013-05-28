@@ -1,4 +1,11 @@
-#!/bin/bash -e
+#!/usr/bin/python
+import shutil
+import sys
+import time
+import os
+
+import lib.utils as utils
+import lib.cluster_utils as cluster
 
 HOOKS_DIR="$CHARM_DIR/hooks"
 ARG0=${0##*/}
@@ -426,23 +433,29 @@ function ha_relation_changed() {
 }
 
 
-case $ARG0 in
-  "start"|"stop") service_ctl all $ARG0 ;;
-  "install") install_hook ;;
-  "config-changed") config_changed ;;
-  "shared-db-relation-joined") db_joined ;;
-  "shared-db-relation-changed") db_changed;;
-  "image-service-relation-joined") image-service_joined ;;
-  "image-service-relation-changed") exit 0 ;;
-  "object-store-relation-joined") object-store_joined ;;
-  "object-store-relation-changed") object-store_changed ;;
-  "identity-service-relation-joined") keystone_joined ;;
-  "identity-service-relation-changed") keystone_changed ;;
-  "ceph-relation-joined") ceph_joined;;
-  "ceph-relation-changed") ceph_changed;;
-  "cluster-relation-changed") cluster_changed ;;
-  "cluster-relation-departed") cluster_changed ;;
-  "ha-relation-joined") ha_relation_joined ;;
-  "ha-relation-changed") ha_relation_changed ;;
-  "upgrade-charm") upgrade_charm ;;
-esac
+def exit():
+    sys.exit(0)
+
+hooks = {
+  'start': start
+  'stop': service_ctl all $ARG0 ;;
+  'install': install_hook,
+  'config-changed': config_changed,
+  'shared-db-relation-joined': db_joined,
+  'shared-db-relation-changed': db_changed,
+  'image-service-relation-joined': image-service_joined,
+  'image-service-relation-changed': exit, # do we need it?
+  'object-store-relation-joined': object-store_joined,
+  'object-store-relation-changed': object-store_changed,
+  'identity-service-relation-joined': keystone_joined,
+  'identity-service-relation-changed': keystone_changed,
+  'ceph-relation-joined': ceph_joined,
+  'ceph-relation-changed': ceph_changed,
+  'cluster-relation-changed': cluster_changed,
+  'cluster-relation-departed': cluster_changed,
+  'ha-relation-joined': ha_relation_joined,
+  'ha-relation-changed': ha_relation_changed,
+  'upgrade-charm': upgrade_charm,
+}
+
+utils.do_hooks(hooks)
