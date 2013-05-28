@@ -432,6 +432,10 @@ def ha_relation_changed():
         utils.juju_log('INFO', 'Cluster configured, notifying other services')
         # Tell all related services to start using
         # the VIP
+        # TODO: recommendations by adam_g
+        # TODO: could be further simpllfiied by letting keystone_joined()
+        # and image-service_joined() take parameters of relation_id
+        # then just call keystone_joined(r_id) + image-service_joined(r_d)
         for r_id in utils.relation_ids('identity-service'):
             utils.relation_set(rid=r_id,
                            service="glance",
@@ -440,7 +444,7 @@ def ha_relation_changed():
                            admin_url=url,
                            internal_url=url)
 
-        for r_id in utils.relation_ids('identity-service'):
+        for r_id in utils.relation_ids('image-service'):
             utils.relation_set(rid=r_id,
                            glance-api-server=url)
 
