@@ -24,7 +24,26 @@ from lib.haproxy_utils import (
 #TODO: Port glance-common to Python
 from lib.glance_common import (
     set_or_update,
+    configure_https,
     )
+
+from lib.openstack_common import (
+    get_os_codename_package,
+    get_os_codename_install_source,
+    get_os_version_codename,
+    save_script_rc,
+    )
+
+packages = [
+    "glance", "python-mysqldb", "python-swift",
+    " python-keystone", "uuid", "haproxy",
+    ]
+
+services = [
+    "glance-api", "glance-registry",
+    ]
+
+charm = "glance"
 
 config=json.loads(subprocess.check_output(['config-get','--format=json']))
 
@@ -296,35 +315,31 @@ function keystone_changed {
   configure_https
 }
 
-function config_changed() {
+
+def config_changed():
   # Determine whether or not we should do an upgrade, based on whether or not
   # the version offered in openstack-origin is greater than what is installed.
+    cur = get_os_codename_package("glance-common")
+    available = get_os_codename_install_source(config["openstack-origin"])
 
-  local install_src=$(config-get openstack-origin)
-  local cur=$(get_os_codename_package "glance-common")
-  local available=$(get_os_codename_install_source "$install_src")
+    if (available and
+        get_os_version_codename(available) > \
+            get_os_version_codename(installed)):
+        juju_log('INFO', '%s: Upgrading OpenStack release: %s -> %s' % (charm, cur, available))
+        do_openstack_upgrade(config["openstack-origin"], ' '.join(packages))
 
-  if [[ "$available" != "unknown" ]] ; then
-    if dpkg --compare-versions $(get_os_version_codename "$cur") lt \
-                               $(get_os_version_codename "$available") ; then
-      juju-log "$CHARM: Upgrading OpenStack release: $cur -> $available."
-      do_openstack_upgrade "$install_src" $PACKAGES
-    fi
-  fi
-  configure_https
-  service_ctl all restart
+    configure_https()
+    restart(services)
 
-  # Save our scriptrc env variables for health checks
-  declare -a env_vars=(
-      "OPENSTACK_PORT_MCASTPORT=$(config-get ha-mcastport)"
-      'OPENSTACK_SERVICE_API=glance-api'
-      'OPENSTACK_SERVICE_REGISTRY=glance-registry')
-  save_script_rc ${env_vars[@]}
-}
+    env_vars = {'OPENSTACK_PORT_MCASTPORT': config["ha-mcastport"],
+                'OPENSTACK_SERVICE_API': "glance-api"),
+                'OPENSTACK_SERVICE_REGISTRY': "glance-registry"}
+    save_script_rc(**env_vars)
+
 
 def cluster_changed():
     if not peer_units():
-        juju_log('INFO', 'cluster_change() with no peers.')
+        juju_log('INFO', '%s: cluster_change() with no peers.' % charm)
         sys.exit(0)
     haproxy_port = determine_haproxy_port('9292')
     backend_port = determine_api_port('9292')
@@ -386,7 +401,7 @@ def ha_relation_changed():
         else
             scheme = "http"
         url = "%s://%s:9292" % (scheme, host)
-        utils.juju_log('INFO', 'Cluster configured, notifying other services')
+        utils.juju_log('INFO', '%s: Cluster configured, notifying other services' % charm)
         # Tell all related services to start using
         # the VIP
         # TODO: recommendations by adam_g
