@@ -186,9 +186,9 @@ function object-store_joined {
   service_ctl glance-api restart
 }
 
-function object-store_changed {
-  exit 0
-}
+
+def object-store_changed():
+    pass
 
 function ceph_joined {
   mkdir -p /etc/ceph
