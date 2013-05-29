@@ -144,18 +144,29 @@ function db_changed {
   service_ctl all restart
 }
 
-function image-service_joined {
-  # Check to see if unit is potential leader
-  local r_id="$1"
-  [[ -n "$r_id" ]] && r_id="-r $r_id"
-  eligible_leader 'res_glance_vip' || return 0
-  https && scheme="https" || scheme="http"
-  is_clustered && local host=$(config-get vip) ||
-    local host=$(unit-get private-address)
-  url="$scheme://$host:9292"
-  juju-log "glance: image-service_joined: To peer glance-api-server=$url"
-  relation-set $r_id glance-api-server=$url
-}
+
+def image-service_joined(relation_id=None):
+
+    if not eligible_leader("res_glance_vip"):
+        return
+    scheme="http"
+    if https():
+        scheme="https"
+    host = unit_get('private-address')
+    if is_clustered():
+        host = config["vip"]
+
+    relation_data = {
+        'glance-api-server': "%s://%s:9292" % (scheme, host),
+        }
+
+    if relation_id:
+        relation_data['rid'] = relation_id
+
+    juju_log("%s: image-service_joined: To peer glance-api-server=%s" % (charm, relation_data['glance-api-server']))
+
+    relation_set(**relation_data)
+
 
 function object-store_joined {
   local relids="$(relation-ids identity-service)"
@@ -247,9 +258,6 @@ EOF
 
 
 def keystone_joined(relation_id=None):
-    # TODO:
-    # - take into account the parameter relation_id and:
-    # [[ -n "$r_id" ]] && r_id=" -r $r_id""
     if not eligible_leader('res_glance_vip'):
         utils.juju_log('INFO',
                        'Deferring keystone_joined() to service leader.')
@@ -265,8 +273,18 @@ def keystone_joined(relation_id=None):
 
     url = "%s://%s:9292" % (scheme, host)
 
-    relation_set(service="glance", region=config["region"],
-                 public_url=url, admin_url=url, internal_url=url)
+    relation_data = {
+        'service': 'glance',
+        'region': config['region'],
+        'public_url': url,
+        'admin_url': url,
+        'internal_url': url,
+        }
+
+    if relation_id:
+        relation_data['rid'] = relation_id
+
+    relation_set(**relation_data)
 
 function keystone_changed {
   # serves as the main identity-service changed hook, but may also be called
@@ -339,6 +357,7 @@ def config_changed():
         get_os_version_codename(available) > \
             get_os_version_codename(installed)):
         juju_log('INFO', '%s: Upgrading OpenStack release: %s -> %s' % (charm, cur, available))
+        # TODO: do_openstack_upgrade_function: where does it come from?
         do_openstack_upgrade(config["openstack-origin"], ' '.join(packages))
 
     configure_https()
