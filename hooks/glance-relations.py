@@ -81,14 +81,17 @@ function install_hook {
   configure_https
 }
 
-function db_joined {
-  local glance_db=$(config-get glance-db)
-  local db_user=$(config-get db-user)
-  local hostname=$(unit-get private-address)
-  juju-log "$CHARM - db_joined: requesting database access to $glance_db for "\
-           "$db_user@$hostname"
-  relation-set database=$glance_db username=$db_user hostname=$hostname
-}
+
+def db_joined():
+    relation_data = {
+        'database': config["glance-db"],
+        'username': config["db-user"],
+        'hostname': unit_get('private-address')
+        }
+
+    #juju-log "$CHARM - db_joined: requesting database access to $glance_db for "\
+    #       "$db_user@$hostname"
+    relation_set(**relation_data)
 
 function db_changed {
   # serves as the main shared-db changed hook but may also be called with a
