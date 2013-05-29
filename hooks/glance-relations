@@ -4,11 +4,26 @@ import sys
 import time
 import os
 
-import lib.utils as utils
-import lib.cluster_utils as cluster
-
 from lib.cluster_utils import (
     https,
+    peer_units,
+    determine_haproxy_port,
+    determine_api_port,
+    )
+
+from lib.utils import (
+    juju_log,
+    start,
+    stop,
+    )
+
+from lib.haproxy_utils import (
+    configure_haproxy,
+    )
+
+#TODO: Port glance-common to Python
+from lib.glance_common import (
+    set_or_update,
     )
 
 config=json.loads(subprocess.check_output(['config-get','--format=json']))
@@ -307,20 +322,19 @@ function config_changed() {
   save_script_rc ${env_vars[@]}
 }
 
-function cluster_changed() {
-  configure_haproxy "glance_api:9292"
-}
-
-function cluster_changed() {
-  [[ -z "$(peer_units)" ]] &&
-    juju-log "cluster_changed() with no peers." && exit 0
-  local haproxy_port=$(determine_haproxy_port 9292)
-  local backend_port=$(determine_api_port 9292)
-  service glance-api stop
-  configure_haproxy "glance_api:$haproxy_port:$backend_port"
-  set_or_update bind_port "$backend_port" "api"
-  service glance-api start
-}
+def cluster_changed():
+    if not peer_units():
+        juju_log('INFO', 'cluster_change() with no peers.')
+        sys.exit(0)
+    haproxy_port = determine_haproxy_port('9292')
+    backend_port = determine_api_port('9292')
+    stop('glance-api')
+    configure_haproxy("glance_api:%s:%s" % (haproxy_port, backend_port))
+    # TODO: glance-common should be ported to python too to have this
+    # function working
+    # set_or_update bind_port "$backend_port" "api"
+    set_or_update()
+    start('glance-api')
 
 def upgrade_charm():
     cluster_changed()
