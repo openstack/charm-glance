@@ -9,12 +9,16 @@ from lib.cluster_utils import (
     peer_units,
     determine_haproxy_port,
     determine_api_port,
+    eligible_leader,
     )
 
 from lib.utils import (
     juju_log,
     start,
     stop,
+    restart,
+    unit_get,
+    relation_set,
     )
 
 from lib.haproxy_utils import (
@@ -238,22 +242,28 @@ EOF
   service_ctl glance-api restart
 }
 
-function keystone_joined {
-  # Leadership check
-  eligible_leader 'res_glance_vip' || return 0
-  local r_id="$1"
-  [[ -n "$r_id" ]] && r_id=" -r $r_id"
 
-  # determine correct endpoint URL
-  https && scheme="https" || scheme="http"
-  is_clustered && local host=$(config-get vip) ||
-    local host=$(unit-get private-address)
-  url="$scheme://$host:9292"
+def keystone_joined(relation_id=None):
+    # TODO:
+    # - take into account the parameter relation_id and:
+    # [[ -n "$r_id" ]] && r_id=" -r $r_id""
+    if not eligible_leader('res_glance_vip'):
+        utils.juju_log('INFO',
+                       'Deferring keystone_joined() to service leader.')
+        return
 
-  # advertise our API endpoint to keystone
-  relation-set service="glance" \
-    region="$(config-get region)" public_url=$url admin_url=$url internal_url=$url
-}
+    scheme = "http"
+    if https():
+        scheme = "https"
+
+    host = unit_get('private-address')
+    if is_clustered():
+        host = config["vip"]
+
+    url = "%s://%s:9292" % (scheme, host)
+
+    relation_set(service="glance", region=config["region"],
+                 public_url=url, admin_url=url, internal_url=url)
 
 function keystone_changed {
   # serves as the main identity-service changed hook, but may also be called
