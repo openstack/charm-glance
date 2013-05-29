@@ -52,15 +52,6 @@ charm = "glance"
 
 config=json.loads(subprocess.check_output(['config-get','--format=json']))
 
-HOOKS_DIR="$CHARM_DIR/hooks"
-ARG0=${0##*/}
-
-if [[ -e $HOOKS_DIR/glance-common ]] ; then
-  . $HOOKS_DIR/glance-common
-else
-  echo "ERROR: Could not load glance-common from $HOOKS_DIR"
-fi
-
 
 def install_hook():
     juju_log("Installing glance packages")
