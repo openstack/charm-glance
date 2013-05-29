@@ -61,25 +61,23 @@ else
   echo "ERROR: Could not load glance-common from $HOOKS_DIR"
 fi
 
-function install_hook {
-  juju-log "Installing glance packages"
-  apt-get -y install python-software-properties || exit 1
 
-  configure_install_source "$(config-get openstack-origin)"
+def install_hook():
+    juju_log("Installing glance packages")
+    configure_source()
 
-  apt-get update || exit 1
-  apt-get -y install $PACKAGES || exit 1
+    install(*packages)
 
-  service_ctl all stop
+    stop(*services)
 
-  # TODO: Make debug logging a config option.
-  set_or_update verbose True api
-  set_or_update debug True api
-  set_or_update verbose True registry
-  set_or_update debug True registry
+    # TODO:
+    # set_or_update verbose True api
+    # set_or_update debug True api
+    # set_or_update verbose True registry
+    # set_or_update debug True registry
+    # set_or_update()
 
-  configure_https
-}
+    configure_https()
 
 
 def db_joined():
