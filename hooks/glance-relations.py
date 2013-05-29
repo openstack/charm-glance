@@ -19,6 +19,7 @@ from lib.utils import (
     restart,
     unit_get,
     relation_set,
+    relation_ids,
     install,
     )
 
@@ -159,36 +160,40 @@ def image-service_joined(relation_id=None):
     relation_set(**relation_data)
 
 
-function object-store_joined {
-  local relids="$(relation-ids identity-service)"
-  [[ -z "$relids" ]] && \
-    juju-log "$CHARM: Deferring swift store configuration until " \
-             "an identity-service relation exists." && exit 0
+def object-store_joined():
+    relids = relation_ids('identity-service')
 
-  set_or_update default_store swift api
-  set_or_update swift_store_create_container_on_put true api
+    if not relids:
+        juju_log('INFO', 'Deferring swift stora configuration until ' \
+                         'an identity-service relation exists')
+        return
 
-  for relid in $relids ; do
-    local unit=$(relation-list -r $relid)
-    local svc_tenant=$(relation-get -r $relid service_tenant $unit)
-    local svc_username=$(relation-get -r $relid service_username $unit)
-    local svc_password=$(relation-get -r $relid service_password $unit)
-    local auth_host=$(relation-get -r $relid private-address $unit)
-    local port=$(relation-get -r $relid service_port $unit)
-    local auth_url=""
+    #TODO:
+    # set_or_update default_store swift api
+    # set_or_update swift_store_create_container_on_put true api
+    set_or_update()
 
-    [[ -n "$auth_host" ]] && [[ -n "$port" ]] &&
-      auth_url="http://$auth_host:$port/v2.0/"
+    for rid in relids:
+        for unit in utils.relation_list(rid=rid):
+            svc_tenant = relation_get(attribute='service_tenant', rid=rid, unit=unit)
+            svc_username = relation_get(attribute='service_username', rid=rid, unit=unit)
+            svc_password = relation_get(attribute='service_passwod', rid=rid, unit=unit)
+            auth_host = relation_get(attribute='private-address', rid=rid, unit=unit)
+            port = relation_get(attribute='service_port', rid=rid, unit=unit)
 
-    [[ -n "$svc_tenant" ]] && [[ -n "$svc_username" ]] &&
-      set_or_update swift_store_user "$svc_tenant:$svc_username" api
-    [[ -n "$svc_password" ]] &&
-      set_or_update swift_store_key "$svc_password" api
-    [[ -n "$auth_url" ]] &&
-      set_or_update swift_store_auth_address "$auth_url" api
-  done
-  service_ctl glance-api restart
-}
+            if auth_host and port:
+                auth_url = "http://%s:%s/v2.0" % (auth_host, port)
+            if svc_tenant and svc_username:
+                #TODO
+                # set_or_update swift_store_user "$svc_tenant:$svc_username" api
+            if svc_password:
+                # TODO:
+                # set_or_update swift_store_key "$svc_password" api
+            if auth_url:
+                # TODO:
+                # set_or_update swift_store_auth_address "$auth_url" api
+
+    restart(['glance-api'])
 
 
 def object-store_changed():
