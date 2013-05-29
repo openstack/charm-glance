@@ -19,6 +19,7 @@ from lib.utils import (
     restart,
     unit_get,
     relation_set,
+    install,
     )
 
 from lib.haproxy_utils import (
@@ -190,10 +191,11 @@ function object-store_joined {
 def object-store_changed():
     pass
 
-function ceph_joined {
-  mkdir -p /etc/ceph
-  apt-get -y install ceph-common python-ceph || exit 1
-}
+
+def ceph_joined():
+    os.mkdir('/etc/ceph')
+    install(['ceph-common', 'python-ceph'])
+
 
 function ceph_changed {
   local r_id="$1"
