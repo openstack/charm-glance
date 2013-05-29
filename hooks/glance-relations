@@ -311,10 +311,6 @@ function cluster_changed() {
   configure_haproxy "glance_api:9292"
 }
 
-function upgrade_charm() {
-  cluster_changed
-}
-
 function cluster_changed() {
   [[ -z "$(peer_units)" ]] &&
     juju-log "cluster_changed() with no peers." && exit 0
@@ -326,9 +322,8 @@ function cluster_changed() {
   service glance-api start
 }
 
-function upgrade_charm() {
-  cluster_changed
-}
+def upgrade_charm():
+    cluster_changed()
 
 def ha_relation_joined():
     corosync_bindiface = config["ha-bindiface"]
