@@ -91,7 +91,7 @@ def db_changed(rid=None):
         'db_host' not in relation_data):
         juju_log('INFO',
                  'db_host or password not set. Peer not ready, exit 0')
-        return
+        sys.exit(0)
 
     db_user = relation_data["glance-db"]
     db_user = relation_data["db-user"]
@@ -260,6 +260,7 @@ def keystone_joined(relation_id=None):
         relation_data['rid'] = relation_id
 
     relation_set(**relation_data)
+
 
 function keystone_changed {
   # serves as the main identity-service changed hook, but may also be called
