@@ -262,65 +262,52 @@ def keystone_joined(relation_id=None):
     relation_set(**relation_data)
 
 
-function keystone_changed {
-  # serves as the main identity-service changed hook, but may also be called
-  # with a relation-id to configure new config files for existing relations.
-  local r_id="$1"
-  local r_args=""
-  if [[ -n "$r_id" ]] ; then
-    # set up environment for an existing relation to a single unit.
-    export JUJU_REMOTE_UNIT=$(relation-list -r $r_id | head -n1)
-    export JUJU_RELATION="identity-service"
-    export JUJU_RELATION_ID="$r_id"
-    local r_args="-r $JUJU_RELATION_ID"
-    juju-log "$CHARM - db_changed: Running hook for existing relation to "\
-             "$JUJU_REMOTE_UNIT-$JUJU_RELATION_ID"
-  fi
+def keystone_changed(rid=None):
+    relation_data = relation_get_dict(relation_id=rid)
 
-  token=$(relation-get $r_args $r_args admin_token)
-  service_port=$(relation-get $r_args service_port)
-  auth_port=$(relation-get $r_args auth_port)
-  service_username=$(relation-get $r_args service_username)
-  service_password=$(relation-get $r_args service_password)
-  service_tenant=$(relation-get $r_args service_tenant)
-  [[ -z "$token" ]] || [[ -z "$service_port" ]] || [[ -z "$auth_port" ]] ||
-    [[ -z "$service_username" ]] || [[ -z "$service_password" ]] ||
-    [[ -z "$service_tenant" ]] && juju-log "keystone_changed: Peer not ready" &&
-      exit 0
-  [[ "$token" == "-1" ]] &&
-     juju-log "keystone_changed: admin token error" && exit 1
-  juju-log "keystone_changed: Acquired admin. token"
-  keystone_host=$(relation-get $r_args auth_host)
+    token = relation_data["admin_token"]
+    service_port = relation_data["service_port"]
+    auth_port = relation_data["auth_port"]
+    service_username = relation_data["service_username"]
+    service_password = relation_data["service_password"]
+    service_tenant = relation_data["service_tenant"]
 
-  if [[ -n "$r_id" ]] ; then
-    unset JUJU_REMOTE_UNIT JUJU_RELATION JUJU_RELATION_ID
-  fi
+    if not token or not service_port or not auth_port or \
+        not service_username or not service_password or not service_tenant:
+        juju_log('INFO', 'keystone_changed: Peer not ready')
+        sys.exit(0)
 
-  set_paste_deploy_flavor "keystone" "api" || exit 1
-  set_paste_deploy_flavor "keystone" "registry" || exit 1
+    if token == "-1":
+        juju_log('ERROR', 'keystone_changed: admin token error')
+        sys.exit(1)
+    juju_log('INFO', 'keystone_changed: Acquired admin token')
 
-  for i in api-paste registry-paste ; do
-    set_or_update "service_host" "$keystone_host" $i
-    set_or_update "service_port" "$service_port" $i
-    set_or_update "auth_host" "$keystone_host" $i
-    set_or_update "auth_port" "$auth_port" $i
-    set_or_update "auth_uri" "http://$keystone_host:$service_port/" $i
-    set_or_update "admin_token" "$token" $i
-    set_or_update "admin_tenant_name" "$service_tenant" $i
-    set_or_update "admin_user" "$service_username" $i
-    set_or_update "admin_password" "$service_password" $i
-  done
-  service_ctl all restart
+    # TODO:
+    # set_paste_deploy_flavor "keystone" "api" || exit 1
+    # set_paste_deploy_flavor "keystone" "registry" || exit 1
 
-  # Configure any object-store / swift relations now that we have an
-  # identity-service
-  if [[ -n "$(relation-ids object-store)" ]] ; then
-    object-store_joined
-  fi
+    # TODO:
+    # for i in api-paste registry-paste ; do
+    #    set_or_update "service_host" "$keystone_host" $i
+    #    set_or_update "service_port" "$service_port" $i
+    #    set_or_update "auth_host" "$keystone_host" $i
+    #    set_or_update "auth_port" "$auth_port" $i
+    #    set_or_update "auth_uri" "http://$keystone_host:$service_port/" $i
+    #    set_or_update "admin_token" "$token" $i
+    #    set_or_update "admin_tenant_name" "$service_tenant" $i
+    #    set_or_update "admin_user" "$service_username" $i
+    #    set_or_update "admin_password" "$service_password" $i
+    # done
 
-  # possibly configure HTTPS for API and registry
-  configure_https
-}
+    restart(services)
+
+    # Configure any object-store / swift relations now that we have an
+    # identity-service
+    if relation_ids('object-store'):
+        object-store_joined()
+
+    # possibly configure HTTPS for API and registry
+    configure_https()
 
 
 def config_changed():
