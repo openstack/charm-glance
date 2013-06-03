@@ -208,7 +208,7 @@ function ceph_changed {
   MONS=`relation-list $r_arg`
   mon_hosts=""
   for mon in $MONS; do
-    mon_hosts="$mon_hosts`relation-get $r_arg private-address $mon`:6789,"
+    mon_hosts="$mon_hosts $(get_ip $(relation-get $r_arg private-address $mon)):6789,"
   done
   cat > /etc/ceph/ceph.conf << EOF
 [global]
@@ -283,20 +283,21 @@ def keystone_changed(rid=None):
     juju_log('INFO', 'keystone_changed: Acquired admin token')
 
     # TODO:
-    # set_paste_deploy_flavor "keystone" "api" || exit 1
-    # set_paste_deploy_flavor "keystone" "registry" || exit 1
+    # set_or_update "flavor" "keystone" "api" "paste_deploy"
+    # set_or_update "flavor" "keystone" "registry" "paste_deploy"
 
     # TODO:
+    # local sect="filter:authtoken"
     # for i in api-paste registry-paste ; do
-    #    set_or_update "service_host" "$keystone_host" $i
-    #    set_or_update "service_port" "$service_port" $i
-    #    set_or_update "auth_host" "$keystone_host" $i
-    #    set_or_update "auth_port" "$auth_port" $i
-    #    set_or_update "auth_uri" "http://$keystone_host:$service_port/" $i
-    #    set_or_update "admin_token" "$token" $i
-    #    set_or_update "admin_tenant_name" "$service_tenant" $i
-    #    set_or_update "admin_user" "$service_username" $i
-    #    set_or_update "admin_password" "$service_password" $i
+    #    set_or_update "service_host" "$keystone_host" $i $sect
+    #    set_or_update "service_port" "$service_port" $i $sect
+    #    set_or_update "auth_host" "$keystone_host" $i $sect
+    #    set_or_update "auth_port" "$auth_port" $i $sect
+    #    set_or_update "auth_uri" "http://$keystone_host:$service_port/" $i $sect
+    #    set_or_update "admin_token" "$token" $i $sect
+    #    set_or_update "admin_tenant_name" "$service_tenant" $i $sect
+    #    set_or_update "admin_user" "$service_username" $i $sect
+    #    set_or_update "admin_password" "$service_password" $i $sect
     # done
 
     restart(services)
