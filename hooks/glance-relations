@@ -188,6 +188,10 @@ EOF
   set_or_update rbd_store_user $SERVICE_NAME api
   set_or_update rbd_store_pool images api
   set_or_update rbd_store_chunk_size 8 api
+  # This option only applies to Grizzly.
+  [ "`get_os_codename_package "glance-common"`" = "grizzly" ] && \
+      set_or_update show_image_direct_url 'True' api
+
   service_ctl glance-api restart
 }
 
