@@ -1,12 +1,12 @@
 #!/bin/bash -e
 
-CHARM_DIR=$(dirname $0)
+HOOKS_DIR="$CHARM_DIR/hooks"
 ARG0=${0##*/}
 
-if [[ -e $CHARM_DIR/glance-common ]] ; then
-  . $CHARM_DIR/glance-common
+if [[ -e $HOOKS_DIR/glance-common ]] ; then
+  . $HOOKS_DIR/glance-common
 else
-  echo "ERROR: Could nto load glance-common from $CHARM_DIR"
+  echo "ERROR: Could not load glance-common from $HOOKS_DIR"
 fi
 
 function install_hook {
@@ -25,6 +25,8 @@ function install_hook {
   set_or_update debug True api
   set_or_update verbose True registry
   set_or_update debug True registry
+
+  configure_https
 }
 
 function db_joined {
@@ -51,7 +53,7 @@ function db_changed {
              "$JUJU_REMOTE_UNIT-$JUJU_RELATION_ID"
   fi
 
-  local db_host=$(relation-get $r_args private-address)
+  local db_host=$(relation-get $r_args db_host)
   local db_password=$(relation-get $r_args password)
 
   if [[ -z "$db_host" ]] || [[ -z "$db_password" ]] ; then
@@ -69,33 +71,37 @@ function db_changed {
 
   juju-log "$CHARM - db_changed: Configuring glance.conf for access to $glance_db"
 
-  service_ctl all stop
-
   set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" registry
 
   # since folsom, a db connection setting in glance-api.conf is required.
   [[ "$rel" != "essex" ]] &&
     set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" api
 
-  if [[ "$rel" == "essex" ]] ; then
-    # Essex required initializing new databases to version 0
-    if ! glance-manage db_version >/dev/null 2>&1; then
-      juju-log "Setting glance database version to 0"
-      glance-manage version_control 0
+  if eligible_leader 'res_glance_vip'; then
+    if [[ "$rel" == "essex" ]] ; then
+      # Essex required initializing new databases to version 0
+      if ! glance-manage db_version >/dev/null 2>&1; then
+        juju-log "Setting glance database version to 0"
+        glance-manage version_control 0
+      fi
     fi
+    juju-log "$CHARM - db_changed: Running database migrations for $rel."
+    glance-manage db_sync
   fi
-
-  juju-log "$CHARM - db_changed: Running database migrations for $rel."
-  glance-manage db_sync
   service_ctl all restart
 }
 
 function image-service_joined {
-  bind_host=$(cat /etc/glance/glance-api.conf | grep bind_host | cut -d= -f2 | sed -e 's/ //g')
-  bind_port=$(cat /etc/glance/glance-api.conf | grep bind_port | cut -d= -f2 | sed -e 's/ //g')
-  [[ $bind_host == "0.0.0.0" ]] && bind_host=`unit-get private-address`
-  juju-log "glance: image-service_joined: To peer glance-api-server=$bind_host:$bind_port"
-  relation-set glance-api-server="$bind_host:$bind_port"
+  # Check to see if unit is potential leader
+  local r_id="$1"
+  [[ -n "$r_id" ]] && r_id="-r $r_id"
+  eligible_leader 'res_glance_vip' || return 0
+  https && scheme="https" || scheme="http"
+  is_clustered && local host=$(config-get vip) ||
+    local host=$(unit-get private-address)
+  url="$scheme://$host:9292"
+  juju-log "glance: image-service_joined: To peer glance-api-server=$url"
+  relation-set $r_id glance-api-server=$url
 }
 
 function object-store_joined {
@@ -139,9 +145,13 @@ function ceph_joined {
 }
 
 function ceph_changed {
+  local r_id="$1"
+  local unit_id="$2"
+  local r_arg=""
+  [[ -n "$r_id" ]] && r_arg="-r $r_id"
   SERVICE_NAME=`echo $JUJU_UNIT_NAME | cut -d / -f 1`
   KEYRING=/etc/ceph/ceph.client.$SERVICE_NAME.keyring
-  KEY=`relation-get key`
+  KEY=`relation-get $r_arg key $unit_id`
   if [ -n "$KEY" ]; then
     # But only once
     if [ ! -f $KEYRING ]; then
@@ -155,14 +165,14 @@ function ceph_changed {
     exit 0
   fi
 
-  MONS=`relation-list`
+  MONS=`relation-list $r_arg`
   mon_hosts=""
   for mon in $MONS; do
-    mon_hosts="$mon_hosts $(get_ip $(relation-get private-address $mon)):6789"
+    mon_hosts="$mon_hosts $(get_ip $(relation-get $r_arg private-address $mon)):6789,"
   done
   cat > /etc/ceph/ceph.conf << EOF
 [global]
- auth supported = $(relation-get auth)
+ auth supported = $(relation-get $r_arg auth $unit_id)
  keyring = /etc/ceph/\$cluster.\$name.keyring
  mon host = $mon_hosts
 EOF
@@ -182,10 +192,20 @@ EOF
 }
 
 function keystone_joined {
+  # Leadership check
+  eligible_leader 'res_glance_vip' || return 0
+  local r_id="$1"
+  [[ -n "$r_id" ]] && r_id=" -r $r_id"
+
+  # determine correct endpoint URL
+  https && scheme="https" || scheme="http"
+  is_clustered && local host=$(config-get vip) ||
+    local host=$(unit-get private-address)
+  url="$scheme://$host:9292"
+
   # advertise our API endpoint to keystone
-  url="http://$(unit-get private-address):9292/v1"
   relation-set service="glance" \
-    region="RegionOne" public_url=$url admin_url=$url internal_url=$url
+    region="$(config-get region)" public_url=$url admin_url=$url internal_url=$url
 }
 
 function keystone_changed {
@@ -216,7 +236,7 @@ function keystone_changed {
   [[ "$token" == "-1" ]] &&
      juju-log "keystone_changed: admin token error" && exit 1
   juju-log "keystone_changed: Acquired admin. token"
-  keystone_host=$(relation-get $r_args private-address)
+  keystone_host=$(relation-get $r_args auth_host)
 
   if [[ -n "$r_id" ]] ; then
     unset JUJU_REMOTE_UNIT JUJU_RELATION JUJU_RELATION_ID
@@ -244,6 +264,9 @@ function keystone_changed {
   if [[ -n "$(relation-ids object-store)" ]] ; then
     object-store_joined
   fi
+
+  # possibly configure HTTPS for API and registry
+  configure_https
 }
 
 function config_changed() {
@@ -261,9 +284,148 @@ function config_changed() {
       do_openstack_upgrade "$install_src" $PACKAGES
     fi
   fi
-
+  configure_https
   service_ctl all restart
+
+  # Save our scriptrc env variables for health checks
+  declare -a env_vars=(
+      "OPENSTACK_PORT_MCASTPORT=$(config-get ha-mcastport)"
+      'OPENSTACK_SERVICE_API=glance-api'
+      'OPENSTACK_SERVICE_REGISTRY=glance-registry')
+  save_script_rc ${env_vars[@]}
 }
+
+function cluster_changed() {
+  configure_haproxy "glance_api:9292"
+}
+
+function upgrade_charm() {
+  cluster_changed
+}
+
+function ha_relation_joined() {
+  local corosync_bindiface=`config-get ha-bindiface`
+  local corosync_mcastport=`config-get ha-mcastport`
+  local vip=`config-get vip`
+  local vip_iface=`config-get vip_iface`
+  local vip_cidr=`config-get vip_cidr`
+  if [ -n "$vip" ] && [ -n "$vip_iface" ] && \
+     [ -n "$vip_cidr" ] && [ -n "$corosync_bindiface" ] && \
+     [ -n "$corosync_mcastport" ]; then
+    # TODO: This feels horrible but the data required by the hacluster
+    # charm is quite complex and is python ast parsed.
+    resources="{
+'res_glance_vip':'ocf:heartbeat:IPaddr2',
+'res_glance_haproxy':'lsb:haproxy'
+}"
+    resource_params="{
+'res_glance_vip': 'params ip=\"$vip\" cidr_netmask=\"$vip_cidr\" nic=\"$vip_iface\"',
+'res_glance_haproxy': 'op monitor interval=\"5s\"'
+}"
+    init_services="{
+'res_glance_haproxy':'haproxy'
+}"
+    groups="{
+'grp_glance_haproxy':'res_glance_vip res_glance_haproxy'
+}"
+    relation-set corosync_bindiface=$corosync_bindiface \
+      corosync_mcastport=$corosync_mcastport \
+      resources="$resources" resource_params="$resource_params" \
+      init_services="$init_services" groups="$groups"
+  else
+    juju-log "Insufficient configuration data to configure hacluster"
+    exit 1
+  fi
+}
+
+function ha_relation_changed() {
+  local clustered=`relation-get clustered`
+  if [ -n "$clustered" ] && is_leader 'res_glance_vip'; then
+    local port=$((9292 + 10000))
+    local host=$(config-get vip)
+    local url="http://$host:$port"
+    for r_id in `relation-ids identity-service`; do
+      relation-set -r $r_id service="glance" \
+        region="$(config-get region)" \
+        public_url="$url" admin_url="$url" internal_url="$url"
+    done
+    for r_id in `relation-ids image-service`; do
+      relation-set -r $r_id \
+        glance-api-server="$host:$port"         
+    done
+  fi
+}
+
+
+function cluster_changed() {
+  [[ -z "$(peer_units)" ]] &&
+    juju-log "cluster_changed() with no peers." && exit 0
+  local haproxy_port=$(determine_haproxy_port 9292)
+  local backend_port=$(determine_api_port 9292)
+  service glance-api stop
+  configure_haproxy "glance_api:$haproxy_port:$backend_port"
+  set_or_update bind_port "$backend_port" "api"
+  service glance-api start
+}
+
+function upgrade_charm() {
+  cluster_changed
+}
+
+function ha_relation_joined() {
+  local corosync_bindiface=`config-get ha-bindiface`
+  local corosync_mcastport=`config-get ha-mcastport`
+  local vip=`config-get vip`
+  local vip_iface=`config-get vip_iface`
+  local vip_cidr=`config-get vip_cidr`
+  if [ -n "$vip" ] && [ -n "$vip_iface" ] && \
+     [ -n "$vip_cidr" ] && [ -n "$corosync_bindiface" ] && \
+     [ -n "$corosync_mcastport" ]; then
+    # TODO: This feels horrible but the data required by the hacluster
+    # charm is quite complex and is python ast parsed.
+    resources="{
+'res_glance_vip':'ocf:heartbeat:IPaddr2',
+'res_glance_haproxy':'lsb:haproxy'
+}"
+    resource_params="{
+'res_glance_vip': 'params ip=\"$vip\" cidr_netmask=\"$vip_cidr\" nic=\"$vip_iface\"',
+'res_glance_haproxy': 'op monitor interval=\"5s\"'
+}"
+    init_services="{
+'res_glance_haproxy':'haproxy'
+}"
+    clones="{
+'cl_glance_haproxy': 'res_glance_haproxy'
+}"
+    relation-set corosync_bindiface=$corosync_bindiface \
+      corosync_mcastport=$corosync_mcastport \
+      resources="$resources" resource_params="$resource_params" \
+      init_services="$init_services" clones="$clones"
+  else
+    juju-log "Insufficient configuration data to configure hacluster"
+    exit 1
+  fi
+}
+
+function ha_relation_changed() {
+  local clustered=`relation-get clustered`
+  if [ -n "$clustered" ] && is_leader 'res_glance_vip'; then
+    local host=$(config-get vip)
+    https && local scheme="https" || local scheme="http"
+    local url="$scheme://$host:9292"
+
+    for r_id in `relation-ids identity-service`; do
+      relation-set -r $r_id service="glance" \
+        region="$(config-get region)" \
+        public_url="$url" admin_url="$url" internal_url="$url"
+    done
+    for r_id in `relation-ids image-service`; do
+      relation-set -r $r_id \
+        glance-api-server="$scheme://$host:9292"
+    done
+  fi
+}
+
 
 case $ARG0 in
   "start"|"stop") service_ctl all $ARG0 ;;
@@ -279,4 +441,9 @@ case $ARG0 in
   "identity-service-relation-changed") keystone_changed ;;
   "ceph-relation-joined") ceph_joined;;
   "ceph-relation-changed") ceph_changed;;
+  "cluster-relation-changed") cluster_changed ;;
+  "cluster-relation-departed") cluster_changed ;;
+  "ha-relation-joined") ha_relation_joined ;;
+  "ha-relation-changed") ha_relation_changed ;;
+  "upgrade-charm") upgrade_charm ;;
 esac
