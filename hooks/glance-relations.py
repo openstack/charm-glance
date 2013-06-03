@@ -20,6 +20,7 @@ from lib.utils import (
     unit_get,
     relation_set,
     relation_ids,
+    relation_list,
     install,
     )
 
@@ -83,58 +84,36 @@ def db_joined():
     #       "$db_user@$hostname"
     relation_set(**relation_data)
 
-function db_changed {
-  # serves as the main shared-db changed hook but may also be called with a
-  # relation-id to configure new config files for existing relations.
-  local r_id="$1"
-  local r_args=""
-  if [[ -n "$r_id" ]] ; then
-    # set up environment for an existing relation to a single unit.
-    export JUJU_REMOTE_UNIT=$(relation-list -r $r_id | head -n1)
-    export JUJU_RELATION="shared-db"
-    export JUJU_RELATION_ID="$r_id"
-    local r_args="-r $JUJU_RELATION_ID"
-    juju-log "$CHARM - db_changed: Running hook for existing relation to "\
-             "$JUJU_REMOTE_UNIT-$JUJU_RELATION_ID"
-  fi
 
-  local db_host=$(relation-get $r_args db_host)
-  local db_password=$(relation-get $r_args password)
+def db_changed(rid=None):
+    relation_data = utils.relation_get_dict(relation_id=rid)
+    if ('password' not in relation_data or
+        'db_host' not in relation_data):
+        utils.juju_log('INFO',
+                       "db_host or password not set. Peer not ready, exit 0")
+        return
 
-  if [[ -z "$db_host" ]] || [[ -z "$db_password" ]] ; then
-    juju-log "$CHARM - db_changed: db_host||db_password set, will retry."
-    exit 0
-  fi
+    db_user = relation_data["glance-db"]
+    db_user = relation_data["db-user"]
+    rel = get_os_codename_package("glance-common")
 
-  local glance_db=$(config-get glance-db)
-  local db_user=$(config-get db-user)
-  local rel=$(get_os_codename_package glance-common)
+    # TODO:
+    # set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" registry
 
-  if [[ -n "$r_id" ]] ; then
-    unset JUJU_REMOTE_UNIT JUJU_RELATION JUJU_RELATION_ID
-  fi
+    if rel != "essex":
+        # TODO:
+        # set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" api
 
-  juju-log "$CHARM - db_changed: Configuring glance.conf for access to $glance_db"
+    if eligible_leader("res_glance_vip"):
+        if rel == "essex":
+            if not check_output(['glance-manage', 'db_version']):
+                juju_log("INFO", "Setting flance database version to 0")
+                check_call(["glance-manage", "version_control", "0"])
 
-  set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" registry
+        juju_log("INFO", "%s - db_changed: Running database migrations for $rel." % (charm, rel))
+        check_call(["glance-manage", "db_sync"])
 
-  # since folsom, a db connection setting in glance-api.conf is required.
-  [[ "$rel" != "essex" ]] &&
-    set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" api
-
-  if eligible_leader 'res_glance_vip'; then
-    if [[ "$rel" == "essex" ]] ; then
-      # Essex required initializing new databases to version 0
-      if ! glance-manage db_version >/dev/null 2>&1; then
-        juju-log "Setting glance database version to 0"
-        glance-manage version_control 0
-      fi
-    fi
-    juju-log "$CHARM - db_changed: Running database migrations for $rel."
-    glance-manage db_sync
-  fi
-  service_ctl all restart
-}
+    restart(serviceS)
 
 
 def image-service_joined(relation_id=None):
@@ -174,7 +153,7 @@ def object-store_joined():
     set_or_update()
 
     for rid in relids:
-        for unit in utils.relation_list(rid=rid):
+        for unit in relation_list(rid=rid):
             svc_tenant = relation_get(attribute='service_tenant', rid=rid, unit=unit)
             svc_username = relation_get(attribute='service_username', rid=rid, unit=unit)
             svc_password = relation_get(attribute='service_passwod', rid=rid, unit=unit)
