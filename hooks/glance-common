@@ -20,76 +20,35 @@ else
   juju-log "ERROR: Couldn't load $HOOKS_DIR/lib/openstack-common." && exit 1
 fi
 
-function set_paste_deploy_flavor {
-  # NOTE(adam_g): If we want to benefit from CONFIG_CHANGED here,
-  # needs to be updated to detect already config'd settings.
-  local flavor="$1"
-  local config="$2"
-  case $config in
-    "api") local conf=$GLANCE_API_CONF ;;
-    "registry") local conf=$GLANCE_REGISTRY_CONF ;;
-    *) juju-log "ERROR: set_paste_deploy: invalid config=$config" && exit 1 ;;
-  esac
-  if ! grep -q "\[paste_deploy\]" "$conf" ; then
-    juju-log "Updating $conf: Setting new paste_deploy flavor = $flavor"
-    echo -e "\n[paste_deploy]\nflavor = keystone\n" >>$conf &&
-      CONFIG_CHANGED="True" && return 0
-    juju-log "ERROR: Could not update paste_deploy flavor in $conf" && return 1
-  fi
-  juju-log "Updating $conf: Setting paste_deploy flavor = $flavor"
-  local tag="[paste_deploy]"
-  sed -i "/$tag/, +1 s/\(flavor = \).*/\1$flavor/g" $conf &&
-    CONFIG_CHANGED="True" && return 0
-  juju-log "ERROR: Could not update paste_deploy flavor in $conf" && return 1
-}
-
-function update_pipeline {
-  # updates pipeline middleware definitions in api-paste.ini
-  local pipeline="$1"
-  local new="$2"
-  local config="$3"
-
-  case $config in
-    "api") local api_conf=$GLANCE_API_CONF ;;
-    "registry") local api_conf=$GLANCE_REGISTRY_CONF ;;
-    *) juju-log "ERROR: update_pipeline: invalid config=$config" && exit 1 ;;
-  esac
-
-  local tag="\[pipeline:$pipeline\]"
-  if ! grep -q "$tag" $api_conf ; then
-      juju-log "ERROR: update_pipeline: pipeline not found: $pipeline"
-      return 1
-  fi
-  juju-log "Updating pipeline:$pipeline in $api_conf"
-  sed -i "/$tag/, +1 s/\(pipeline = \).*/\1$new/g" $api_conf
-}
-
 function set_or_update {
-  # This handles configuration of both api and registry server
-  # until LP #806241 is resolved.  Until then, $3 is either
-  # 'api' or 'registry' to specify which
-  # set or update a key=value config option in glance.conf
-  KEY=$1
-  VALUE=$2
-  case "$3" in
-    "api") CONF=$GLANCE_API_CONF ;;
-    "api-paste") CONF=$GLANCE_API_PASTE_INI ;;
-    "registry") CONF=$GLANCE_REGISTRY_CONF ;;
-    "registry-paste") CONF=$GLANCE_REGISTRY_PASTE_INI ;;
+  local key="$1"
+  local value="$2"
+  local file="$3"
+  local section="$4"
+  local conf=""
+  [[ -z $key ]] && juju-log "ERROR: set_or_update(): value $value missing key" \
+        && exit 1
+  [[ -z $value ]] && juju-log "ERROR: set_or_update(): key $key missing value" \
+        && exit 1
+
+  case "$file" in
+    "api") conf=$GLANCE_API_CONF ;;
+    "api-paste") conf=$GLANCE_API_PASTE_INI ;;
+    "registry") conf=$GLANCE_REGISTRY_CONF ;;
+    "registry-paste") conf=$GLANCE_REGISTRY_PASTE_INI ;;
     *) juju-log "ERROR: set_or_update(): Invalid or no config file specified." \
         && exit 1 ;;
   esac
-  [[ -z $KEY ]] && juju-log "ERROR: set_or_update(): value $VALUE missing key" \
+
+  [[ ! -e $conf ]] && juju-log "ERROR: set_or_update(): File not found $conf" \
         && exit 1
-  [[ -z $VALUE ]] && juju-log "ERROR: set_or_update(): key $KEY missing value" \
-        && exit 1
-  cat $CONF | grep "$KEY = $VALUE" >/dev/null \
-   && juju-log "glance: $KEY = $VALUE already set" && return 0
-  if cat $CONF | grep "$KEY =" >/dev/null ; then
-    sed -i "s|\($KEY = \).*|\1$VALUE|" $CONF
-  else
-    echo "$KEY = $VALUE" >>$CONF
+
+  if [[ "$(local_config_get "$conf" "$key" "$section")" == "$value" ]] ; then
+    juju-log "$CHARM: set_or_update(): $key=$value already set in $conf."
+    return 0
   fi
+
+  cfg_set_or_update "$key" "$value" "$conf" "$section"
   CONFIG_CHANGED="True"
 }
 
