@@ -22,6 +22,7 @@ from lib.utils import (
     relation_ids,
     relation_list,
     install,
+    do_hooks
     )
 
 from lib.haproxy_utils import (
@@ -173,7 +174,7 @@ def object-store_joined():
                 # TODO:
                 # set_or_update swift_store_auth_address "$auth_url" api
 
-    restart(['glance-api'])
+    restart('glance-api')
 
 
 def object-store_changed():
@@ -389,18 +390,13 @@ def ha_relation_changed():
             relation_set(rid=r_id,
                          glance-api-server=url)
 
-def exit():
-    sys.exit(0)
 
 hooks = {
-  'start': start
-  'stop': service_ctl all $ARG0 ;;
   'install': install_hook,
   'config-changed': config_changed,
   'shared-db-relation-joined': db_joined,
   'shared-db-relation-changed': db_changed,
   'image-service-relation-joined': image-service_joined,
-  'image-service-relation-changed': exit, # do we need it?
   'object-store-relation-joined': object-store_joined,
   'object-store-relation-changed': object-store_changed,
   'identity-service-relation-joined': keystone_joined,
@@ -414,4 +410,4 @@ hooks = {
   'upgrade-charm': upgrade_charm,
 }
 
-utils.do_hooks(hooks)
+do_hooks(hooks)
