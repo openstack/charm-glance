@@ -86,11 +86,11 @@ def db_joined():
 
 
 def db_changed(rid=None):
-    relation_data = utils.relation_get_dict(relation_id=rid)
+    relation_data = relation_get_dict(relation_id=rid)
     if ('password' not in relation_data or
         'db_host' not in relation_data):
-        utils.juju_log('INFO',
-                       "db_host or password not set. Peer not ready, exit 0")
+        juju_log('INFO',
+                 'db_host or password not set. Peer not ready, exit 0')
         return
 
     db_user = relation_data["glance-db"]
@@ -113,7 +113,7 @@ def db_changed(rid=None):
         juju_log("INFO", "%s - db_changed: Running database migrations for $rel." % (charm, rel))
         check_call(["glance-manage", "db_sync"])
 
-    restart(serviceS)
+    restart(services)
 
 
 def image-service_joined(relation_id=None):
@@ -234,8 +234,8 @@ EOF
 
 def keystone_joined(relation_id=None):
     if not eligible_leader('res_glance_vip'):
-        utils.juju_log('INFO',
-                       'Deferring keystone_joined() to service leader.')
+        juju_log('INFO',
+                 'Deferring keystone_joined() to service leader.')
         return
 
     scheme = "http"
@@ -390,42 +390,42 @@ def ha_relation_joined():
         'cl_glance_haproxy': 'res_glance_haproxy',
         }
 
-    utils.relation_set(init_services=init_services,
-                       corosync_bindiface=corosync_bindiface,
-                       corosync_mcastport=corosync_mcastport,
-                       resources=resources,
-                       resource_params=resource_params,
-                       clones=clones)
+    relation_set(init_services=init_services,
+                 corosync_bindiface=corosync_bindiface,
+                 corosync_mcastport=corosync_mcastport,
+                 resources=resources,
+                 resource_params=resource_params,
+                 clones=clones)
 
 
 def ha_relation_changed():
-    relation_data = utils.relation_get_dict()
+    relation_data = relation_get_dict()
     if ('clustered' in relation_data and
-        utils.is_leader()):
+        is_leader()):
         host = config["vip"]
         if https():
             scheme = "https"
         else
             scheme = "http"
         url = "%s://%s:9292" % (scheme, host)
-        utils.juju_log('INFO', '%s: Cluster configured, notifying other services' % charm)
+        juju_log('INFO', '%s: Cluster configured, notifying other services' % charm)
         # Tell all related services to start using
         # the VIP
         # TODO: recommendations by adam_g
         # TODO: could be further simpllfiied by letting keystone_joined()
         # and image-service_joined() take parameters of relation_id
         # then just call keystone_joined(r_id) + image-service_joined(r_d)
-        for r_id in utils.relation_ids('identity-service'):
-            utils.relation_set(rid=r_id,
-                           service="glance",
-                           region=config["region"],
-                           public_url=url,
-                           admin_url=url,
-                           internal_url=url)
+        for r_id in relation_ids('identity-service'):
+            relation_set(rid=r_id,
+                         service="glance",
+                         region=config["region"],
+                         public_url=url,
+                         admin_url=url,
+                         internal_url=url)
 
-        for r_id in utils.relation_ids('image-service'):
-            utils.relation_set(rid=r_id,
-                           glance-api-server=url)
+        for r_id in relation_ids('image-service'):
+            relation_set(rid=r_id,
+                         glance-api-server=url)
 
 def exit():
     sys.exit(0)
