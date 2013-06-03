@@ -51,6 +51,7 @@ services = [
     ]
 
 charm = "glance"
+SERVICE_NAME = os.getenv('JUJU_UNIT_NAME').split('/')[0]
 
 config=json.loads(subprocess.check_output(['config-get','--format=json']))
 
@@ -184,52 +185,24 @@ def ceph_joined():
     install(['ceph-common', 'python-ceph'])
 
 
-function ceph_changed {
-  local r_id="$1"
-  local unit_id="$2"
-  local r_arg=""
-  [[ -n "$r_id" ]] && r_arg="-r $r_id"
-  SERVICE_NAME=`echo $JUJU_UNIT_NAME | cut -d / -f 1`
-  KEYRING=/etc/ceph/ceph.client.$SERVICE_NAME.keyring
-  KEY=`relation-get $r_arg key $unit_id`
-  if [ -n "$KEY" ]; then
-    # But only once
-    if [ ! -f $KEYRING ]; then
-      ceph-authtool $KEYRING \
-        --create-keyring --name=client.$SERVICE_NAME \
-        --add-key="$KEY"
-      chmod +r $KEYRING
-    fi
-  else
-    # No key - bail for the time being
-    exit 0
-  fi
+def ceph_changed(rid=None, unit=None):
+    key = relation_get(attribute='key', rid=rid, unit=unit)
+    auth = relation_get(attribute='auth', rid=rid, unit=unit)
 
-  MONS=`relation-list $r_arg`
-  mon_hosts=""
-  for mon in $MONS; do
-    mon_hosts="$mon_hosts $(get_ip $(relation-get $r_arg private-address $mon)):6789,"
-  done
-  cat > /etc/ceph/ceph.conf << EOF
-[global]
- auth supported = $(relation-get $r_arg auth $unit_id)
- keyring = /etc/ceph/\$cluster.\$name.keyring
- mon host = $mon_hosts
-EOF
+    if None in [auth, key]:
+        utils.juju_log('INFO', 'Missing key or auth in relation')
+        return
 
-  # Create the images pool if it does not already exist
-  if ! rados --id $SERVICE_NAME lspools | grep -q images; then
-    rados --id $SERVICE_NAME mkpool images
-  fi
+    ceph.configure(service=SERVICE_NAME, key=key, auth=auth)
 
-  # Configure glance for ceph storage options
-  set_or_update default_store rbd api
-  set_or_update rbd_store_ceph_conf /etc/ceph/ceph.conf api
-  set_or_update rbd_store_user $SERVICE_NAME api
-  set_or_update rbd_store_pool images api
-  set_or_update rbd_store_chunk_size 8 api
-  service_ctl glance-api restart
-}
+    # Configure glance for ceph storage options
+    # TODO:
+    # set_or_update default_store rbd api
+    # set_or_update rbd_store_ceph_conf /etc/ceph/ceph.conf api
+    # set_or_update rbd_store_user $SERVICE_NAME api
+    # set_or_update rbd_store_pool images api
+    # set_or_update rbd_store_chunk_size 8 api
+    restart('glance-api')
 
 
 def keystone_joined(relation_id=None):
