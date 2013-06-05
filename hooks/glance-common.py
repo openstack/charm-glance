@@ -1,24 +1,35 @@
 #!/bin/bash
 
-CHARM="glance"
+from lib.openstack_common import (
+    get_os_codename_install_source,
+    get_os_codename_package,
+    configure_installation_source,
+    )
 
-SERVICES="glance-api glance-registry"
-PACKAGES="glance python-mysqldb python-swift python-keystone uuid haproxy"
+from lib.utils import (
+    relation_ids,
+    )
 
-GLANCE_REGISTRY_CONF="/etc/glance/glance-registry.conf"
-GLANCE_REGISTRY_PASTE_INI="/etc/glance/glance-registry-paste.ini"
-GLANCE_API_CONF="/etc/glance/glance-api.conf"
-GLANCE_API_PASTE_INI="/etc/glance/glance-api-paste.ini"
-CONF_DIR="/etc/glance"
-HOOKS_DIR="$CHARM_DIR/hooks"
+from glance-relations import (
+     db_changed,
+     keystone_changed,
+     ceph_changed,
+     object-store_changed,
+     )
+
+CHARM = "glance"
+
+SERVICES = "glance-api glance-registry"
+PACKAGES = "glance python-mysqldb python-swift python-keystone uuid haproxy"
+
+GLANCE_REGISTRY_CONF = "/etc/glance/glance-registry.conf"
+GLANCE_REGISTRY_PASTE_INI = "/etc/glance/glance-registry-paste.ini"
+GLANCE_API_CONF = "/etc/glance/glance-api.conf"
+GLANCE_API_PASTE_INI = "/etc/glance/glance-api-paste.ini"
+CONF_DIR = "/etc/glance"
 
 # Flag used to track config changes.
-CONFIG_CHANGED="False"
-if [[ -e "$HOOKS_DIR/lib/openstack-common" ]] ; then
-  . $HOOKS_DIR/lib/openstack-common
-else
-  juju-log "ERROR: Couldn't load $HOOKS_DIR/lib/openstack-common." && exit 1
-fi
+CONFIG_CHANGED =  False
 
 function set_or_update {
   local key="$1"
@@ -52,50 +63,50 @@ function set_or_update {
   CONFIG_CHANGED="True"
 }
 
-do_openstack_upgrade() {
-  # update openstack components to those provided by a new installation source
-  # it is assumed the calling hook has confirmed that the upgrade is sane.
-  local rel="$1"
-  shift
-  local packages=$@
-  orig_os_rel=$(get_os_codename_package "glance-common")
-  new_rel=$(get_os_codename_install_source "$rel")
 
-  # Backup the config directory.
-  local stamp=$(date +"%Y%m%d%M%S")
-  tar -pcf /var/lib/juju/$CHARM-backup-$stamp.tar $CONF_DIR
+def do_openstack_upgrade(install_src, packages):
+    # update openstack components to those provided by a new installation source
+    # it is assumed the calling hook has confirmed that the upgrade is sane.
+    config = config_get()
+    old_rel = get_os_codename_package('keystone')
+    new_rel = get_os_codename_install_source(install_src)
 
-  # Setup apt repository access and kick off the actual package upgrade.
-  configure_install_source "$rel"
-  apt-get update
-  DEBIAN_FRONTEND=noninteractive apt-get --option Dpkg::Options::=--force-confnew -y \
-     install --no-install-recommends $packages
+    # Backup previous config.
+    utils.juju_log('INFO', "Backing up contents of /etc/glace.")
+    stamp = time.strftime('%Y%m%d%H%M')
+    cmd = 'tar -pcf /var/lib/juju/keystone-backup-%s.tar /etc/glance' % stamp
+    execute(cmd, die=True, echo=True)
 
-  # Update the new config files for existing relations.
-  local r_id=""
+    # Setup apt repository access and kick off the actual package upgrade.
+    configure_installation_source(install_src)
+    execute('apt-get update', die=True, echo=True)
+    os.environ['DEBIAN_FRONTEND'] = 'noninteractive'
+    cmd = 'apt-get --option Dpkg::Options::=--force-confnew -y '\
+          'install %s --no-install-recommends' % packages
+    execute(cmd, echo=True, die=True)
 
-  r_id=$(relation-ids shared-db)
-  if [[ -n "$r_id" ]] ; then
-    juju-log "$CHARM: Configuring database after upgrade to $rel."
-    db_changed $r_id
-  fi
+    # Update the new config files for existing relations.
+    r_id = relation_ids('shared-db')
+    if r_id:
+        juju_log('INFO', '%s: Configuring database after upgrade to %s.' % (CHARM, install_src))
+        db_changed(ids)
 
-  r_id=$(relation-ids identity-service)
-  if [[ -n "$r_id" ]] ; then
-    juju-log "$CHARM: Configuring identity service after upgrade to $rel."
-    keystone_changed $r_id
-  fi
+    r_id = relation_ids('identify-server')
+    if r_id:
+        juju_log('INFO', '%s: Configuring identity service after upgrade to %s' % (CHARM, install_src))
+        keystone_changed(rid)
 
-  local ceph_ids="$(relation-ids ceph)"
-  [[ -n "$ceph_ids" ]] && apt-get -y install ceph-common python-ceph
-  for r_id in $ceph_ids ; do
-    for unit in $(relation-list -r $r_id) ; do
-      ceph_changed "$r_id" "$unit"
-    done
-  done
+    ceph_ids = relation_ids('ceph')
+    if ceph_ids:
+        install('ceph-common', 'python-ceph')
+        for r_id in ceph_ids:
+            for unit in relation_list(rid):
+                ceph_changed(r_id, unit)
 
-  [[ -n "$(relation-ids object-store)" ]] && object-store_joined
-}
+    r_id = relation_ids('object-store')
+    if r_id:
+        object-store_joined()
+
 
 configure_https() {
   # request openstack-common setup reverse proxy mapping for API and registry
