@@ -1,0 +1,6 @@
+branch: lp:charm-helpers
+destination: hooks/helpers
+include:
+    - core
+    - contrib.openstack
+    - contrib.hahelpers
