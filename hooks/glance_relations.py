@@ -63,7 +63,7 @@ services = [
     "glance-api", "glance-registry",
     ]
 
-charm = "glance"
+CHARM = "glance"
 SERVICE_NAME = os.getenv('JUJU_UNIT_NAME').split('/')[0]
 
 config = json.loads(check_output(['config-get','--format=json']))
@@ -124,7 +124,7 @@ def db_changed(rid=None):
                 juju_log("INFO", "Setting flance database version to 0")
                 check_call(["glance-manage", "version_control", "0"])
 
-        juju_log("INFO", "%s - db_changed: Running database migrations for %s." % (charm, rel))
+        juju_log("INFO", "%s - db_changed: Running database migrations for %s." % (CHARM, rel))
         check_call(["glance-manage", "db_sync"])
 
     restart(services)
@@ -148,7 +148,7 @@ def image_service_joined(relation_id=None):
     if relation_id:
         relation_data['rid'] = relation_id
 
-    juju_log("INFO", "%s: image-service_joined: To peer glance-api-server=%s" % (charm, relation_data['glance-api-server']))
+    juju_log("INFO", "%s: image-service_joined: To peer glance-api-server=%s" % (CHARM, relation_data['glance-api-server']))
 
     relation_set(**relation_data)
 
@@ -306,7 +306,7 @@ def config_changed():
     if (available and
         get_os_version_codename(available) > \
             get_os_version_codename(install_src)):
-        juju_log('INFO', '%s: Upgrading OpenStack release: %s -> %s' % (charm, cur, available))
+        juju_log('INFO', '%s: Upgrading OpenStack release: %s -> %s' % (CHARM, cur, available))
         do_openstack_upgrade(config["openstack-origin"], ' '.join(packages))
 
     configure_https()
@@ -350,7 +350,7 @@ def config_changed():
 
 def cluster_changed():
     if not peer_units():
-        juju_log('INFO', '%s: cluster_change() with no peers.' % charm)
+        juju_log('INFO', '%s: cluster_change() with no peers.' % CHARM)
         sys.exit(0)
     haproxy_port = determine_haproxy_port('9292')
     backend_port = determine_api_port('9292')
@@ -409,7 +409,7 @@ def ha_relation_changed():
         else:
             scheme = "http"
         url = "%s://%s:9292" % (scheme, host)
-        juju_log('INFO', '%s: Cluster configured, notifying other services' % charm)
+        juju_log('INFO', '%s: Cluster configured, notifying other services' % CHARM)
         # Tell all related services to start using
         # the VIP
         # TODO: recommendations by adam_g
