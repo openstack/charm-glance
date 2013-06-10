@@ -3,6 +3,7 @@ import shutil
 import sys
 import time
 import os
+import json
 
 from lib.cluster_utils import (
     https,
@@ -10,6 +11,8 @@ from lib.cluster_utils import (
     determine_haproxy_port,
     determine_api_port,
     eligible_leader,
+    is_clustered,
+    is_leader,
     )
 
 from lib.utils import (
@@ -22,16 +25,20 @@ from lib.utils import (
     relation_ids,
     relation_list,
     install,
-    do_hooks
+    do_hooks,
+    relation_get,
+    relation_get_dict,
+    configure_source,
     )
 
 from lib.haproxy_utils import (
     configure_haproxy,
     )
 
-from lib.glance_common import (
+from glance_common import (
     set_or_update,
     configure_https,
+    do_openstack_upgrade,
     )
 
 from lib.openstack_common import (
@@ -39,6 +46,15 @@ from lib.openstack_common import (
     get_os_codename_install_source,
     get_os_version_codename,
     save_script_rc,
+    )
+
+from helpers.contrib.hahelpers.ceph_utils import (
+    configure,
+    )
+
+from subprocess import (
+    check_output,
+    check_call,
     )
 
 packages = [
@@ -53,11 +69,11 @@ services = [
 charm = "glance"
 SERVICE_NAME = os.getenv('JUJU_UNIT_NAME').split('/')[0]
 
-config=json.loads(subprocess.check_output(['config-get','--format=json']))
+config = json.loads(check_output(['config-get','--format=json']))
 
 
 def install_hook():
-    juju_log("Installing glance packages")
+    juju_log('INFO', 'Installing glance packages')
     configure_source()
 
     install(*packages)
@@ -111,7 +127,7 @@ def db_changed(rid=None):
                 juju_log("INFO", "Setting flance database version to 0")
                 check_call(["glance-manage", "version_control", "0"])
 
-        juju_log("INFO", "%s - db_changed: Running database migrations for $rel." % (charm, rel))
+        juju_log("INFO", "%s - db_changed: Running database migrations for %s." % (charm, rel))
         check_call(["glance-manage", "db_sync"])
 
     restart(services)
@@ -121,9 +137,9 @@ def image_service_joined(relation_id=None):
 
     if not eligible_leader("res_glance_vip"):
         return
-    scheme="http"
+    scheme = "http"
     if https():
-        scheme="https"
+        scheme = "https"
     host = unit_get('private-address')
     if is_clustered():
         host = config["vip"]
@@ -135,7 +151,7 @@ def image_service_joined(relation_id=None):
     if relation_id:
         relation_data['rid'] = relation_id
 
-    juju_log("%s: image-service_joined: To peer glance-api-server=%s" % (charm, relation_data['glance-api-server']))
+    juju_log("INFO", "%s: image-service_joined: To peer glance-api-server=%s" % (charm, relation_data['glance-api-server']))
 
     relation_set(**relation_data)
 
@@ -186,10 +202,10 @@ def ceph_changed(rid=None, unit=None):
     auth = relation_get(attribute='auth', rid=rid, unit=unit)
 
     if None in [auth, key]:
-        utils.juju_log('INFO', 'Missing key or auth in relation')
+        juju_log('INFO', 'Missing key or auth in relation')
         return
 
-    ceph.configure(service=SERVICE_NAME, key=key, auth=auth)
+    configure(service=SERVICE_NAME, key=key, auth=auth)
 
     # Configure glance for ceph storage options
     set_or_update(key='default_store', value='rbd', file='api')
@@ -250,6 +266,8 @@ def keystone_changed(rid=None):
         sys.exit(1)
     juju_log('INFO', 'keystone_changed: Acquired admin token')
 
+    keystone_host = relation_data["auth_host"]
+
     set_or_update(key='flavor', value='keystone', file='api', section="paste_deploy")
     set_or_update(key='flavor', value='keystone', file='registry', section="paste_deploy")
 
@@ -270,21 +288,22 @@ def keystone_changed(rid=None):
     # Configure any object-store / swift relations now that we have an
     # identity-service
     if relation_ids('object-store'):
-        object-store_joined()
+        object_store_joined()
 
     # possibly configure HTTPS for API and registry
     configure_https()
 
 
 def config_changed():
-  # Determine whether or not we should do an upgrade, based on whether or not
-  # the version offered in openstack-origin is greater than what is installed.
+    # Determine whether or not we should do an upgrade, based on whether or not
+    # the version offered in openstack-origin is greater than what is installed.
+    install_src = config["openstack-origin"]
     cur = get_os_codename_package("glance-common")
     available = get_os_codename_install_source(config["openstack-origin"])
 
     if (available and
         get_os_version_codename(available) > \
-            get_os_version_codename(installed)):
+            get_os_version_codename(install_src)):
         juju_log('INFO', '%s: Upgrading OpenStack release: %s -> %s' % (charm, cur, available))
         # TODO: do_openstack_upgrade_function: where does it come from?
         do_openstack_upgrade(config["openstack-origin"], ' '.join(packages))
@@ -352,7 +371,7 @@ def ha_relation_joined():
 def ha_relation_changed():
     relation_data = relation_get_dict()
     if ('clustered' in relation_data and
-        is_leader()):
+        eligible_leader("res_glance_vip")):
         host = config["vip"]
         if https():
             scheme = "https"
