@@ -374,9 +374,16 @@ def ha_relation_changed():
                          admin_url=url,
                          internal_url=url)
 
+        # TODO: Fix this in a better way. Maybe change 'glance-api-server'
+        # to 'glance_api_server' as the first one errors as a parameter
+        relation_data = {
+                'rid': r_id,
+                'glance-api-server': url
+            }
         for r_id in relation_ids('image-service'):
-            relation_set(rid=r_id,
-                         glance-api-server=url)
+            relation_set(**relation_data)
+            #relation_set(rid=r_id,
+            #           glance-api-server=url
 
 
 hooks = {
