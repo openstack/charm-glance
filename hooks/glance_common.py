@@ -185,7 +185,7 @@ def do_openstack_upgrade(install_src, packages):
         juju_log('INFO', '%s: Configuring database after upgrade to %s.' % (CHARM, install_src))
         db_changed(rid=r_id)
 
-    r_id = relation_ids('identify-server')
+    r_id = relation_ids('identity-server')
     if r_id:
         juju_log('INFO', '%s: Configuring identity service after upgrade to %s' % (CHARM, install_src))
         keystone_changed(rid=r_id)
