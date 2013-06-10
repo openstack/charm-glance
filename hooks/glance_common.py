@@ -209,10 +209,8 @@ def configure_https():
     # setup https to point to either haproxy or directly to api server, depending.
     setup_https 9292:$next_server
 
-    # TODO:
     # configure servers to listen on new ports accordingly.
-    # set_or_update bind_port "$api_port" "api"
-    set_or_update()
+    set_or_update(key='bind_port', value=api_port, file='api')
     start(SERVICES)
 
     for r_id in relation_ids('identity-service'):
