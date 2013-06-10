@@ -18,11 +18,11 @@ from lib.cluster_utils import (
     determine_api_port,
     )
 
-from glance-relations import (
+from glance_relations import (
     db_changed,
     keystone_changed,
     ceph_changed,
-    object-store_changed,
+    object_store_changed,
     )
 
 CHARM = "glance"
@@ -89,7 +89,7 @@ def set_or_update(key=None, value=None, file=None, section=None):
         conf = GLANCE_API_PASTE_INI
     elif file == "registry":
         conf = GLANCE_REGISTRY_CONF
-    elif file == "registry-paste"
+    elif file == "registry-paste":
         conf = GLANCE_REGISTRY_PASTE_INIT
     else:
         juju_log('ERROR', 'set_or_update(): Invalid or no config file specified')
