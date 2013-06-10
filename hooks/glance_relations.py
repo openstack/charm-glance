@@ -29,7 +29,6 @@ from lib.haproxy_utils import (
     configure_haproxy,
     )
 
-#TODO: Port glance-common to Python
 from lib.glance_common import (
     set_or_update,
     configure_https,
@@ -65,12 +64,10 @@ def install_hook():
 
     stop(*services)
 
-    # TODO:
-    # set_or_update verbose True api
-    # set_or_update debug True api
-    # set_or_update verbose True registry
-    # set_or_update debug True registry
-    # set_or_update()
+    set_or_update(key='verbose', value=True, file='api')
+    set_or_update(key='debug', value=True, file='api')
+    set_or_update(key='verbose', value=True, file='registry')
+    set_or_update(key='debug', value=True, file='registry')
 
     configure_https()
 
@@ -95,16 +92,18 @@ def db_changed(rid=None):
                  'db_host or password not set. Peer not ready, exit 0')
         sys.exit(0)
 
-    db_user = relation_data["glance-db"]
+    db_host = relation_data["db_host"]
+    db_password = relation_data["password"]
+    glance_db = relation_data["glance-db"]
     db_user = relation_data["db-user"]
     rel = get_os_codename_package("glance-common")
 
-    # TODO:
-    # set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" registry
+    value = "mysql://%s:%s@%s/%s" % (db_user, db_password, db_host, glance_db)
+    set_or_update(key='sql_connection', value=value, file='registry')
 
     if rel != "essex":
-        # TODO:
-        # set_or_update sql_connection "mysql://$db_user:$db_password@$db_host/$glance_db" api
+        value = "mysql://%s:%s@%s/%s" % (db_user, db_password, db_host, glance_db)
+        set_or_update(key='sql_connection', value=value, file='api')
 
     if eligible_leader("res_glance_vip"):
         if rel == "essex":
@@ -149,10 +148,8 @@ def object-store_joined():
                          'an identity-service relation exists')
         return
 
-    #TODO:
-    # set_or_update default_store swift api
-    # set_or_update swift_store_create_container_on_put true api
-    set_or_update()
+    set_or_update(key='default_store', value='swift', file='api')
+    set_or_update(key='swift_store_create_container_on_put', value=True, file='api')
 
     for rid in relids:
         for unit in relation_list(rid=rid):
@@ -165,14 +162,12 @@ def object-store_joined():
             if auth_host and port:
                 auth_url = "http://%s:%s/v2.0" % (auth_host, port)
             if svc_tenant and svc_username:
-                #TODO
-                # set_or_update swift_store_user "$svc_tenant:$svc_username" api
+                value = "%s:%s" % (svc_tenant, svc_username)
+                set_or_update(key='swift_store_user', value=value, file='api')
             if svc_password:
-                # TODO:
-                # set_or_update swift_store_key "$svc_password" api
+                set_or_update(key='swift_store_key', value=svc_password, file='api')
             if auth_url:
-                # TODO:
-                # set_or_update swift_store_auth_address "$auth_url" api
+                set_or_update(key='swift_store_auth_address', value=auth_url, file='api')
 
     restart('glance-api')
 
@@ -197,12 +192,11 @@ def ceph_changed(rid=None, unit=None):
     ceph.configure(service=SERVICE_NAME, key=key, auth=auth)
 
     # Configure glance for ceph storage options
-    # TODO:
-    # set_or_update default_store rbd api
-    # set_or_update rbd_store_ceph_conf /etc/ceph/ceph.conf api
-    # set_or_update rbd_store_user $SERVICE_NAME api
-    # set_or_update rbd_store_pool images api
-    # set_or_update rbd_store_chunk_size 8 api
+    set_or_update(key='default_store', value='rbd', file='api')
+    set_or_update(key='rbd_store_ceph_conf', value='/etc/ceph/ceph.conf', file='api')
+    set_or_update(key='rbd_store_user', value=SERVICE_NAME, file='api')
+    set_or_update(key='rbd_store_pool', value='images', file='api')
+    set_or_update(key='rbd_store_chunk_size', value='8', file='api')
     restart('glance-api')
 
 
@@ -256,23 +250,20 @@ def keystone_changed(rid=None):
         sys.exit(1)
     juju_log('INFO', 'keystone_changed: Acquired admin token')
 
-    # TODO:
-    # set_or_update "flavor" "keystone" "api" "paste_deploy"
-    # set_or_update "flavor" "keystone" "registry" "paste_deploy"
+    set_or_update(key='flavor', value='keystone', file='api', section="paste_deploy")
+    set_or_update(key='flavor', value='keystone', file='registry', section="paste_deploy")
 
-    # TODO:
-    # local sect="filter:authtoken"
-    # for i in api-paste registry-paste ; do
-    #    set_or_update "service_host" "$keystone_host" $i $sect
-    #    set_or_update "service_port" "$service_port" $i $sect
-    #    set_or_update "auth_host" "$keystone_host" $i $sect
-    #    set_or_update "auth_port" "$auth_port" $i $sect
-    #    set_or_update "auth_uri" "http://$keystone_host:$service_port/" $i $sect
-    #    set_or_update "admin_token" "$token" $i $sect
-    #    set_or_update "admin_tenant_name" "$service_tenant" $i $sect
-    #    set_or_update "admin_user" "$service_username" $i $sect
-    #    set_or_update "admin_password" "$service_password" $i $sect
-    # done
+    section = "filter:authtoken"
+    for i in ['api-paste', 'registry-paste']:
+        set_or_update(key='service_host', value=keystone_host, file=i, section=section)
+        set_or_update(key='service_port', value=service_port, file=i, section=section)
+        set_or_update(key='auth_host', value=keystone_host, file=i, section=section)
+        set_or_update(key='auth_host', value=auth_port, file=i, section=section)
+        set_or_update(key='auth_uri', value="http://%s:%s/" % (keystone_host, service_port), file=i, section=section)
+        set_or_update(key='admin_token', value=token, file=i, section=section)
+        set_or_update(key='admin_tenant_name', value=service_tenant, file=i, section=section)
+        set_or_update(key='admin_user', value=service_username, file=i, section=section)
+        set_or_update(key='admin_password', value=service_password, file=i, section=section)
 
     restart(services)
 
@@ -315,10 +306,7 @@ def cluster_changed():
     backend_port = determine_api_port('9292')
     stop('glance-api')
     configure_haproxy("glance_api:%s:%s" % (haproxy_port, backend_port))
-    # TODO: glance-common should be ported to python too to have this
-    # function working
-    # set_or_update bind_port "$backend_port" "api"
-    set_or_update()
+    set_or_update(key='bind_port', value=backend_port, file='api')
     start('glance-api')
 
 def upgrade_charm():

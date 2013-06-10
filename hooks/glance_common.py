@@ -75,7 +75,7 @@ def execute(cmd, die=False, echo=False):
 
 
 # TODO: This is a temporary function.
-def set_or_update(key=None, value=, file=None, section=None):
+def set_or_update(key=None, value=None, file=None, section=None):
     if not key:
         juju_log('ERROR', 'set_or_update(): value %s missing key' % value)
         sys.exit(1)
@@ -103,7 +103,7 @@ def set_or_update(key=None, value=, file=None, section=None):
         juju_log('INFO', '%s: set_or_update(): %s=%s already set in %s' % (charm, key, value, conf))
         return
 
-    cfg_set_or_updatei(key, value, conf, section)
+    cfg_set_or_update(key, value, conf, section)
     CONFIG_CHANGED = True
 
 
