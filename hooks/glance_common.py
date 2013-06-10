@@ -31,7 +31,7 @@ from lib.haproxy_utils import (
     configure_haproxy,
     )
 
-from hooks.helpers.contrib.hahelpers.apache_utils import (
+from helpers.contrib.hahelpers.apache_utils import (
     get_cert,
     get_ca_cert,
     generate_cert,
