@@ -1,9 +1,13 @@
 #!/usr/bin/python
-import shutil
 import sys
-import time
 import os
 import json
+
+from glance_common import (
+    configure_https,
+    do_openstack_upgrade,
+    set_or_update,
+    )
 
 from lib.cluster_utils import (
     https,
@@ -12,7 +16,6 @@ from lib.cluster_utils import (
     determine_api_port,
     eligible_leader,
     is_clustered,
-    is_leader,
     )
 
 from lib.utils import (
@@ -33,12 +36,6 @@ from lib.utils import (
 
 from lib.haproxy_utils import (
     configure_haproxy,
-    )
-
-from glance_common import (
-    set_or_update,
-    configure_https,
-    do_openstack_upgrade,
     )
 
 from lib.openstack_common import (
