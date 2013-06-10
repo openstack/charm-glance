@@ -117,7 +117,7 @@ def db_changed(rid=None):
     restart(services)
 
 
-def image-service_joined(relation_id=None):
+def image_service_joined(relation_id=None):
 
     if not eligible_leader("res_glance_vip"):
         return
@@ -140,7 +140,7 @@ def image-service_joined(relation_id=None):
     relation_set(**relation_data)
 
 
-def object-store_joined():
+def object_store_joined():
     relids = relation_ids('identity-service')
 
     if not relids:
@@ -172,7 +172,7 @@ def object-store_joined():
     restart('glance-api')
 
 
-def object-store_changed():
+def object_store_changed():
     pass
 
 
@@ -293,7 +293,7 @@ def config_changed():
     restart(services)
 
     env_vars = {'OPENSTACK_PORT_MCASTPORT': config["ha-mcastport"],
-                'OPENSTACK_SERVICE_API': "glance-api"),
+                'OPENSTACK_SERVICE_API': "glance-api",
                 'OPENSTACK_SERVICE_REGISTRY': "glance-registry"}
     save_script_rc(**env_vars)
 
@@ -356,7 +356,7 @@ def ha_relation_changed():
         host = config["vip"]
         if https():
             scheme = "https"
-        else
+        else:
             scheme = "http"
         url = "%s://%s:9292" % (scheme, host)
         juju_log('INFO', '%s: Cluster configured, notifying other services' % charm)
@@ -384,9 +384,9 @@ hooks = {
   'config-changed': config_changed,
   'shared-db-relation-joined': db_joined,
   'shared-db-relation-changed': db_changed,
-  'image-service-relation-joined': image-service_joined,
-  'object-store-relation-joined': object-store_joined,
-  'object-store-relation-changed': object-store_changed,
+  'image-service-relation-joined': image_service_joined,
+  'object-store-relation-joined': object_store_joined,
+  'object-store-relation-changed': object_store_changed,
   'identity-service-relation-joined': keystone_joined,
   'identity-service-relation-changed': keystone_changed,
   'ceph-relation-joined': ceph_joined,
