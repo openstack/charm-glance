@@ -1,5 +1,10 @@
 #!/bin/bash
 
+import os
+import time
+import sys
+import subprocess
+
 from lib.openstack_common import (
     get_os_codename_install_source,
     get_os_codename_package,
@@ -8,21 +13,39 @@ from lib.openstack_common import (
 
 from lib.utils import (
     relation_ids,
+    relation_list,
     install,
     stop,
+    juju_log,
+    start,
     )
 
 from lib.cluster_utils import (
     is_clustered,
     determine_haproxy_port,
     determine_api_port,
+    peer_units,
+    )
+
+from lib.haproxy_utils import (
+    configure_haproxy,
     )
 
 from glance_relations import (
     db_changed,
     keystone_changed,
     ceph_changed,
+    object_store_joined,
     object_store_changed,
+    image_service_joined,
+    keystone_joined,
+    )
+
+from hooks.helpers.contrib.hahelpers.apache_utils import (
+    get_cert,
+    get_ca_cert,
+    generate_cert,
+    setup_https,
     )
 
 CHARM = "glance"
@@ -70,7 +93,7 @@ def execute(cmd, die=False, echo=False):
     rc = p.returncode
 
     if die and rc != 0:
-        error_out("ERROR: command %s return non-zero.\n" % cmd)
+        juju_log('ERROR', 'command %s return non-zero.' % cmd)
     return (stdout, stderr, rc)
 
 
@@ -90,7 +113,7 @@ def set_or_update(key=None, value=None, file=None, section=None):
     elif file == "registry":
         conf = GLANCE_REGISTRY_CONF
     elif file == "registry-paste":
-        conf = GLANCE_REGISTRY_PASTE_INIT
+        conf = GLANCE_REGISTRY_PASTE_INI
     else:
         juju_log('ERROR', 'set_or_update(): Invalid or no config file specified')
         sys.exit(1)
@@ -99,8 +122,8 @@ def set_or_update(key=None, value=None, file=None, section=None):
         juju_log('ERROR', 'set_or_update(): File not found %s' % conf)
         sys.exit(1)
 
-    if local_config_get(conf=conf, key=key, section=section) == value:
-        juju_log('INFO', '%s: set_or_update(): %s=%s already set in %s' % (charm, key, value, conf))
+    if local_config_get(conf=conf, option=key, section=section) == value:
+        juju_log('INFO', '%s: set_or_update(): %s=%s already set in %s' % (CHARM, key, value, conf))
         return
 
     cfg_set_or_update(key, value, conf, section)
@@ -139,12 +162,11 @@ def local_config_get(conf=None, option=None, section=None):
 def do_openstack_upgrade(install_src, packages):
     # update openstack components to those provided by a new installation source
     # it is assumed the calling hook has confirmed that the upgrade is sane.
-    config = config_get()
     old_rel = get_os_codename_package('keystone')
     new_rel = get_os_codename_install_source(install_src)
 
     # Backup previous config.
-    utils.juju_log('INFO', "Backing up contents of /etc/glace.")
+    juju_log('INFO', "Backing up contents of /etc/glance.")
     stamp = time.strftime('%Y%m%d%H%M')
     cmd = 'tar -pcf /var/lib/juju/keystone-backup-%s.tar /etc/glance' % stamp
     execute(cmd, die=True, echo=True)
@@ -172,12 +194,12 @@ def do_openstack_upgrade(install_src, packages):
     if ceph_ids:
         install('ceph-common', 'python-ceph')
         for r_id in ceph_ids:
-            for unit in relation_list(rid):
+            for unit in relation_list(r_id):
                 ceph_changed(rid=r_id, unit=unit)
 
     r_id = relation_ids('object-store')
     if r_id:
-        object-store_joined()
+        object_store_joined()
 
 
 def configure_https():
@@ -204,10 +226,13 @@ def configure_https():
         api_port = determine_api_port('9292')
         next_server = api_port
 
-    # TODO:
-    # setup_https 9292:$next_server
+    cert, key = get_cert()
+    if None in (cert, key):
+        cert, key = generate_cert()
+    ca_cert = get_ca_cert()
     # setup https to point to either haproxy or directly to api server, depending.
-    setup_https 9292:$next_server
+    setup_https(namespace="glance", port_maps={api_port: next_server},
+                cert=cert, key=key, ca_cert=ca_cert)
 
     # configure servers to listen on new ports accordingly.
     set_or_update(key='bind_port', value=api_port, file='api')
@@ -216,4 +241,4 @@ def configure_https():
     for r_id in relation_ids('identity-service'):
         keystone_joined(relation_id=r_id)
     for r_id in relation_ids('image-service'):
-        image-service_joined(relation_id=r_id)
+        image_service_joined(relation_id=r_id)
