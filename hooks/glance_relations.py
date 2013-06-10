@@ -290,6 +290,11 @@ def keystone_changed(rid=None):
     # possibly configure HTTPS for API and registry
     configure_https()
 
+    for r_id in relation_ids('identity-service'):
+        keystone_joined(relation_id=r_id)
+    for r_id in relation_ids('image-service'):
+        image_service_joined(relation_id=r_id)
+
 
 def config_changed():
     # Determine whether or not we should do an upgrade, based on whether or not
@@ -302,10 +307,39 @@ def config_changed():
         get_os_version_codename(available) > \
             get_os_version_codename(install_src)):
         juju_log('INFO', '%s: Upgrading OpenStack release: %s -> %s' % (charm, cur, available))
-        # TODO: do_openstack_upgrade_function: where does it come from?
         do_openstack_upgrade(config["openstack-origin"], ' '.join(packages))
 
     configure_https()
+
+    # Update the new config files for existing relations.
+    relids = relation_ids('shared-db')
+    if relids:
+        juju_log('INFO', '%s: Configuring database after upgrade to %s.' % (CHARM, install_src))
+        for relid in relids:
+            db_changed(rid=relid)
+
+    relids = relation_ids('identity-service')
+    if relids:
+        juju_log('INFO', '%s: Configuring identity service after upgrade to %s' % (CHARM, install_src))
+        for relid in relids:
+            keystone_changed(rid=relids)
+
+    relids = relation_ids('ceph')
+    if relids:
+        install('ceph-common', 'python-ceph')
+        for relid in relids:
+            for unit in relation_list(relid):
+                ceph_changed(rid=relid, unit=unit)
+
+    relids = relation_ids('object-store')
+    if relids:
+        object_store_joined()
+
+    relids = relation_ids('image-service')
+    if relids:
+        for relid in relids:
+            image_service_joined(relation_id=relid)
+
     restart(services)
 
     env_vars = {'OPENSTACK_PORT_MCASTPORT': config["ha-mcastport"],

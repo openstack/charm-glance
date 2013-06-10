@@ -31,16 +31,6 @@ from lib.haproxy_utils import (
     configure_haproxy,
     )
 
-from glance_relations import (
-    db_changed,
-    keystone_changed,
-    ceph_changed,
-    object_store_joined,
-    object_store_changed,
-    image_service_joined,
-    keystone_joined,
-    )
-
 from hooks.helpers.contrib.hahelpers.apache_utils import (
     get_cert,
     get_ca_cert,
@@ -179,28 +169,6 @@ def do_openstack_upgrade(install_src, packages):
           'install %s --no-install-recommends' % packages
     execute(cmd, echo=True, die=True)
 
-    # Update the new config files for existing relations.
-    r_id = relation_ids('shared-db')
-    if r_id:
-        juju_log('INFO', '%s: Configuring database after upgrade to %s.' % (CHARM, install_src))
-        db_changed(rid=r_id)
-
-    r_id = relation_ids('identity-server')
-    if r_id:
-        juju_log('INFO', '%s: Configuring identity service after upgrade to %s' % (CHARM, install_src))
-        keystone_changed(rid=r_id)
-
-    ceph_ids = relation_ids('ceph')
-    if ceph_ids:
-        install('ceph-common', 'python-ceph')
-        for r_id in ceph_ids:
-            for unit in relation_list(r_id):
-                ceph_changed(rid=r_id, unit=unit)
-
-    r_id = relation_ids('object-store')
-    if r_id:
-        object_store_joined()
-
 
 def configure_https():
     # request openstack-common setup reverse proxy mapping for API and registry
@@ -237,8 +205,3 @@ def configure_https():
     # configure servers to listen on new ports accordingly.
     set_or_update(key='bind_port', value=api_port, file='api')
     start(SERVICES)
-
-    for r_id in relation_ids('identity-service'):
-        keystone_joined(relation_id=r_id)
-    for r_id in relation_ids('image-service'):
-        image_service_joined(relation_id=r_id)
