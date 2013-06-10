@@ -8,7 +8,7 @@
 #  Adam Gandelman <adamg@ubuntu.com>
 #
 
-from lib.utils import (
+from utils import (
     relation_ids,
     relation_list,
     relation_get,

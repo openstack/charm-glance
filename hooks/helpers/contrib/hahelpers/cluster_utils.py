@@ -8,7 +8,7 @@
 #  Adam Gandelman <adamg@ubuntu.com>
 #
 
-from hahelpers.utils import (
+from utils import (
     juju_log,
     relation_ids,
     relation_list,
