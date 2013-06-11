@@ -107,8 +107,8 @@ def db_changed(rid=None):
 
     db_host = relation_data["db_host"]
     db_password = relation_data["password"]
-    glance_db = relation_data["glance-db"]
-    db_user = relation_data["db-user"]
+    glance_db = config["glance-db"]
+    db_user = config["db-user"]
     rel = get_os_codename_package("glance-common")
 
     value = "mysql://%s:%s@%s/%s" % (db_user, db_password, db_host, glance_db)
