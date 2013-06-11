@@ -25,6 +25,7 @@ from lib.cluster_utils import (
     determine_haproxy_port,
     determine_api_port,
     peer_units,
+    https,
     )
 
 from lib.haproxy_utils import (
@@ -34,7 +35,6 @@ from lib.haproxy_utils import (
 from helpers.contrib.hahelpers.apache_utils import (
     get_cert,
     get_ca_cert,
-    generate_cert,
     setup_https,
     )
 
@@ -171,6 +171,8 @@ def do_openstack_upgrade(install_src, packages):
 
 
 def configure_https():
+    if not https():
+        return
     # request openstack-common setup reverse proxy mapping for API and registry
     # servers
     stop('glance-api')
@@ -195,8 +197,6 @@ def configure_https():
         next_server = api_port
 
     cert, key = get_cert()
-    if None in (cert, key):
-        cert, key = generate_cert()
     ca_cert = get_ca_cert()
     # setup https to point to either haproxy or directly to api server, depending.
     setup_https(namespace="glance", port_maps={api_port: next_server},
