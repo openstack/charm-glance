@@ -54,12 +54,12 @@ from subprocess import (
     check_call,
     )
 
-packages = [
+PACKAGES = [
     "glance", "python-mysqldb", "python-swift",
     "python-keystone", "uuid", "haproxy",
     ]
 
-services = [
+SERVICES = [
     "glance-api", "glance-registry",
     ]
 
@@ -73,9 +73,9 @@ def install_hook():
     juju_log('INFO', 'Installing glance packages')
     configure_source()
 
-    install(*packages)
+    install(*PACKAGES)
 
-    stop(*services)
+    stop(*SERVICES)
 
     set_or_update(key='verbose', value=True, file='api')
     set_or_update(key='debug', value=True, file='api')
@@ -127,7 +127,7 @@ def db_changed(rid=None):
         juju_log("INFO", "%s - db_changed: Running database migrations for %s." % (CHARM, rel))
         check_call(["glance-manage", "db_sync"])
 
-    restart(services)
+    restart(*SERVICES)
 
 
 def image_service_joined(relation_id=None):
@@ -280,7 +280,7 @@ def keystone_changed(rid=None):
         set_or_update(key='admin_user', value=service_username, file=i, section=section)
         set_or_update(key='admin_password', value=service_password, file=i, section=section)
 
-    restart(services)
+    restart(*SERVICES)
 
     # Configure any object-store / swift relations now that we have an
     # identity-service
@@ -307,7 +307,7 @@ def config_changed():
         get_os_version_codename(available) > \
         get_os_version_codename(installed)):
         juju_log('INFO', '%s: Upgrading OpenStack release: %s -> %s' % (CHARM, installed, available))
-        do_openstack_upgrade(config["openstack-origin"], ' '.join(packages))
+        do_openstack_upgrade(config["openstack-origin"], ' '.join(PACKAGES))
 
     configure_https()
 
@@ -340,7 +340,7 @@ def config_changed():
         for relid in relids:
             image_service_joined(relation_id=relid)
 
-    restart(services)
+    restart(*SERVICES)
 
     env_vars = {'OPENSTACK_PORT_MCASTPORT': config["ha-mcastport"],
                 'OPENSTACK_SERVICE_API': "glance-api",
