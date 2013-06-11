@@ -56,7 +56,7 @@ from subprocess import (
 
 packages = [
     "glance", "python-mysqldb", "python-swift",
-    " python-keystone", "uuid", "haproxy",
+    "python-keystone", "uuid", "haproxy",
     ]
 
 services = [
