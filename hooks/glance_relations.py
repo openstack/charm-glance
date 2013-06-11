@@ -300,13 +300,13 @@ def config_changed():
     # Determine whether or not we should do an upgrade, based on whether or not
     # the version offered in openstack-origin is greater than what is installed.
     install_src = config["openstack-origin"]
-    cur = get_os_codename_package("glance-common")
-    available = get_os_codename_install_source(config["openstack-origin"])
+    available = get_os_codename_install_source(install_src)
+    installed = get_os_codename_package("glance-common")
 
     if (available and
         get_os_version_codename(available) > \
-            get_os_version_codename(install_src)):
-        juju_log('INFO', '%s: Upgrading OpenStack release: %s -> %s' % (CHARM, cur, available))
+        get_os_version_codename(installed)):
+        juju_log('INFO', '%s: Upgrading OpenStack release: %s -> %s' % (CHARM, installed, available))
         do_openstack_upgrade(config["openstack-origin"], ' '.join(packages))
 
     configure_https()
