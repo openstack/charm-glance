@@ -96,15 +96,8 @@ def install_hook():
 
 
 def db_joined():
-    relation_data = {
-        'database': config["glance-db"],
-        'username': config["db-user"],
-        'hostname': unit_get('private-address')
-        }
-
-    #juju-log "$CHARM - db_joined: requesting database access to $glance_db for "\
-    #       "$db_user@$hostname"
-    relation_set(**relation_data)
+    relation_set(database=config["glance-db"], username=config["db-user"],
+                hostname=unit_get('private-address'))
 
 
 def db_changed(rid=None):
