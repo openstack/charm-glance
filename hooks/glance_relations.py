@@ -9,6 +9,11 @@ from glance_common import (
     set_or_update,
     )
 
+from glance_utils import (
+    register_configs,
+    migrate_database,
+    )
+
 from charmhelpers.contrib.hahelpers.cluster_utils import (
     https,
     peer_units,
@@ -54,6 +59,11 @@ from subprocess import (
     check_call,
     )
 
+CLUSTER_RES = "res_glance_vip"
+
+CONFIGS = register_configs()
+
+
 PACKAGES = [
     "glance", "python-mysqldb", "python-swift",
     "python-keystone", "uuid", "haproxy",
@@ -98,34 +108,21 @@ def db_joined():
 
 
 def db_changed(rid=None):
-    relation_data = relation_get_dict(relation_id=rid)
-    if ('password' not in relation_data or
-        'db_host' not in relation_data):
-        juju_log('INFO',
-                 'db_host or password not set. Peer not ready, exit 0')
-        sys.exit(0)
-
-    db_host = relation_data["db_host"]
-    db_password = relation_data["password"]
-    glance_db = config["glance-db"]
-    db_user = config["db-user"]
     rel = get_os_codename_package("glance-common")
 
-    value = "mysql://%s:%s@%s/%s" % (db_user, db_password, db_host, glance_db)
-    set_or_update(key='sql_connection', value=value, file='registry')
-
+    CONFIGS.write('/etc/glance/glance-registry.conf')
     if rel != "essex":
-        value = "mysql://%s:%s@%s/%s" % (db_user, db_password, db_host, glance_db)
-        set_or_update(key='sql_connection', value=value, file='api')
+        CONFIGS.write('/etc/glance/glance-api.conf')
 
-    if eligible_leader("res_glance_vip"):
+    if eligible_leader(CLUSTER_RES):
         if rel == "essex":
-            if not check_output(['glance-manage', 'db_version']):
-                juju_log("INFO", "Setting flance database version to 0")
+            try:
+                check_call(['glance-manage', 'db_version'])
+            except:
                 check_call(["glance-manage", "version_control", "0"])
 
-        juju_log("INFO", "%s - db_changed: Running database migrations for %s." % (CHARM, rel))
-        check_call(["glance-manage", "db_sync"])
+        juju_log('Cluster leader, performing db sync')
+        migrate_database()
 
     restart(*SERVICES)
 
