@@ -14,11 +14,11 @@ options:
       Note that updating this setting to a source that is known to
       provide a later version of OpenStack will trigger a software
       upgrade.
-  db-user:
+  database-user:
     default: glance
     type: string
     description: Database username
-  glance-db:
+  database:
     default: glance
     type: string
     description: Glance database name.

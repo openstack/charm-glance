@@ -96,7 +96,7 @@ def install_hook():
 
 
 def db_joined():
-    relation_set(database=config["glance-db"], username=config["db-user"],
+    relation_set(database=config['database'], username=config['database-user'],
                 hostname=unit_get('private-address'))
 
 
