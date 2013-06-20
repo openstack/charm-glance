@@ -1,5 +1,5 @@
 branch: lp:charm-helpers
-destination: hooks/helpers
+destination: hooks/charmhelpers
 include:
     - core
     - contrib.openstack

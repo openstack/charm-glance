@@ -45,7 +45,7 @@ from lib.openstack_common import (
     save_script_rc,
     )
 
-from helpers.contrib.hahelpers.ceph_utils import (
+from charmhelpers.contrib.hahelpers.ceph_utils import (
     configure,
     )
 

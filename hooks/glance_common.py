@@ -32,7 +32,7 @@ from lib.haproxy_utils import (
     configure_haproxy,
     )
 
-from helpers.contrib.hahelpers.apache_utils import (
+from charmhelpers.contrib.hahelpers.apache_utils import (
     get_cert,
     get_ca_cert,
     setup_https,

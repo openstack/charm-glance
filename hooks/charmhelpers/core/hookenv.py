@@ -17,6 +17,44 @@ INFO = "INFO"
 DEBUG = "DEBUG"
 MARKER = object()
 
+cache = {}
+
+
+def cached(func):
+    ''' Cache return values for multiple executions of func + args
+
+    For example:
+
+        @cached
+        def unit_get(attribute):
+            pass
+
+        unit_get('test')
+
+    will cache the result of unit_get + 'test' for future calls.
+    '''
+    def wrapper(*args, **kwargs):
+        global cache
+        key = str((func, args, kwargs))
+        try:
+            return cache[key]
+        except KeyError:
+            res = func(*args, **kwargs)
+            cache[key] = res
+            return res
+    return wrapper
+
+
+def flush(key):
+    ''' Flushes any entries from function cache where the
+    key is found in the function+args '''
+    flush_list = []
+    for item in cache:
+        if key in item:
+            flush_list.append(item)
+    for item in flush_list:
+        del cache[item]
+
 
 def log(message, level=None):
     "Write a message to the juju log"
@@ -96,6 +134,7 @@ def remote_unit():
     return os.environ['JUJU_REMOTE_UNIT']
 
 
+@cached
 def config(scope=None):
     "Juju charm configuration"
     config_cmd_line = ['config-get']
@@ -103,13 +142,14 @@ def config(scope=None):
         config_cmd_line.append(scope)
     config_cmd_line.append('--format=json')
     try:
-        config_data = json.loads(subprocess.check_output(config_cmd_line))
-    except (ValueError, OSError, subprocess.CalledProcessError) as err:
-        log(str(err), level=ERROR)
-        raise
-    return Serializable(config_data)
+        return Serializable(json.loads(
+                                subprocess.check_output(config_cmd_line)
+                                ))
+    except ValueError:
+        return None
 
 
+@cached
 def relation_get(attribute=None, unit=None, rid=None):
     _args = ['relation-get', '--format=json']
     if rid:
@@ -119,7 +159,7 @@ def relation_get(attribute=None, unit=None, rid=None):
     if unit:
         _args.append(unit)
     try:
-        return json.loads(subprocess.check_output(_args))
+        return Serializable(json.loads(subprocess.check_output(_args)))
     except ValueError:
         return None
 
@@ -133,8 +173,11 @@ def relation_set(relation_id=None, relation_settings={}, **kwargs):
     for k, v in kwargs.items():
         relation_cmd_line.append('{}={}'.format(k, v))
     subprocess.check_call(relation_cmd_line)
+    # Flush cache of any relation-gets for local unit
+    flush(local_unit())
 
 
+@cached
 def relation_ids(reltype=None):
     "A list of relation_ids"
     reltype = reltype or relation_type()
@@ -145,6 +188,7 @@ def relation_ids(reltype=None):
     return []
 
 
+@cached
 def related_units(relid=None):
     "A list of related units"
     relid = relid or relation_id()
@@ -154,6 +198,7 @@ def related_units(relid=None):
     return json.loads(subprocess.check_output(units_cmd_line))
 
 
+@cached
 def relation_for_unit(unit=None, rid=None):
     "Get the json represenation of a unit's relation"
     unit = unit or remote_unit()
@@ -165,6 +210,7 @@ def relation_for_unit(unit=None, rid=None):
     return Serializable(relation)
 
 
+@cached
 def relations_for_id(relid=None):
     "Get relations of a specific relation ID"
     relation_data = []
@@ -176,6 +222,7 @@ def relations_for_id(relid=None):
     return relation_data
 
 
+@cached
 def relations_of_type(reltype=None):
     "Get relations of a specific type"
     relation_data = []
@@ -187,13 +234,14 @@ def relations_of_type(reltype=None):
     return relation_data
 
 
+@cached
 def relation_types():
     "Get a list of relation types supported by this charm"
     charmdir = os.environ.get('CHARM_DIR', '')
     mdf = open(os.path.join(charmdir, 'metadata.yaml'))
     md = yaml.safe_load(mdf)
     rel_types = []
-    for key in ('provides','requires','peers'):
+    for key in ('provides', 'requires', 'peers'):
         section = md.get(key)
         if section:
             rel_types.extend(section.keys())
@@ -201,12 +249,13 @@ def relation_types():
     return rel_types
 
 
+@cached
 def relations():
     rels = {}
     for reltype in relation_types():
         relids = {}
         for relid in relation_ids(reltype):
-            units = {}
+            units = {local_unit(): relation_get(unit=local_unit(), rid=relid)}
             for unit in related_units(relid):
                 reldata = relation_get(unit=unit, rid=relid)
                 units[unit] = reldata
@@ -229,9 +278,13 @@ def close_port(port, protocol="TCP"):
     subprocess.check_call(_args)
 
 
+@cached
 def unit_get(attribute):
-    _args = ['unit-get', attribute]
-    return subprocess.check_output(_args).strip()
+    _args = ['unit-get', '--format=json', attribute]
+    try:
+        return json.loads(subprocess.check_output(_args))
+    except ValueError:
+        return None
 
 
 def unit_private_ip():

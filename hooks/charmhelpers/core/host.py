@@ -5,10 +5,12 @@
 #  Nick Moffitt <nick.moffitt@canonical.com>
 #  Matthew Wedgwood <matthew.wedgwood@canonical.com>
 
+import apt_pkg
 import os
 import pwd
 import grp
 import subprocess
+import hashlib
 
 from hookenv import log, execution_environment
 
@@ -33,21 +35,23 @@ def service(action, service_name):
     return False
 
 
-def adduser(username, password, shell='/bin/bash'):
+def adduser(username, password=None, shell='/bin/bash', system_user=False):
     """Add a user"""
-    # TODO: generate a password if none is given
     try:
         user_info = pwd.getpwnam(username)
         log('user {0} already exists!'.format(username))
     except KeyError:
         log('creating user {0}'.format(username))
-        cmd = [
-            'useradd',
-            '--create-home',
-            '--shell', shell,
-            '--password', password,
-            username
-        ]
+        cmd = ['useradd']
+        if system_user or password is None:
+           cmd.append('--system')
+        else:
+           cmd.extend([
+               '--create-home',
+               '--shell', shell,
+               '--password', password,
+           ])
+        cmd.append(username)
         subprocess.check_call(cmd)
         user_info = pwd.getpwnam(username)
     return user_info
@@ -130,6 +134,22 @@ def render_template_file(source, destination, **kwargs):
                    **kwargs)
 
 
+def filter_installed_packages(packages):
+    """Returns a list of packages that require installation"""
+    apt_pkg.init()
+    cache = apt_pkg.Cache()
+    _pkgs = []
+    for package in packages:
+        try:
+            p = cache[package]
+            p.current_ver or _pkgs.append(package)
+        except KeyError:
+            log('Package {} has no installation candidate.'.format(package),
+                level='WARNING')
+            _pkgs.append(package)
+    return _pkgs
+
+
 def apt_install(packages, options=None, fatal=False):
     """Install one or more packages"""
     options = options or []
@@ -142,6 +162,15 @@ def apt_install(packages, options=None, fatal=False):
         cmd.extend(packages)
     log("Installing {} with options: {}".format(packages,
                                                 options))
+    if fatal:
+        subprocess.check_call(cmd)
+    else:
+        subprocess.call(cmd)
+
+
+def apt_update(fatal=False):
+    """Update local apt cache"""
+    cmd = ['apt-get', 'update']
     if fatal:
         subprocess.check_call(cmd)
     else:
@@ -186,3 +215,45 @@ def mounts():
         system_mounts = [m[1::-1] for m in [l.strip().split()
                                             for l in f.readlines()]]
     return system_mounts
+
+
+def file_hash(path):
+    ''' Generate a md5 hash of the contents of 'path' or None if not found '''
+    if os.path.exists(path):
+        h = hashlib.md5()
+        with open(path, 'r') as source:
+            h.update(source.read())  # IGNORE:E1101 - it does have update
+        return h.hexdigest()
+    else:
+        return None
+
+
+def restart_on_change(restart_map):
+    ''' Restart services based on configuration files changing
+
+    This function is used a decorator, for example
+
+        @restart_on_change({
+            '/etc/ceph/ceph.conf': [ 'cinder-api', 'cinder-volume' ]
+            })
+        def ceph_client_changed():
+            ...
+
+    In this example, the cinder-api and cinder-volume services
+    would be restarted if /etc/ceph/ceph.conf is changed by the
+    ceph_client_changed function.
+    '''
+    def wrap(f):
+        def wrapped_f(*args):
+            checksums = {}
+            for path in restart_map:
+                checksums[path] = file_hash(path)
+            f(*args)
+            restarts = []
+            for path in restart_map:
+                if checksums[path] != file_hash(path):
+                    restarts += restart_map[path]
+            for service_name in list(set(restarts)):
+                service('restart', service_name)
+        return wrapped_f
+    return wrap

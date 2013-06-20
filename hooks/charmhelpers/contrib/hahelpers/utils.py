@@ -270,7 +270,8 @@ def get_unit_hostname():
 
 
 @cached
-def get_host_ip(hostname=unit_get('private-address')):
+def get_host_ip(hostname=None):
+    hostname = hostname or unit_get('private-address')
     try:
         # Test to see if already an IPv4 address
         socket.inet_aton(hostname)
