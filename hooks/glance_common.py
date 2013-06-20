@@ -5,13 +5,13 @@ import time
 import sys
 import subprocess
 
-from lib.openstack_common import (
+from charmhelpers.contrib.openstack.openstack_utils import (
     get_os_codename_install_source,
     get_os_codename_package,
     configure_installation_source,
     )
 
-from lib.utils import (
+from charmhelpers.contrib.hahelpers.utils import (
     relation_ids,
     relation_list,
     install,
@@ -20,7 +20,7 @@ from lib.utils import (
     start,
     )
 
-from lib.cluster_utils import (
+from charmhelpers.contrib.hahelpers.cluster_utils import (
     is_clustered,
     determine_haproxy_port,
     determine_api_port,
@@ -28,7 +28,7 @@ from lib.cluster_utils import (
     https,
     )
 
-from lib.haproxy_utils import (
+from charmhelpers.contrib.hahelpers.haproxy_utils import (
     configure_haproxy,
     )
 

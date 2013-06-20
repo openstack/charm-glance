@@ -9,7 +9,7 @@ from glance_common import (
     set_or_update,
     )
 
-from lib.cluster_utils import (
+from charmhelpers.contrib.hahelpers.cluster_utils import (
     https,
     peer_units,
     determine_haproxy_port,
@@ -18,7 +18,7 @@ from lib.cluster_utils import (
     is_clustered,
     )
 
-from lib.utils import (
+from charmhelpers.contrib.hahelpers.utils import (
     juju_log,
     start,
     stop,
@@ -34,11 +34,11 @@ from lib.utils import (
     configure_source,
     )
 
-from lib.haproxy_utils import (
+from charmhelpers.contrib.hahelpers.haproxy_utils import (
     configure_haproxy,
     )
 
-from lib.openstack_common import (
+from charmhelpers.contrib.hahelpers.openstack_utils import (
     get_os_codename_package,
     get_os_codename_install_source,
     get_os_version_codename,
