@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/python
 
 from charmhelpers.contrib.openstack import (
     templating,
