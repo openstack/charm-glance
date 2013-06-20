@@ -38,7 +38,7 @@ from charmhelpers.contrib.hahelpers.haproxy_utils import (
     configure_haproxy,
     )
 
-from charmhelpers.contrib.hahelpers.openstack_utils import (
+from charmhelpers.contrib.openstack.openstack_utils import (
     get_os_codename_package,
     get_os_codename_install_source,
     get_os_version_codename,
