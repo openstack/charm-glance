@@ -73,7 +73,7 @@ class Serializable(UserDict.IterableUserDict):
         UserDict.IterableUserDict.__init__(self)
         self.data = obj
 
-    def __nonzero__(self, attr):
+    def __nonzero__(self):
         return self.data is not None
 
     def __getattr__(self, attr):
