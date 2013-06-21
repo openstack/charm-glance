@@ -120,6 +120,7 @@ def db_changed(rid=None):
             try:
                 check_call(['glance-manage', 'db_version'])
             except:
+                juju_log('INFO', 'Setting version_control to 0')
                 check_call(["glance-manage", "version_control", "0"])
 
         juju_log('Cluster leader, performing db sync')

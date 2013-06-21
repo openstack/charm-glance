@@ -73,6 +73,9 @@ class Serializable(UserDict.IterableUserDict):
         UserDict.IterableUserDict.__init__(self)
         self.data = obj
 
+    def __nonzero__(self, attr):
+        return self.data is not None
+
     def __getattr__(self, attr):
         # See if this object has attribute.
         if attr in ("json", "yaml", "data"):
