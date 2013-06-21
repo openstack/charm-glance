@@ -64,6 +64,8 @@ from subprocess import (
     check_call,
     )
 
+from commands import getstatusoutput
+
 CLUSTER_RES = "res_glance_vip"
 
 CONFIGS = register_configs()
@@ -117,13 +119,12 @@ def db_changed(rid=None):
 
     if eligible_leader(CLUSTER_RES):
         if rel == "essex":
-            try:
-                check_call(['glance-manage', 'db_version'])
-            except:
+            (status, output) = getstatusoutput('glance-manage db_version')
+            if status != 0:
                 juju_log('INFO', 'Setting version_control to 0')
                 check_call(["glance-manage", "version_control", "0"])
 
-        juju_log('Cluster leader, performing db sync')
+        juju_log('INFO', 'Cluster leader, performing db sync')
         migrate_database()
 
     restart(*SERVICES)
