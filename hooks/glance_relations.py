@@ -50,6 +50,11 @@ from charmhelpers.contrib.openstack.openstack_utils import (
     save_script_rc,
     )
 
+from charmhelpers.contrib.openstack.context import (
+    OSContextIncomplete,
+    OSContextError,
+    )
+
 from charmhelpers.contrib.hahelpers.ceph_utils import (
     configure,
     )
@@ -103,9 +108,12 @@ def db_joined():
 def db_changed(rid=None):
     rel = get_os_codename_package("glance-common")
 
-    CONFIGS.write('/etc/glance/glance-registry.conf')
-    if rel != "essex":
-        CONFIGS.write('/etc/glance/glance-api.conf')
+    try:
+        CONFIGS.write('/etc/glance/glance-registry.conf')
+        if rel != "essex":
+            CONFIGS.write('/etc/glance/glance-api.conf')
+    except OSContextIncomplete, OSContextError:
+        return
 
     if eligible_leader(CLUSTER_RES):
         if rel == "essex":

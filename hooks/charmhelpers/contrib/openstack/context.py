@@ -11,6 +11,10 @@ class OSContextError(Exception):
     pass
 
 
+class OSContextIncomplete(Exception):
+    pass
+
+
 def context_complete(ctxt):
     _missing = []
     for k, v in ctxt.iteritems():
@@ -43,7 +47,7 @@ def shared_db(relation_id=None, unit_id=None):
                                                   unit=unit)
             }
     if not context_complete(ctxt):
-        return {}
+        raise OSContextIncomplete
     return ctxt
 
 
