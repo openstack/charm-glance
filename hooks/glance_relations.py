@@ -112,6 +112,7 @@ def db_changed(rid=None):
 
     try:
         CONFIGS.write('/etc/glance/glance-registry.conf')
+        # since folsom, a db connection setting in glance-api.conf is required.
         if rel != "essex":
             CONFIGS.write('/etc/glance/glance-api.conf')
     except OSContextIncomplete, OSContextError:

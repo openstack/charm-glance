@@ -27,6 +27,10 @@ CONFIG_FILES = {
     '/etc/glance/glance-registry.conf': {
         'hook_contexts': [context.shared_db],
         'services': ['glance-registry']
+    },
+    '/etc/glance/glance-api.conf': {
+        'hook_contexts': [context.shared_db],
+        'services': ['glance-api']
     }
 }
 
@@ -37,7 +41,8 @@ def register_configs():
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                 openstack_release='grizzly')
 
-    confs = ['/etc/glance/glance-registry.conf']
+    confs = ['/etc/glance/glance-registry.conf',
+             '/etc/glance/glance-api.conf']
 
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['hook_contexts'])
