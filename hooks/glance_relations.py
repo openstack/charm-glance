@@ -50,11 +50,6 @@ from charmhelpers.contrib.openstack.openstack_utils import (
     save_script_rc,
     )
 
-from charmhelpers.contrib.openstack.context import (
-    OSContextIncomplete,
-    OSContextError,
-    )
-
 from charmhelpers.contrib.hahelpers.ceph_utils import (
     configure,
     )
