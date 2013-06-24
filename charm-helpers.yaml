@@ -1,4 +1,4 @@
-branch: lp:charm-helpers
+branch: lp:~openstack-charmers/charm-tools/pyrewrite-helpers
 destination: hooks/charmhelpers
 include:
     - core
