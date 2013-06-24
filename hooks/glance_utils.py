@@ -5,6 +5,8 @@ from charmhelpers.contrib.openstack import (
     context,
     )
 
+from collections import OrderedDict
+
 import subprocess
 
 CHARM = "glance"
