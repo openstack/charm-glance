@@ -107,16 +107,17 @@ def db_joined():
                 hostname=unit_get('private-address'))
 
 
-def db_changed(rid=None):
+def db_changed():
     rel = get_os_codename_package("glance-common")
 
-    try:
-        CONFIGS.write('/etc/glance/glance-registry.conf')
-        # since folsom, a db connection setting in glance-api.conf is required.
-        if rel != "essex":
-            CONFIGS.write('/etc/glance/glance-api.conf')
-    except OSContextIncomplete, OSContextError:
+    if 'shared-db' not in CONFIGS.complete_contexts():
+        juju_log('INFO', 'shared-db relation incomplete. Peer not ready?')
         return
+
+    CONFIGS.write('/etc/glance/glance-registry.conf')
+    # since folsom, a db connection setting in glance-api.conf is required.
+    if rel != "essex":
+        CONFIGS.write('/etc/glance/glance-api.conf')
 
     if eligible_leader(CLUSTER_RES):
         if rel == "essex":

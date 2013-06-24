@@ -23,23 +23,23 @@ CONFIG_CHANGED =  False
 
 TEMPLATES = 'templates/'
 
-CONFIG_FILES = {
-    '/etc/glance/glance-registry.conf': {
-        'hook_contexts': [context.shared_db],
+CONFIG_FILES = OrderedDict([
+    ('/etc/glance/glance-registry.conf', {
+        'hook_contexts': [context.SharedDBContext()],
         'services': ['glance-registry']
-    },
-    '/etc/glance/glance-api.conf': {
-        'hook_contexts': [context.shared_db],
+    }),
+    ('/etc/glance/glance-api.conf': {
+        'hook_contexts': [context.SharedDBContext()],
         'services': ['glance-api']
-    }
-}
+    }),
+])
 
 def register_configs():
     # Register config files with their respective contexts.
     # Regstration of some configs may not be required depending on
     # existing of certain relations.
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
-                openstack_release='grizzly')
+                                          openstack_release='grizzly')
 
     confs = ['/etc/glance/glance-registry.conf',
              '/etc/glance/glance-api.conf']
