@@ -28,7 +28,7 @@ CONFIG_FILES = OrderedDict([
         'hook_contexts': [context.SharedDBContext()],
         'services': ['glance-registry']
     }),
-    ('/etc/glance/glance-api.conf': {
+    ('/etc/glance/glance-api.conf', {
         'hook_contexts': [context.SharedDBContext()],
         'services': ['glance-api']
     }),
