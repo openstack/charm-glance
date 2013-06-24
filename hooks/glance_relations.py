@@ -215,7 +215,7 @@ def ceph_changed(rid=None, unit=None):
 
 
 def keystone_joined(relation_id=None):
-    if not eligible_leader('res_glance_vip'):
+    if not eligible_leader(CLUSTER_RES):
         juju_log('INFO',
                  'Deferring keystone_joined() to service leader.')
         return
@@ -242,6 +242,29 @@ def keystone_joined(relation_id=None):
         relation_data['rid'] = relation_id
 
     relation_set(**relation_data)
+
+
+def keystone_changed():
+    CONFIGS.write('/etc/glance/glance-api-paste.ini')
+    CONFIGS.write('/etc/glance/glance-registry-paste.ini')
+
+    CONFIGS.write('/etc/glance/glance-api.conf')
+    CONFIGS.write('/etc/glance/glance-registry.conf')
+
+    restart(*SERVICES)
+
+    # Configure any object-store / swift relations now that we have an
+    # identity-service
+    if relation_ids('object-store'):
+        object_store_joined()
+
+    # possibly configure HTTPS for API and registry
+    configure_https()
+
+    for r_id in relation_ids('identity-service'):
+        keystone_joined(relation_id=r_id)
+    for r_id in relation_ids('image-service'):
+        image_service_joined(relation_id=r_id)
 
 
 def keystone_changed(rid=None):
@@ -274,7 +297,7 @@ def keystone_changed(rid=None):
         set_or_update(key='service_host', value=keystone_host, file=i, section=section)
         set_or_update(key='service_port', value=service_port, file=i, section=section)
         set_or_update(key='auth_host', value=keystone_host, file=i, section=section)
-        set_or_update(key='auth_host', value=auth_port, file=i, section=section)
+        set_or_update(key='auth_port', value=auth_port, file=i, section=section)
         set_or_update(key='auth_uri', value="http://%s:%s/" % (keystone_host, service_port), file=i, section=section)
         set_or_update(key='admin_token', value=token, file=i, section=section)
         set_or_update(key='admin_tenant_name', value=service_tenant, file=i, section=section)
