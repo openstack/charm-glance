@@ -216,25 +216,6 @@ def ceph_changed():
     restart('glance-api')
 
 
-def ceph_changed(rid=None, unit=None):
-    key = relation_get(attribute='key', rid=rid, unit=unit)
-    auth = relation_get(attribute='auth', rid=rid, unit=unit)
-
-    if None in [auth, key]:
-        juju_log('INFO', 'Missing key or auth in relation')
-        return
-
-    configure(service=SERVICE_NAME, key=key, auth=auth)
-
-    # Configure glance for ceph storage options
-    set_or_update(key='default_store', value='rbd', file='api')
-    set_or_update(key='rbd_store_ceph_conf', value='/etc/ceph/ceph.conf', file='api')
-    set_or_update(key='rbd_store_user', value=SERVICE_NAME, file='api')
-    set_or_update(key='rbd_store_pool', value='images', file='api')
-    set_or_update(key='rbd_store_chunk_size', value='8', file='api')
-    restart('glance-api')
-
-
 def keystone_joined(relation_id=None):
     if not eligible_leader(CLUSTER_RES):
         juju_log('INFO',
