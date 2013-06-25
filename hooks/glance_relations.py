@@ -187,8 +187,29 @@ def object_store_changed():
 
 
 def ceph_joined():
-    os.mkdir('/etc/ceph')
+    if not os.path.isdir('/etc/ceph')
+        os.mkdir('/etc/ceph')
     install(['ceph-common', 'python-ceph'])
+
+
+def ceph_changed():
+    if 'ceph' not in CONFIGS.complete_contexts():
+        juju_log('ceph relation incomplete. Peer not ready?')
+        return
+
+    if not ensure_ceph_keyring(service=SERVICE_NAME):
+        juju_log('Could not create ceph keyring: peer not ready?')
+        return
+
+    CONFIGS.write('/etc/glance/glance-api.conf')
+    CONFIGS.write('/etc/ceph/ceph.conf')
+
+    set_ceph_env_variables(service=SERVICE_NAME)
+
+    if eligible_leader(CLUSTER_RES):
+        ensure_ceph_pool(service=SERVICE_NAME)
+
+    restart('glance-api')
 
 
 def ceph_changed(rid=None, unit=None):

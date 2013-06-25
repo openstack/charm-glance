@@ -44,6 +44,10 @@ CONFIG_FILES = OrderedDict([
         'hook_contexts': [context.IdentityServiceContext()],
         'services': ['glance-registry']
     }),
+    ('/etc/ceph/ceph.conf', {
+        'hook_contexts': [context.CephContext()],
+        'services': []
+    }),
 ])
 
 def register_configs():
@@ -57,6 +61,9 @@ def register_configs():
              '/etc/glance/glance-api.conf',
              '/etc/glance/glance-api-paste.ini',
              '/etc/glance/glance-registry-paste.ini',]
+
+    if relation_ids('ceph'):
+        confs.append('/etc/ceph/ceph.conf')
 
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['hook_contexts'])
