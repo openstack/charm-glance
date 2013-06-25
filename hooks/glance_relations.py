@@ -191,7 +191,7 @@ def object_store_changed():
 
 
 def ceph_joined():
-    if not os.path.isdir('/etc/ceph')
+    if not os.path.isdir('/etc/ceph'):
         os.mkdir('/etc/ceph')
     install(['ceph-common', 'python-ceph'])
 
