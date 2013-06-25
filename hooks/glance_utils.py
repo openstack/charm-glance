@@ -27,12 +27,22 @@ TEMPLATES = 'templates/'
 
 CONFIG_FILES = OrderedDict([
     ('/etc/glance/glance-registry.conf', {
-        'hook_contexts': [context.SharedDBContext()],
+        'hook_contexts': [context.SharedDBContext(),
+                          context.IdentityServiceContext()],
         'services': ['glance-registry']
     }),
     ('/etc/glance/glance-api.conf', {
-        'hook_contexts': [context.SharedDBContext()],
+        'hook_contexts': [context.SharedDBContext(),
+                          context.IdentityServiceContext()],
         'services': ['glance-api']
+    }),
+    ('/etc/glance/glance-api-paste.ini', {
+        'hook_contexts': [context.IdentityServiceContext()],
+        'services': ['glance-api']
+    }),
+    ('/etc/glance/glance-registry-paste.ini', {
+        'hook_contexts': [context.IdentityServiceContext()],
+        'services': ['glance-registry']
     }),
 ])
 
@@ -44,7 +54,9 @@ def register_configs():
                                           openstack_release='grizzly')
 
     confs = ['/etc/glance/glance-registry.conf',
-             '/etc/glance/glance-api.conf']
+             '/etc/glance/glance-api.conf',
+             '/etc/glance/glance-api-paste.ini',
+             '/etc/glance/glance-registry-paste.ini',]
 
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['hook_contexts'])

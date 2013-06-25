@@ -241,64 +241,15 @@ def keystone_joined(relation_id=None):
 
 
 def keystone_changed():
-    CONFIGS.write('/etc/glance/glance-api-paste.ini')
-    CONFIGS.write('/etc/glance/glance-registry-paste.ini')
+    if 'identity-service' not in CONFIGS.complete_contexts():
+        juju_log('INFO', 'identity-service relation incomplete. Peer not ready?')
+        return
 
     CONFIGS.write('/etc/glance/glance-api.conf')
     CONFIGS.write('/etc/glance/glance-registry.conf')
 
-    restart(*SERVICES)
-
-    # Configure any object-store / swift relations now that we have an
-    # identity-service
-    if relation_ids('object-store'):
-        object_store_joined()
-
-    # possibly configure HTTPS for API and registry
-    configure_https()
-
-    for r_id in relation_ids('identity-service'):
-        keystone_joined(relation_id=r_id)
-    for r_id in relation_ids('image-service'):
-        image_service_joined(relation_id=r_id)
-
-
-def keystone_changed(rid=None):
-    relation_data = relation_get_dict(relation_id=rid)
-
-    token = relation_data["admin_token"]
-    service_port = relation_data["service_port"]
-    auth_port = relation_data["auth_port"]
-    service_username = relation_data["service_username"]
-    service_password = relation_data["service_password"]
-    service_tenant = relation_data["service_tenant"]
-
-    if not token or not service_port or not auth_port or \
-        not service_username or not service_password or not service_tenant:
-        juju_log('INFO', 'keystone_changed: Peer not ready')
-        sys.exit(0)
-
-    if token == "-1":
-        juju_log('ERROR', 'keystone_changed: admin token error')
-        sys.exit(1)
-    juju_log('INFO', 'keystone_changed: Acquired admin token')
-
-    keystone_host = relation_data["auth_host"]
-
-    set_or_update(key='flavor', value='keystone', file='api', section="paste_deploy")
-    set_or_update(key='flavor', value='keystone', file='registry', section="paste_deploy")
-
-    section = "filter:authtoken"
-    for i in ['api-paste', 'registry-paste']:
-        set_or_update(key='service_host', value=keystone_host, file=i, section=section)
-        set_or_update(key='service_port', value=service_port, file=i, section=section)
-        set_or_update(key='auth_host', value=keystone_host, file=i, section=section)
-        set_or_update(key='auth_port', value=auth_port, file=i, section=section)
-        set_or_update(key='auth_uri', value="http://%s:%s/" % (keystone_host, service_port), file=i, section=section)
-        set_or_update(key='admin_token', value=token, file=i, section=section)
-        set_or_update(key='admin_tenant_name', value=service_tenant, file=i, section=section)
-        set_or_update(key='admin_user', value=service_username, file=i, section=section)
-        set_or_update(key='admin_password', value=service_password, file=i, section=section)
+    CONFIGS.write('/etc/glance/glance-api-paste.ini')
+    CONFIGS.write('/etc/glance/glance-registry-paste.ini')
 
     restart(*SERVICES)
 
@@ -310,10 +261,11 @@ def keystone_changed(rid=None):
     # possibly configure HTTPS for API and registry
     configure_https()
 
-    for r_id in relation_ids('identity-service'):
-        keystone_joined(relation_id=r_id)
-    for r_id in relation_ids('image-service'):
-        image_service_joined(relation_id=r_id)
+    # TODO: maybe this should be removed as it was added on the initial port.
+    #for r_id in relation_ids('identity-service'):
+    #    keystone_joined(relation_id=r_id)
+    #for r_id in relation_ids('image-service'):
+    #    image_service_joined(relation_id=r_id)
 
 
 def config_changed():
