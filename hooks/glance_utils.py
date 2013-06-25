@@ -5,9 +5,18 @@ from charmhelpers.contrib.openstack import (
     context,
     )
 
+from charmhelpers.contrib.hahelpers.ceph_utils import (
+    create_keyring as ceph_create_keyring,
+    create_pool as ceph_create_pool,
+    keyring_path as ceph_keyring_path,
+    pool_exists as ceph_pool_exists,
+    )
+
 from collections import OrderedDict
 
 import subprocess
+
+import glance_contexts
 
 CHARM = "glance"
 
@@ -33,7 +42,8 @@ CONFIG_FILES = OrderedDict([
     }),
     ('/etc/glance/glance-api.conf', {
         'hook_contexts': [context.SharedDBContext(),
-                          context.IdentityServiceContext()],
+                          context.IdentityServiceContext(),
+                          glance_contexts.CephContext()],
         'services': ['glance-api']
     }),
     ('/etc/glance/glance-api-paste.ini', {
@@ -75,3 +85,38 @@ def migrate_database():
     '''Runs glance-manage to initialize a new database or migrate existing'''
     cmd = ['glance-manage', 'db_sync']
     subprocess.check_call(cmd)
+
+
+def ensure_ceph_keyring(service):
+    '''Ensures a ceph keyring exists.  Returns True if so, False otherwise'''
+    # TODO: This can be shared between cinder + glance, find a home for it.
+    key = None
+    for rid in relation_ids('ceph'):
+        for unit in related_units(rid):
+            key = relation_get('key', rid=rid, unit=unit)
+            if key:
+                break
+    if not key:
+        return False
+    ceph_create_keyring(service=service, key=key)
+    keyring = ceph_keyring_path(service)
+    subprocess.check_call(['chown', 'cinder.cinder', keyring])
+    return True
+
+
+def ensure_ceph_pool(service):
+    '''Creates a ceph pool for service if one does not exist'''
+    # TODO: Ditto about moving somewhere sharable.
+    if not ceph_pool_exists(service=service, name=service):
+        ceph_create_pool(service=service, name=service)
+
+
+def set_ceph_env_variables(service):
+    # XXX: Horrid kludge to make cinder-volume use
+    # a different ceph username than admin
+    env = open('/etc/environment', 'r').read()
+    if 'CEPH_ARGS' not in env:
+        with open('/etc/environment', 'a') as out:
+            out.write('CEPH_ARGS="--id %s"\n' % service)
+    with open('/etc/init/cinder-volume.override', 'w') as out:
+            out.write('env CEPH_ARGS="--id %s"\n' % service)

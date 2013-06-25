@@ -14,6 +14,10 @@ from glance_utils import (
     migrate_database,
     )
 
+from charmhelpers.core.hookenv import (
+    service_name,
+)
+
 from charmhelpers.contrib.hahelpers.cluster_utils import (
     https,
     peer_units,
@@ -76,7 +80,7 @@ SERVICES = [
     ]
 
 CHARM = "glance"
-SERVICE_NAME = os.getenv('JUJU_UNIT_NAME').split('/')[0]
+SERVICE_NAME = service_name()
 
 config = json.loads(check_output(['config-get','--format=json']))
 
