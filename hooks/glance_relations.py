@@ -16,7 +16,7 @@ from glance_utils import (
 
 from charmhelpers.core.hookenv import (
     service_name,
-)
+    )
 
 from charmhelpers.contrib.hahelpers.cluster_utils import (
     https,
@@ -193,7 +193,7 @@ def object_store_changed():
 def ceph_joined():
     if not os.path.isdir('/etc/ceph'):
         os.mkdir('/etc/ceph')
-    install(['ceph-common', 'python-ceph'])
+    install('ceph-common', 'python-ceph')
 
 
 def ceph_changed():
