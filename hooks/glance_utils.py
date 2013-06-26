@@ -108,7 +108,7 @@ def ensure_ceph_keyring(service):
         return False
     ceph_create_keyring(service=service, key=key)
     keyring = ceph_keyring_path(service)
-    subprocess.check_call(['chown', 'cinder.cinder', keyring])
+    subprocess.check_call(['chown', 'glance.glance', keyring])
     return True
 
 
