@@ -201,11 +201,11 @@ def ceph_joined():
 
 def ceph_changed():
     if 'ceph' not in CONFIGS.complete_contexts():
-        juju_log('ceph relation incomplete. Peer not ready?')
+        juju_log('ERROR', 'ceph relation incomplete. Peer not ready?')
         return
 
     if not ensure_ceph_keyring(service=SERVICE_NAME):
-        juju_log('Could not create ceph keyring: peer not ready?')
+        juju_log('ERROR', 'Could not create ceph keyring: peer not ready?')
         return
 
     CONFIGS.write('/etc/glance/glance-api.conf')
