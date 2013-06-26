@@ -12,6 +12,9 @@ from glance_common import (
 from glance_utils import (
     register_configs,
     migrate_database,
+    ensure_ceph_keyring,
+    set_ceph_env_variables,
+    ensure_ceph_pool,
     )
 
 from charmhelpers.core.hookenv import (
