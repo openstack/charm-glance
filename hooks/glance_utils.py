@@ -126,5 +126,5 @@ def set_ceph_env_variables(service):
     if 'CEPH_ARGS' not in env:
         with open('/etc/environment', 'a') as out:
             out.write('CEPH_ARGS="--id %s"\n' % service)
-    with open('/etc/init/cinder-volume.override', 'w') as out:
+    with open('/etc/init/glance.override', 'w') as out:
             out.write('env CEPH_ARGS="--id %s"\n' % service)
