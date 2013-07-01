@@ -96,11 +96,6 @@ def install_hook():
 
     stop(*SERVICES)
 
-    set_or_update(key='verbose', value=True, file='api')
-    set_or_update(key='debug', value=True, file='api')
-    set_or_update(key='verbose', value=True, file='registry')
-    set_or_update(key='debug', value=True, file='registry')
-
     configure_https()
 
 
