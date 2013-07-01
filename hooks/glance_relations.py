@@ -6,7 +6,6 @@ import json
 from glance_common import (
     configure_https,
     do_openstack_upgrade,
-    set_or_update,
     )
 
 from glance_utils import (
