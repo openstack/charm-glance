@@ -48,19 +48,19 @@ class ObjectStoreContext(OSContextGenerator):
 
 
 class HAProxyContext(OSContextGenerator):
-    interfaces = ['ceph']
+    interfaces = ['cluster']
 
     def __call__(self):
         '''
         Extends the main charmhelpers HAProxyContext with a port mapping
         specific to this charm.
-        Also used to extend cinder.conf context with correct api_listening_port
+        Also used to extend glance-api.conf context with correct bind_port
         '''
-        haproxy_port = determine_haproxy_port(config('api-listening-port'))
-        api_port = determine_api_port(config('api-listening-port'))
+        haproxy_port = determine_haproxy_port('9292')
+        api_port = determine_api_port('9292')
 
         ctxt = {
-            'service_ports': {'cinder_api': [haproxy_port, api_port]},
-            'osapi_volume_listen_port': api_port,
+            'service_ports': {'glance_api': [haproxy_port, api_port]},
+            'bind_port': api_port,
         }
         return ctxt

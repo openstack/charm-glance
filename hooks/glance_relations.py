@@ -309,15 +309,11 @@ def config_changed():
 
 
 def cluster_changed():
-    if not peer_units():
-        juju_log('INFO', '%s: cluster_change() with no peers.' % CHARM)
-        sys.exit(0)
-    haproxy_port = determine_haproxy_port('9292')
-    backend_port = determine_api_port('9292')
     stop('glance-api')
-    configure_haproxy("glance_api:%s:%s" % (haproxy_port, backend_port))
-    set_or_update(key='bind_port', value=backend_port, file='api')
+    CONFIGS.write('/etc/glance/glance-api.conf')
+    CONFIGS.write('/etc/haproxy/haproxy.cfg')
     start('glance-api')
+
 
 def upgrade_charm():
     cluster_changed()

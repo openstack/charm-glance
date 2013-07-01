@@ -52,7 +52,8 @@ CONFIG_FILES = OrderedDict([
         'hook_contexts': [context.SharedDBContext(),
                           context.IdentityServiceContext(),
                           glance_contexts.CephContext(),
-                          glance_contexts.ObjectStoreContext()],
+                          glance_contexts.ObjectStoreContext(),
+                          glance_contexts.HAProxyContext()],
         'services': ['glance-api']
     }),
     ('/etc/glance/glance-api-paste.ini', {
@@ -66,6 +67,11 @@ CONFIG_FILES = OrderedDict([
     ('/etc/ceph/ceph.conf', {
         'hook_contexts': [context.CephContext()],
         'services': []
+    }),
+    ('/etc/haproxy/haproxy.cfg', {
+        'hook_contexts': [context.HAProxyContext(),
+                          glance_contexts.HAProxyContext()],
+        'services': ['haproxy'],
     }),
 ])
 
