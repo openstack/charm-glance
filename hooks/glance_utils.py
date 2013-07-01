@@ -51,7 +51,8 @@ CONFIG_FILES = OrderedDict([
     ('/etc/glance/glance-api.conf', {
         'hook_contexts': [context.SharedDBContext(),
                           context.IdentityServiceContext(),
-                          glance_contexts.CephContext()],
+                          glance_contexts.CephContext(),
+                          glance_contexts.ObjectStoreContext()],
         'services': ['glance-api']
     }),
     ('/etc/glance/glance-api-paste.ini', {

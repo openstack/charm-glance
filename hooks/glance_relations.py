@@ -158,33 +158,17 @@ def image_service_joined(relation_id=None):
 
 
 def object_store_joined():
-    relids = relation_ids('identity-service')
 
-    if not relids:
+    if 'identity-service' not in CONFIGS.complete_contexts():
         juju_log('INFO', 'Deferring swift stora configuration until ' \
                          'an identity-service relation exists')
         return
 
-    set_or_update(key='default_store', value='swift', file='api')
-    set_or_update(key='swift_store_create_container_on_put', value=True, file='api')
+    if 'object-store' not in CONFIGS.complete_contexts():
+        juju_log('INFO', 'swift relation incomplete')
+        return
 
-    for rid in relids:
-        for unit in relation_list(rid=rid):
-            svc_tenant = relation_get(attribute='service_tenant', rid=rid, unit=unit)
-            svc_username = relation_get(attribute='service_username', rid=rid, unit=unit)
-            svc_password = relation_get(attribute='service_passwod', rid=rid, unit=unit)
-            auth_host = relation_get(attribute='private-address', rid=rid, unit=unit)
-            port = relation_get(attribute='service_port', rid=rid, unit=unit)
-
-            if auth_host and port:
-                auth_url = "http://%s:%s/v2.0" % (auth_host, port)
-            if svc_tenant and svc_username:
-                value = "%s:%s" % (svc_tenant, svc_username)
-                set_or_update(key='swift_store_user', value=value, file='api')
-            if svc_password:
-                set_or_update(key='swift_store_key', value=svc_password, file='api')
-            if auth_url:
-                set_or_update(key='swift_store_auth_address', value=auth_url, file='api')
+    CONFIGS.write('/etc/glance/glance-api.conf')
 
     restart('glance-api')
 

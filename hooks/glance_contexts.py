@@ -32,6 +32,21 @@ class CephContext(OSContextGenerator):
         }
 
 
+class ObjectStoreContext(OSContextGenerator):
+    interfaces = ['object-store']
+
+    def __call__(self):
+        """
+        Used to generate template context to be added to glance-api.conf in
+        the presence of a 'object-store' relation.
+        """
+        if not relantion_ids('object-store'):
+            return {}
+        return {
+            'swift_store': True,
+        }
+
+
 class HAProxyContext(OSContextGenerator):
     interfaces = ['ceph']
 
