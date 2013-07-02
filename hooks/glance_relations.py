@@ -357,7 +357,7 @@ def ha_relation_joined():
 def ha_relation_changed():
     relation_data = relation_get_dict()
     if ('clustered' in relation_data and
-        eligible_leader("res_glance_vip")):
+        eligible_leader(CLUSTER_RES)):
         host = config["vip"]
         if https():
             scheme = "https"
@@ -365,12 +365,7 @@ def ha_relation_changed():
             scheme = "http"
         url = "%s://%s:9292" % (scheme, host)
         juju_log('INFO', '%s: Cluster configured, notifying other services' % CHARM)
-        # Tell all related services to start using
-        # the VIP
-        # TODO: recommendations by adam_g
-        # TODO: could be further simpllfiied by letting keystone_joined()
-        # and image-service_joined() take parameters of relation_id
-        # then just call keystone_joined(r_id) + image-service_joined(r_d)
+
         for r_id in relation_ids('identity-service'):
             relation_set(rid=r_id,
                          service="glance",
@@ -379,16 +374,12 @@ def ha_relation_changed():
                          admin_url=url,
                          internal_url=url)
 
-        # TODO: Fix this in a better way. Maybe change 'glance-api-server'
-        # to 'glance_api_server' as the first one errors as a parameter
-        relation_data = {
+        for r_id in relation_ids('image-service'):
+            relation_data = {
                 'rid': r_id,
                 'glance-api-server': url
-            }
-        for r_id in relation_ids('image-service'):
+                }
             relation_set(**relation_data)
-            #relation_set(rid=r_id,
-            #           glance-api-server=url
 
 
 hooks = {
