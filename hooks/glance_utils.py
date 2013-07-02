@@ -85,7 +85,8 @@ def register_configs():
     confs = ['/etc/glance/glance-registry.conf',
              '/etc/glance/glance-api.conf',
              '/etc/glance/glance-api-paste.ini',
-             '/etc/glance/glance-registry-paste.ini',]
+             '/etc/glance/glance-registry-paste.ini',
+             '/etc/haproxy/haproxy.cfg',]
 
     if relation_ids('ceph'):
         confs.append('/etc/ceph/ceph.conf')
