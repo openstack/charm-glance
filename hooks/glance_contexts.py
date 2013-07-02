@@ -40,7 +40,7 @@ class ObjectStoreContext(OSContextGenerator):
         Used to generate template context to be added to glance-api.conf in
         the presence of a 'object-store' relation.
         """
-        if not relantion_ids('object-store'):
+        if not relation_ids('object-store'):
             return {}
         return {
             'swift_store': True,
