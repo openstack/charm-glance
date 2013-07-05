@@ -392,9 +392,6 @@ def configure_https():
         check_call(cmd)
         return
 
-    # TODO: Older configure_https would update bind_port:
-    # set_or_update(key='bind_port', value=api_port, file='api')
-
     for r_id in relation_ids('identity-service'):
         keystone_joined(relation_id=r_id)
     for r_id in relation_ids('image-service'):
