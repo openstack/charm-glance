@@ -12,30 +12,7 @@ from charmhelpers.contrib.openstack.openstack_utils import (
     )
 
 from charmhelpers.contrib.hahelpers.utils import (
-    relation_ids,
-    relation_list,
-    install,
-    stop,
     juju_log,
-    start,
-    )
-
-from charmhelpers.contrib.hahelpers.cluster_utils import (
-    is_clustered,
-    determine_haproxy_port,
-    determine_api_port,
-    peer_units,
-    https,
-    )
-
-from charmhelpers.contrib.hahelpers.haproxy_utils import (
-    configure_haproxy,
-    )
-
-from charmhelpers.contrib.hahelpers.apache_utils import (
-    get_cert,
-    get_ca_cert,
-    setup_https,
     )
 
 CHARM = "glance"

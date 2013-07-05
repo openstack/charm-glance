@@ -1,11 +1,9 @@
 #!/usr/bin/python
 
 from charmhelpers.core.hookenv import (
-    config,
     relation_get,
     relation_ids,
     related_units,
-    log,
     )
 
 from charmhelpers.contrib.openstack import (
