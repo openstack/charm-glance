@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import sys
 import os
 import json
 
@@ -20,10 +19,6 @@ from charmhelpers.core.hookenv import (
     )
 
 from charmhelpers.contrib.hahelpers.cluster_utils import (
-    https,
-    peer_units,
-    determine_haproxy_port,
-    determine_api_port,
     eligible_leader,
     is_clustered,
     )
@@ -39,13 +34,8 @@ from charmhelpers.contrib.hahelpers.utils import (
     relation_list,
     install,
     do_hooks,
-    relation_get,
     relation_get_dict,
     configure_source,
-    )
-
-from charmhelpers.contrib.hahelpers.haproxy_utils import (
-    configure_haproxy,
     )
 
 from charmhelpers.contrib.openstack.openstack_utils import (
@@ -53,10 +43,6 @@ from charmhelpers.contrib.openstack.openstack_utils import (
     get_os_codename_install_source,
     get_os_version_codename,
     save_script_rc,
-    )
-
-from charmhelpers.contrib.hahelpers.ceph_utils import (
-    configure,
     )
 
 from subprocess import (
