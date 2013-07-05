@@ -87,68 +87,6 @@ def execute(cmd, die=False, echo=False):
     return (stdout, stderr, rc)
 
 
-# TODO: This is a temporary function.
-def set_or_update(key=None, value=None, file=None, section=None):
-    if not key:
-        juju_log('ERROR', 'set_or_update(): value %s missing key' % value)
-        sys.exit(1)
-    if not value:
-        juju_log('ERROR', 'set_or_update(): key %s missing value' % key)
-        sys.exit(1)
-
-    if file == "api":
-        conf = GLANCE_API_CONF
-    elif file == "api-paste":
-        conf = GLANCE_API_PASTE_INI
-    elif file == "registry":
-        conf = GLANCE_REGISTRY_CONF
-    elif file == "registry-paste":
-        conf = GLANCE_REGISTRY_PASTE_INI
-    else:
-        juju_log('ERROR', 'set_or_update(): Invalid or no config file specified')
-        sys.exit(1)
-
-    if not os.path.exists(conf):
-        juju_log('ERROR', 'set_or_update(): File not found %s' % conf)
-        sys.exit(1)
-
-    if local_config_get(conf=conf, option=key, section=section) == value:
-        juju_log('INFO', '%s: set_or_update(): %s=%s already set in %s' % (CHARM, key, value, conf))
-        return
-
-    cfg_set_or_update(key, value, conf, section)
-    CONFIG_CHANGED = True
-
-
-def cfg_set_or_update(key=None, value=None, conf=None, section=None):
-    if not section:
-        section = "DEFAULT"
-
-    import ConfigParser
-    config = ConfigParser.RawConfigParser()
-    config.read(conf)
-    if section != "DEFAULT" and not config.has_section(section):
-        config.add_section(section)
-    config.set(section, key, value)
-    with open(conf, 'wb') as conf_out:
-        config.write(conf_out)
-
-def local_config_get(conf=None, option=None, section=None):
-    if not section:
-        section = "DEFAULT"
-
-    import ConfigParser
-    config = ConfigParser.RawConfigParser()
-    config.read(conf)
-    try:
-        value = config.get(section, option)
-    except:
-        return
-    if value.startswith('%'):
-        return
-    return value
-
-
 def do_openstack_upgrade(install_src, packages):
     # update openstack components to those provided by a new installation source
     # it is assumed the calling hook has confirmed that the upgrade is sane.
@@ -170,38 +108,3 @@ def do_openstack_upgrade(install_src, packages):
     execute(cmd, echo=True, die=True)
 
 
-def configure_https():
-    if not https():
-        return
-    # request openstack-common setup reverse proxy mapping for API and registry
-    # servers
-    stop('glance-api')
-
-    if len(peer_units()) > 0 or is_clustered():
-        # haproxy may already be configured. need to push it back in the request
-        # pipeline in preparation for a change from:
-        #  from:  haproxy (9292) -> glance_api (9282)
-        #  to:    ssl (9292) -> haproxy (9291) -> glance_api (9272)
-        next_server = determine_haproxy_port('9292')
-        api_port = determine_api_port('9292')
-        service_ports = {
-            "glance_api": [
-                next_server,
-                api_port
-                ]
-            }
-        configure_haproxy(service_ports)
-    else:
-        # if not clustered, the glance-api is next in the pipeline.
-        api_port = determine_api_port('9292')
-        next_server = api_port
-
-    cert, key = get_cert()
-    ca_cert = get_ca_cert()
-    # setup https to point to either haproxy or directly to api server, depending.
-    setup_https(namespace="glance", port_maps={api_port: next_server},
-                cert=cert, key=key, ca_cert=ca_cert)
-
-    # configure servers to listen on new ports accordingly.
-    set_or_update(key='bind_port', value=api_port, file='api')
-    start(SERVICES)
