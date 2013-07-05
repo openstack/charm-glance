@@ -69,7 +69,7 @@ class HAProxyContext(OSContextGenerator):
 
 class ApacheSSLContext(SSLContext):
     interfaces = ['https']
-    external_port = 9292
+    external_port = [9292]
     service_namespace = 'glance'
 
     def __call__(self):
