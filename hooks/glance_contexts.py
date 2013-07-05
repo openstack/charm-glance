@@ -73,7 +73,7 @@ class ApacheSSLContext(SSLContext):
     service_namespace = 'glance'
 
     def __call__(self):
-        from glance_utils import service_enabled
-        if not service_enabled('glance-api'):
-            return {}
+        #from glance_utils import service_enabled
+        #if not service_enabled('glance-api'):
+        #    return {}
         return super(ApacheSSLContext, self).__call__()

@@ -141,15 +141,3 @@ def set_ceph_env_variables(service):
             out.write('CEPH_ARGS="--id %s"\n' % service)
     with open('/etc/init/glance.override', 'w') as out:
             out.write('env CEPH_ARGS="--id %s"\n' % service)
-
-
-def service_enabled(service):
-    '''
-    Determine if a specific cinder service is enabled in charm configuration.
-
-    :returns: boolean: True if service is enabled in config, False if not.
-    '''
-    enabled = config()['enabled-services']
-    if enabled == 'all':
-        return True
-    return service in enabled
