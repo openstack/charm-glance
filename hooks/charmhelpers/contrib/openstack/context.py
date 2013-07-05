@@ -206,11 +206,24 @@ class HAProxyContext(OSContextGenerator):
 
 
 class ApacheSSLContext(OSContextGenerator):
+    """
+    Generates a context for an apache vhost configuration that configures
+    HTTPS reverse proxying for one or many endpoints.  Generated context
+    looks something like:
+    {
+        'namespace': 'cinder',
+        'private_address': 'iscsi.mycinderhost.com',
+        'endpoints': [(8776, 8766), (8777, 8767)]
+    }
+
+    The endpoints list consists of a tuples mapping external ports
+    to internal ports.
+    """
     interfaces = ['https']
 
-    # charms should inherit this context and set external port
-    # and service namespace accordingly
-    external_port = None
+    # charms should inherit this context and set external ports
+    # and service namespace accordingly.
+    external_ports = []
     service_namespace = None
 
     def enable_modules(self):
@@ -234,21 +247,24 @@ class ApacheSSLContext(OSContextGenerator):
                 ca_out.write(b64decode(ca_cert))
 
     def __call__(self):
-        if not https():
+        if isinstance(self.external_ports, basestring):
+            self.external_ports = [self.external_ports]
+        if (not self.external_ports or not https()):
             return {}
 
         self.configure_cert()
         self.enable_modules()
 
-        if peer_units() or is_clustered():
-            internal_port = determine_haproxy_port(self.external_port)
-        else:
-            internal_port = determine_api_port(self.external_port)
-
         ctxt = {
-            'ext': self.external_port,
-            'int': internal_port,
             'namespace': self.service_namespace,
             'private_address': unit_get('private-address'),
+            'endpoints': []
         }
+        for ext_port in self.external_ports:
+            if peer_units() or is_clustered():
+                int_port = determine_haproxy_port(ext_port)
+            else:
+                int_port = determine_api_port(ext_port)
+            portmap = (int(ext_port), int(int_port))
+            ctxt['endpoints'].append(portmap)
         return ctxt

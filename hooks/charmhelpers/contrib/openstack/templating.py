@@ -94,6 +94,10 @@ def get_loader(templates_dir, os_release):
     templates_dir is added to the bottom of the search list as a base
     loading dir.
 
+    A charm may also ship a templates dir with this module
+    and it will be appended to the bottom of the search list, eg:
+    hooks/charmhelpers/contrib/openstack/templates.
+
     :param templates_dir: str: Base template directory containing release
                                sub-directories.
     :param os_release   : str: OpenStack release codename to construct template
@@ -110,10 +114,18 @@ def get_loader(templates_dir, os_release):
         ('havana', os.path.join(templates_dir, 'havana')),
         ('icehouse', os.path.join(templates_dir, 'icehouse')),
     )
+
     if not os.path.isdir(templates_dir):
         logging.error('Templates directory not found @ %s.' % templates_dir)
         raise OSConfigException
+
+    # the bottom contains tempaltes_dir and possibly a common templates dir
+    # shipped with the helper.
     loaders = [jinja2.FileSystemLoader(templates_dir)]
+    helper_templates = os.path.join(os.path.dirname(__file__), 'templates')
+    if os.path.isdir(helper_templates):
+        loaders.append(jinja2.FileSystemLoader(helper_templates))
+
     for rel, tmpl_dir in tmpl_dirs:
         if os.path.isdir(tmpl_dir):
             loaders.insert(0, jinja2.FileSystemLoader(tmpl_dir))
@@ -199,6 +211,15 @@ class OSConfigRenderer(object):
 
     def write_all(self):
         [self.write(k) for k in self.templates.iterkeys()]
+
+    def set_release(self, openstack_release):
+        """
+        Resets the template environment and generates a new template loader
+        based on a the new openstack release.
+        """
+        self._tmpl_env = None
+        self.openstack_release = openstack_release
+        self._get_tmpl_env()
 
     def complete_contexts(self):
         '''

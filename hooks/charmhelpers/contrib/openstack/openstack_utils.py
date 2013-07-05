@@ -112,7 +112,7 @@ def get_os_version_codename(codename):
     error_out(e)
 
 
-def get_os_codename_package(pkg):
+def get_os_codename_package(pkg, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
     apt.init()
     cache = apt.Cache()
@@ -120,6 +120,8 @@ def get_os_codename_package(pkg):
     try:
         pkg = cache[pkg]
     except:
+        if not fatal:
+            return None
         e = 'Could not determine version of installed package: %s' % pkg
         error_out(e)
 
@@ -137,9 +139,12 @@ def get_os_codename_package(pkg):
         error_out(e)
 
 
-def get_os_version_package(pkg):
+def get_os_version_package(pkg, fatal=True):
     '''Derive OpenStack version number from an installed package.'''
-    codename = get_os_codename_package(pkg)
+    codename = get_os_codename_package(pkg, fatal=fatal)
+
+    if not codename:
+        return None
 
     if 'swift' in pkg:
         vers_map = swift_codenames
