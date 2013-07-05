@@ -130,7 +130,7 @@ def db_changed():
 
 def image_service_joined(relation_id=None):
 
-    if not eligible_leader("res_glance_vip"):
+    if not eligible_leader(CLUSTER_RES):
         return
     scheme = "http"
     if https():
