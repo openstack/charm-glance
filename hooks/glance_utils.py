@@ -74,7 +74,7 @@ CONFIG_FILES = OrderedDict([
         'services': ['haproxy'],
     }),
     ('/etc/apache2/sites-available/openstack_https_frontend', {
-        'hooks_contexts': [glance_contexts.ApacheSSLContext()],
+        'hook_contexts': [glance_contexts.ApacheSSLContext()],
         'services': ['apache2'],
     })
 ])
