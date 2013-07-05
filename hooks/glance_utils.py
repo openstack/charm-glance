@@ -1,5 +1,14 @@
 #!/usr/bin/python
 
+import os
+import time
+import sys
+import subprocess
+
+import glance_contexts
+
+from collections import OrderedDict
+
 from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
@@ -11,6 +20,10 @@ from charmhelpers.contrib.openstack import (
     context,
     )
 
+from charmhelpers.contrib.hahelpers.utils import (
+    juju_log,
+    )
+
 from charmhelpers.contrib.hahelpers.ceph_utils import (
     create_keyring as ceph_create_keyring,
     create_pool as ceph_create_pool,
@@ -18,11 +31,11 @@ from charmhelpers.contrib.hahelpers.ceph_utils import (
     pool_exists as ceph_pool_exists,
     )
 
-from collections import OrderedDict
-
-import subprocess
-
-import glance_contexts
+from charmhelpers.contrib.openstack.openstack_utils import (
+    get_os_codename_install_source,
+    get_os_codename_package,
+    configure_installation_source,
+    )
 
 CHARM = "glance"
 
@@ -139,3 +152,59 @@ def set_ceph_env_variables(service):
             out.write('CEPH_ARGS="--id %s"\n' % service)
     with open('/etc/init/glance.override', 'w') as out:
             out.write('env CEPH_ARGS="--id %s"\n' % service)
+
+
+def execute(cmd, die=False, echo=False):
+    """ Executes a command
+
+    if die=True, script will exit(1) if command does not return 0
+    if echo=True, output of command will be printed to stdout
+
+    returns a tuple: (stdout, stderr, return code)
+    """
+    p = subprocess.Popen(cmd.split(" "),
+                         stdout=subprocess.PIPE, 
+                         stdin=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+    stdout = ""
+    stderr = ""
+
+    def print_line(l):
+        if echo:
+            print l.strip('\n')
+            sys.stdout.flush()
+
+    for l in iter(p.stdout.readline, ''):
+        print_line(l)
+        stdout += l
+    for l in iter(p.stderr.readline, ''):
+        print_line(l)
+        stderr += l
+
+    p.communicate()
+    rc = p.returncode
+
+    if die and rc != 0:
+        juju_log('ERROR', 'command %s return non-zero.' % cmd)
+    return (stdout, stderr, rc)
+
+
+def do_openstack_upgrade(install_src, packages):
+    # update openstack components to those provided by a new installation source
+    # it is assumed the calling hook has confirmed that the upgrade is sane.
+    old_rel = get_os_codename_package('keystone')
+    new_rel = get_os_codename_install_source(install_src)
+
+    # Backup previous config.
+    juju_log('INFO', "Backing up contents of /etc/glance.")
+    stamp = time.strftime('%Y%m%d%H%M')
+    cmd = 'tar -pcf /var/lib/juju/keystone-backup-%s.tar /etc/glance' % stamp
+    execute(cmd, die=True, echo=True)
+
+    # Setup apt repository access and kick off the actual package upgrade.
+    configure_installation_source(install_src)
+    execute('apt-get update', die=True, echo=True)
+    os.environ['DEBIAN_FRONTEND'] = 'noninteractive'
+    cmd = 'apt-get --option Dpkg::Options::=--force-confnew -y '\
+          'install %s --no-install-recommends' % packages
+    execute(cmd, echo=True, die=True)

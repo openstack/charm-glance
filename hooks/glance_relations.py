@@ -2,16 +2,13 @@
 import os
 import json
 
-from glance_common import (
-    do_openstack_upgrade,
-    )
-
 from glance_utils import (
     register_configs,
     migrate_database,
     ensure_ceph_keyring,
     set_ceph_env_variables,
     ensure_ceph_pool,
+    do_openstack_upgrade,
     )
 
 from charmhelpers.core.hookenv import (
