@@ -1,5 +1,4 @@
 from charmhelpers.core.hookenv import (
-    config,
     relation_ids,
     service_name,
 )
