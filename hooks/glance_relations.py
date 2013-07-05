@@ -72,7 +72,7 @@ CONFIGS = register_configs()
 
 
 PACKAGES = [
-    "glance", "python-mysqldb", "python-swift",
+    "apache2", "glance", "python-mysqldb", "python-swift",
     "python-keystone", "uuid", "haproxy",
     ]
 
@@ -386,9 +386,11 @@ def configure_https():
     CONFIGS.write_all()
     if 'https' in CONFIGS.complete_contexts():
         cmd = ['a2ensite', 'openstack_https_frontend']
+        check_call(cmd)
     else:
-        cmd = ['a2dissite'. 'openstack_https_frontend']
-    check_call(cmd)
+        cmd = ['a2dissite', 'openstack_https_frontend']
+        check_call(cmd)
+        return
 
     # TODO: Older configure_https would update bind_port:
     # set_or_update(key='bind_port', value=api_port, file='api')
