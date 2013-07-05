@@ -4,7 +4,6 @@ import os
 import json
 
 from glance_common import (
-    configure_https,
     do_openstack_upgrade,
     )
 
@@ -132,9 +131,11 @@ def image_service_joined(relation_id=None):
 
     if not eligible_leader(CLUSTER_RES):
         return
+
     scheme = "http"
-    if https():
+    if 'https' in CONFIGS.complete_contexts():
         scheme = "https"
+
     host = unit_get('private-address')
     if is_clustered():
         host = config["vip"]
@@ -204,7 +205,7 @@ def keystone_joined(relation_id=None):
         return
 
     scheme = "http"
-    if https():
+    if 'https' in CONFIGS.complete_contexts():
         scheme = "https"
 
     host = unit_get('private-address')
@@ -247,12 +248,6 @@ def keystone_changed():
 
     # possibly configure HTTPS for API and registry
     configure_https()
-
-    # TODO: maybe this should be removed as it was added on the initial port.
-    #for r_id in relation_ids('identity-service'):
-    #    keystone_joined(relation_id=r_id)
-    #for r_id in relation_ids('image-service'):
-    #    image_service_joined(relation_id=r_id)
 
 
 def config_changed():
@@ -317,6 +312,7 @@ def cluster_changed():
 def upgrade_charm():
     cluster_changed()
 
+
 def ha_relation_joined():
     corosync_bindiface = config["ha-bindiface"]
     corosync_mcastport = config["ha-mcastport"]
@@ -359,10 +355,9 @@ def ha_relation_changed():
     if ('clustered' in relation_data and
         eligible_leader(CLUSTER_RES)):
         host = config["vip"]
-        if https():
+        scheme = "http"
+        if 'https' in CONFIGS.complete_contexts():
             scheme = "https"
-        else:
-            scheme = "http"
         url = "%s://%s:9292" % (scheme, host)
         juju_log('INFO', '%s: Cluster configured, notifying other services' % CHARM)
 
@@ -380,6 +375,28 @@ def ha_relation_changed():
                 'glance-api-server': url
                 }
             relation_set(**relation_data)
+
+
+def configure_https():
+    '''
+    Enables SSL API Apache config if appropriate and kicks
+    identity-service and image-service with any required
+    updates
+    '''
+    CONFIGS.write_all()
+    if 'https' in CONFIGS.complete_contexts():
+        cmd = ['a2ensite', 'openstack_https_frontend']
+    else:
+        cmd = ['a2dissite'. 'openstack_https_frontend']
+    check_call(cmd)
+
+    # TODO: Older configure_https would update bind_port:
+    # set_or_update(key='bind_port', value=api_port, file='api')
+
+    for r_id in relation_ids('identity-service'):
+        keystone_joined(relation_id=r_id)
+    for r_id in relation_ids('image-service'):
+        image_service_joined(relation_id=r_id)
 
 
 hooks = {

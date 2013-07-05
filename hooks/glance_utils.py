@@ -29,7 +29,7 @@ import glance_contexts
 CHARM = "glance"
 
 SERVICES = "glance-api glance-registry"
-PACKAGES = "glance python-mysqldb python-swift python-keystone uuid haproxy"
+PACKAGES = "apache2 glance python-mysqldb python-swift python-keystone uuid haproxy"
 
 GLANCE_REGISTRY_CONF = "/etc/glance/glance-registry.conf"
 GLANCE_REGISTRY_PASTE_INI = "/etc/glance/glance-registry-paste.ini"
@@ -73,6 +73,10 @@ CONFIG_FILES = OrderedDict([
                           glance_contexts.HAProxyContext()],
         'services': ['haproxy'],
     }),
+    ('/etc/apache2/sites-available/openstack_https_frontend', {
+        'hooks_contexts': [glance_contexts.ApacheSSLContext()],
+        'services': ['apache2'],
+    })
 ])
 
 def register_configs():
@@ -86,7 +90,8 @@ def register_configs():
              '/etc/glance/glance-api.conf',
              '/etc/glance/glance-api-paste.ini',
              '/etc/glance/glance-registry-paste.ini',
-             '/etc/haproxy/haproxy.cfg',]
+             '/etc/haproxy/haproxy.cfg',
+             '/etc/apache2/sites-available/openstack_https_frontend',]
 
     if relation_ids('ceph'):
         confs.append('/etc/ceph/ceph.conf')

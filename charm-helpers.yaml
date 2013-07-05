@@ -4,3 +4,4 @@ include:
     - core
     - contrib.openstack
     - contrib.hahelpers
+    - contrib.openstack.templates

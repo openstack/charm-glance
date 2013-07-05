@@ -5,7 +5,8 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.contrib.openstack.context import (
-    OSContextGenerator
+    OSContextGenerator,
+    ApacheSSLContext as SSLContext,
 )
 
 from charmhelpers.contrib.hahelpers.cluster_utils import (
@@ -64,3 +65,15 @@ class HAProxyContext(OSContextGenerator):
             'bind_port': api_port,
         }
         return ctxt
+
+
+class ApacheSSLContext(SSLContext):
+    interfaces = ['https']
+    external_port = 9292
+    service_namespace = 'glance'
+
+    def __call__(self):
+        from glance_utils import service_enabled
+        if not service_enabled('glance-api'):
+            return {}
+        return super(ApacheSSLContext, self).__call__()
