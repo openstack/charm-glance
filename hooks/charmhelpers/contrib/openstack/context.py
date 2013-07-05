@@ -1,3 +1,11 @@
+import os
+
+from base64 import b64decode
+
+from subprocess import (
+    check_call
+)
+
 from charmhelpers.core.hookenv import (
     config,
     local_unit,
@@ -7,6 +15,21 @@ from charmhelpers.core.hookenv import (
     related_units,
     unit_get,
 )
+
+from charmhelpers.contrib.hahelpers.cluster_utils import (
+    determine_api_port,
+    determine_haproxy_port,
+    https,
+    is_clustered,
+    peer_units,
+)
+
+from charmhelpers.contrib.hahelpers.apache_utils import (
+    get_cert,
+    get_ca_cert,
+)
+
+CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 
 
 class OSContextError(Exception):
@@ -81,8 +104,6 @@ class IdentityServiceContext(OSContextGenerator):
                     'admin_user': relation_get('service_username', rid=rid,
                                                unit=unit),
                     'admin_password': relation_get('service_password', rid=rid,
-                                                   unit=unit),
-                    'admin_token': relation_get('admin_token', rid=rid,
                                                    unit=unit),
                     # XXX: Hard-coded http.
                     'service_protocol':  'http',
@@ -180,4 +201,54 @@ class HAProxyContext(OSContextGenerator):
             log('Ensuring haproxy enabled in /etc/default/haproxy.')
             with open('/etc/default/haproxy', 'w') as out:
                 out.write('ENABLED=1\n')
+            return ctxt
+        return {}
+
+
+class ApacheSSLContext(OSContextGenerator):
+    interfaces = ['https']
+
+    # charms should inherit this context and set external port
+    # and service namespace accordingly
+    external_port = None
+    service_namespace = None
+
+    def enable_modules(self):
+        cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http']
+        check_call(cmd)
+
+    def configure_cert(self):
+        if not os.path.isdir('/etc/apache2/ssl'):
+            os.mkdir('/etc/apache2/ssl')
+        ssl_dir = os.path.join('/etc/apache2/ssl/', self.service_namespace)
+        if not os.path.isdir(ssl_dir):
+            os.mkdir(ssl_dir)
+        cert, key = get_cert()
+        with open(os.path.join(ssl_dir, 'cert'), 'w') as cert_out:
+            cert_out.write(b64decode(cert))
+        with open(os.path.join(ssl_dir, 'key'), 'w') as key_out:
+            key_out.write(b64decode(key))
+        ca_cert = get_ca_cert()
+        if ca_cert:
+            with open(CA_CERT_PATH, 'w') as ca_out:
+                ca_out.write(b64decode(ca_cert))
+
+    def __call__(self):
+        if not https():
+            return {}
+
+        self.configure_cert()
+        self.enable_modules()
+
+        if peer_units() or is_clustered():
+            internal_port = determine_haproxy_port(self.external_port)
+        else:
+            internal_port = determine_api_port(self.external_port)
+
+        ctxt = {
+            'ext': self.external_port,
+            'int': internal_port,
+            'namespace': self.service_namespace,
+            'private_address': unit_get('private-address'),
+        }
         return ctxt

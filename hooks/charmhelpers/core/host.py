@@ -12,6 +12,8 @@ import grp
 import subprocess
 import hashlib
 
+from collections import OrderedDict
+
 from hookenv import log, execution_environment
 
 
@@ -46,13 +48,13 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False):
         log('creating user {0}'.format(username))
         cmd = ['useradd']
         if system_user or password is None:
-           cmd.append('--system')
+            cmd.append('--system')
         else:
-           cmd.extend([
-               '--create-home',
-               '--shell', shell,
-               '--password', password,
-           ])
+            cmd.extend([
+                '--create-home',
+                '--shell', shell,
+                '--password', password,
+            ])
         cmd.append(username)
         subprocess.check_call(cmd)
         user_info = pwd.getpwnam(username)
@@ -255,7 +257,17 @@ def restart_on_change(restart_map):
             for path in restart_map:
                 if checksums[path] != file_hash(path):
                     restarts += restart_map[path]
-            for service_name in list(set(restarts)):
+            for service_name in list(OrderedDict.fromkeys(restarts)):
                 service('restart', service_name)
         return wrapped_f
     return wrap
+
+
+def lsb_release():
+    '''Return /etc/lsb-release in a dict'''
+    d = {}
+    with open('/etc/lsb-release', 'r') as lsb:
+        for l in lsb:
+            k, v = l.split('=')
+            d[k.strip()] = v.strip()
+    return d

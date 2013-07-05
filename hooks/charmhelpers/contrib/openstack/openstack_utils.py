@@ -7,6 +7,12 @@ import subprocess
 import os
 import sys
 
+from distutils.version import StrictVersion
+
+from charmhelpers.core.hookenv import (
+    config,
+)
+
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
 CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 
@@ -82,6 +88,11 @@ def get_os_codename_install_source(src):
                 return v
 
 
+def get_os_version_install_source(src):
+    codename = get_os_codename_install_source(src)
+    return get_os_version_codename(codename)
+
+
 def get_os_codename_version(vers):
     '''Determine OpenStack codename from version number.'''
     try:
@@ -141,6 +152,7 @@ def get_os_version_package(pkg):
     #e = "Could not determine OpenStack version for package: %s" % pkg
     #error_out(e)
 
+
 def import_key(keyid):
     cmd = "apt-key adv --keyserver keyserver.ubuntu.com " \
           "--recv-keys %s" % keyid
@@ -148,6 +160,7 @@ def import_key(keyid):
         subprocess.check_call(cmd.split(' '))
     except subprocess.CalledProcessError:
         error_out("Error importing repo key %s" % keyid)
+
 
 def configure_installation_source(rel):
     '''Configure apt installation source.'''
@@ -226,3 +239,21 @@ def save_script_rc(script_path="scripts/scriptrc", **env_vars):
             "#!/bin/bash\n")
         [rc_script.write('export %s=%s\n' % (u, p))
          for u, p in env_vars.iteritems() if u != "script_path"]
+
+
+def openstack_upgrade_available(package):
+    """
+    Determines if an OpenStack upgrade is available from installation
+    source, based on version of installed package.
+
+    :param package: str: Name of installed package.
+
+    :returns: bool:    : Returns True if configured installation source offers
+                         a newer version of package.
+
+    """
+
+    src = config('openstack-origin')
+    cur_vers = get_os_version_package(package)
+    available_vers = get_os_version_install_source(src)
+    return StrictVersion(available_vers) > StrictVersion(cur_vers)

@@ -15,9 +15,13 @@ from utils import (
     relation_get,
     get_unit_hostname,
     config_get
-    )
+)
 import subprocess
 import os
+
+
+class HAIncompleteConfig(Exception):
+    pass
 
 
 def is_clustered():
@@ -128,3 +132,25 @@ def determine_haproxy_port(public_port):
     if https():
         i += 1
     return public_port - (i * 10)
+
+
+def get_hacluster_config():
+    '''
+    Obtains all relevant configuration from charm configuration required
+    for initiating a relation to hacluster:
+
+        ha-bindiface, ha-mcastport, vip, vip_iface, vip_cidr
+
+    returns: dict: A dict containing settings keyed by setting name.
+    raises: HAIncompleteConfig if settings are missing.
+    '''
+    settings = ['ha-bindiface', 'ha-mcastport', 'vip', 'vip_iface', 'vip_cidr']
+    conf = {}
+    for setting in settings:
+        conf[setting] = config_get(setting)
+    missing = []
+    [missing.append(s) for s, v in conf.iteritems() if v is None]
+    if missing:
+        juju_log('Insufficient config data to configure hacluster.')
+        raise HAIncompleteConfig
+    return conf
