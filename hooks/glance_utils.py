@@ -105,6 +105,8 @@ def register_configs():
              '/etc/apache2/sites-available/openstack_https_frontend',]
 
     if relation_ids('ceph'):
+        if not os.path.isdir('/etc/ceph'):
+            os.mkdir('/etc/ceph')
         confs.append('/etc/ceph/ceph.conf')
 
     for conf in confs:
