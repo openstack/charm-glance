@@ -243,17 +243,17 @@ def config_changed():
         # Update the new config files for existing relations.
         for r_id in relation_ids('shared-db'):
             juju_log('INFO', '%s: Configuring database after upgrade to %s.' % (CHARM, install_src))
-            db_changed(relation_id=r_id)
+            db_changed()
 
         for r_id in relation_ids('identity-service'):
             juju_log('INFO', '%s: Configuring identity service after upgrade to %s' % (CHARM, install_src))
-            keystone_changed(relation_id=r_id)
+            keystone_changed()
 
         for r_id in relation_ids('ceph'):
             #for relid in relids:
             #    for unit in relation_list(relid):
             #        ceph_changed(relation_id=r_id, unit=unit)
-            ceph_changed(relation_id=r_id)
+            ceph_changed()
 
         for r_id in relation_ids('object-store'):
             object_store_joined()
