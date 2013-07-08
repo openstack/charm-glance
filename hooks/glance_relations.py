@@ -13,6 +13,7 @@ from glance_utils import (
 
 from charmhelpers.core.hookenv import (
     service_name,
+    relation_set,
     )
 
 from charmhelpers.contrib.hahelpers.cluster_utils import (
@@ -26,7 +27,6 @@ from charmhelpers.contrib.hahelpers.utils import (
     stop,
     restart,
     unit_get,
-    relation_set,
     relation_ids,
     relation_list,
     install,
@@ -127,12 +127,9 @@ def image_service_joined(relation_id=None):
         'glance-api-server': "%s://%s:9292" % (scheme, host),
         }
 
-    if relation_id:
-        relation_data['rid'] = relation_id
-
     juju_log("INFO", "%s: image-service_joined: To peer glance-api-server=%s" % (CHARM, relation_data['glance-api-server']))
 
-    relation_set(**relation_data)
+    relation_set(relation_id=relation_id, **relation_data)
 
 
 def object_store_joined():
@@ -205,10 +202,7 @@ def keystone_joined(relation_id=None):
         'internal_url': url,
         }
 
-    if relation_id:
-        relation_data['rid'] = relation_id
-
-    relation_set(**relation_data)
+    relation_set(relation_id=relation_id, **relation_data)
 
 
 def keystone_changed():
@@ -334,7 +328,7 @@ def ha_relation_changed():
         juju_log('INFO', '%s: Cluster configured, notifying other services' % CHARM)
 
         for r_id in relation_ids('identity-service'):
-            relation_set(rid=r_id,
+            relation_set(relation_id=r_id,
                          service="glance",
                          region=config["region"],
                          public_url=url,
@@ -343,10 +337,9 @@ def ha_relation_changed():
 
         for r_id in relation_ids('image-service'):
             relation_data = {
-                'rid': r_id,
                 'glance-api-server': url
                 }
-            relation_set(**relation_data)
+            relation_set(relation_id=rid, **relation_data)
 
 
 def configure_https():
