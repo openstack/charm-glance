@@ -246,36 +246,25 @@ def config_changed():
         juju_log('INFO', '%s: Upgrading OpenStack release: %s -> %s' % (CHARM, installed, available))
         do_openstack_upgrade(config["openstack-origin"], ' '.join(PACKAGES))
 
+        # Update the new config files for existing relations.
+        for r_id in relation_ids('shared-db'):
+            juju_log('INFO', '%s: Configuring database after upgrade to %s.' % (CHARM, install_src))
+            db_changed(relation_id=r_id)
+
+        for r_id in relation_ids('identity-service'):
+            juju_log('INFO', '%s: Configuring identity service after upgrade to %s' % (CHARM, install_src))
+            keystone_changed(relation_id=r_id)
+
+        for r_id in relation_ids('ceph'):
+            #for relid in relids:
+            #    for unit in relation_list(relid):
+            #        ceph_changed(relation_id=r_id, unit=unit)
+            ceph_changed(relation_id=r_id)
+
+        for r_id in relation_ids('object-store'):
+            object_store_joined()
+
     configure_https()
-
-    # Update the new config files for existing relations.
-    relids = relation_ids('shared-db')
-    if relids:
-        juju_log('INFO', '%s: Configuring database after upgrade to %s.' % (CHARM, install_src))
-        for relid in relids:
-            db_changed(rid=relid)
-
-    relids = relation_ids('identity-service')
-    if relids:
-        juju_log('INFO', '%s: Configuring identity service after upgrade to %s' % (CHARM, install_src))
-        for relid in relids:
-            keystone_changed(rid=relids)
-
-    relids = relation_ids('ceph')
-    if relids:
-        install('ceph-common', 'python-ceph')
-        for relid in relids:
-            for unit in relation_list(relid):
-                ceph_changed(rid=relid, unit=unit)
-
-    relids = relation_ids('object-store')
-    if relids:
-        object_store_joined()
-
-    relids = relation_ids('image-service')
-    if relids:
-        for relid in relids:
-            image_service_joined(relation_id=relid)
 
     restart(*SERVICES)
 
