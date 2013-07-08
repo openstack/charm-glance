@@ -14,6 +14,8 @@ from glance_utils import (
 from charmhelpers.core.hookenv import (
     service_name,
     relation_set,
+    relation_ids,
+    unit_get,
     )
 
 from charmhelpers.contrib.hahelpers.cluster_utils import (
@@ -23,13 +25,11 @@ from charmhelpers.contrib.hahelpers.cluster_utils import (
 
 from charmhelpers.contrib.hahelpers.utils import (
     juju_log,
+    install,
     start,
     stop,
     restart,
-    unit_get,
-    relation_ids,
     relation_list,
-    install,
     do_hooks,
     relation_get_dict,
     configure_source,
