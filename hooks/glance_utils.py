@@ -192,7 +192,7 @@ def execute(cmd, die=False, echo=False):
 def do_openstack_upgrade(install_src, packages):
     # update openstack components to those provided by a new installation source
     # it is assumed the calling hook has confirmed that the upgrade is sane.
-    old_rel = get_os_codename_package('keystone')
+    #old_rel = get_os_codename_package('keystone')
     new_rel = get_os_codename_install_source(install_src)
 
     # Backup previous config.
