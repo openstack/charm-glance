@@ -210,3 +210,21 @@ def do_openstack_upgrade(install_src, packages):
     cmd = 'apt-get --option Dpkg::Options::=--force-confnew -y '\
           'install %s --no-install-recommends' % packages
     execute(cmd, echo=True, die=True)
+
+
+def restart_map():
+    '''
+    Determine the correct resource map to be passed to
+    charmhelpers.core.restart_on_change() based on the services configured.
+
+    :returns: dict: A dictionary mapping config file to lists of services
+                    that should be restarted when file changes.
+    '''
+    _map = []
+    for f, ctxt in CONFIG_FILES.iteritems():
+        svcs = []
+        for svc in ctxt['services']:
+            svcs.append(svc)
+        if svcs:
+            _map.append((f, svcs))
+    return OrderedDict(_map)

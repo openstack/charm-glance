@@ -3,12 +3,13 @@ import os
 import json
 
 from glance_utils import (
-    register_configs,
-    migrate_database,
-    ensure_ceph_keyring,
-    set_ceph_env_variables,
-    ensure_ceph_pool,
     do_openstack_upgrade,
+    ensure_ceph_keyring,
+    ensure_ceph_pool,
+    migrate_database,
+    register_configs,
+    restart_map
+    set_ceph_env_variables,
     )
 
 from charmhelpers.core.hookenv import (
@@ -16,6 +17,10 @@ from charmhelpers.core.hookenv import (
     relation_set,
     relation_ids,
     unit_get,
+    )
+
+from charmhelpers.core.host import (
+    restart_on_change,
     )
 
 from charmhelpers.contrib.hahelpers.cluster_utils import (
@@ -28,7 +33,6 @@ from charmhelpers.contrib.hahelpers.utils import (
     install,
     start,
     stop,
-    restart,
     relation_list,
     do_hooks,
     relation_get_dict,
@@ -85,6 +89,7 @@ def db_joined():
                 hostname=unit_get('private-address'))
 
 
+@restart_on_change(restart_map())
 def db_changed():
     rel = get_os_codename_package("glance-common")
 
@@ -106,8 +111,6 @@ def db_changed():
 
         juju_log('INFO', 'Cluster leader, performing db sync')
         migrate_database()
-
-    restart(*SERVICES)
 
 
 def image_service_joined(relation_id=None):
@@ -132,6 +135,7 @@ def image_service_joined(relation_id=None):
     relation_set(relation_id=relation_id, **relation_data)
 
 
+@restart_on_change(restart_map())
 def object_store_joined():
 
     if 'identity-service' not in CONFIGS.complete_contexts():
@@ -145,8 +149,6 @@ def object_store_joined():
 
     CONFIGS.write('/etc/glance/glance-api.conf')
 
-    restart('glance-api')
-
 
 def object_store_changed():
     pass
@@ -158,6 +160,7 @@ def ceph_joined():
     install('ceph-common', 'python-ceph')
 
 
+@restart_on_change(restart_map())
 def ceph_changed():
     if 'ceph' not in CONFIGS.complete_contexts():
         juju_log('ERROR', 'ceph relation incomplete. Peer not ready?')
@@ -174,8 +177,6 @@ def ceph_changed():
 
     if eligible_leader(CLUSTER_RES):
         ensure_ceph_pool(service=SERVICE_NAME)
-
-    restart('glance-api')
 
 
 def keystone_joined(relation_id=None):
@@ -205,6 +206,7 @@ def keystone_joined(relation_id=None):
     relation_set(relation_id=relation_id, **relation_data)
 
 
+@restart_on_change(restart_map())
 def keystone_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
         juju_log('INFO', 'identity-service relation incomplete. Peer not ready?')
@@ -216,8 +218,6 @@ def keystone_changed():
     CONFIGS.write('/etc/glance/glance-api-paste.ini')
     CONFIGS.write('/etc/glance/glance-registry-paste.ini')
 
-    restart(*SERVICES)
-
     # Configure any object-store / swift relations now that we have an
     # identity-service
     if relation_ids('object-store'):
@@ -227,6 +227,7 @@ def keystone_changed():
     configure_https()
 
 
+@restart_on_change(restart_map())
 def config_changed():
     # Determine whether or not we should do an upgrade, based on whether or not
     # the version offered in openstack-origin is greater than what is installed.
@@ -260,19 +261,16 @@ def config_changed():
 
     configure_https()
 
-    restart(*SERVICES)
-
     env_vars = {'OPENSTACK_PORT_MCASTPORT': config["ha-mcastport"],
                 'OPENSTACK_SERVICE_API': "glance-api",
                 'OPENSTACK_SERVICE_REGISTRY': "glance-registry"}
     save_script_rc(**env_vars)
 
 
+@restart_on_change(restart_map())
 def cluster_changed():
-    stop('glance-api')
     CONFIGS.write('/etc/glance/glance-api.conf')
     CONFIGS.write('/etc/haproxy/haproxy.cfg')
-    start('glance-api')
 
 
 def upgrade_charm():
