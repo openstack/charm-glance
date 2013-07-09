@@ -154,3 +154,18 @@ def get_hacluster_config():
         juju_log('Insufficient config data to configure hacluster.')
         raise HAIncompleteConfig
     return conf
+
+
+def canonical_url(configs, vip_setting='vip'):
+    '''
+    Returns the correct HTTP URL to this host given the state of HTTPS
+    configuration and hacluster.
+    '''
+    scheme = 'http'
+    if 'https' in configs.complete_contexts():
+        scheme = 'https'
+    if is_clustered():
+        addr = config_get(vip_setting)
+    else:
+        addr = get_unit_hostname()
+    return '%s://%s' % (scheme, addr)
