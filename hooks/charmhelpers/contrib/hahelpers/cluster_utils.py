@@ -160,6 +160,11 @@ def canonical_url(configs, vip_setting='vip'):
     '''
     Returns the correct HTTP URL to this host given the state of HTTPS
     configuration and hacluster.
+
+    :configs    : OSTemplateRenderer: A config tempating object to inspect for
+                                      a complete https context.
+    :vip_setting:                str: Setting in charm config that specifies
+                                      VIP address.
     '''
     scheme = 'http'
     if 'https' in configs.complete_contexts():
