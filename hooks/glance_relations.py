@@ -30,16 +30,15 @@ from charmhelpers.contrib.hahelpers.cluster_utils import (
 
 from charmhelpers.contrib.hahelpers.utils import (
     juju_log,
-    install,
     start,
     stop,
     relation_list,
     do_hooks,
     relation_get_dict,
-    configure_source,
     )
 
 from charmhelpers.contrib.openstack.openstack_utils import (
+    configure_installation_source,
     get_os_codename_package,
     get_os_codename_install_source,
     get_os_version_codename,
@@ -75,9 +74,16 @@ config = json.loads(check_output(['config-get','--format=json']))
 
 def install_hook():
     juju_log('INFO', 'Installing glance packages')
-    configure_source()
 
-    install(*PACKAGES)
+    src = config['openstack-origin']
+    if (lsb_release()['DISTRIB_CODENAME'] == 'precise' and
+        src == 'distro'):
+        src = 'cloud:precise-folsom'
+
+    configure_installation_source(src)
+
+    apt_update()
+    apt_install(PACKAGES)
 
     stop(*SERVICES)
 
@@ -157,7 +163,7 @@ def object_store_changed():
 def ceph_joined():
     if not os.path.isdir('/etc/ceph'):
         os.mkdir('/etc/ceph')
-    install('ceph-common', 'python-ceph')
+    apt_install(['ceph-common', 'python-ceph'])
 
 
 @restart_on_change(restart_map())
