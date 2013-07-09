@@ -8,7 +8,7 @@ from glance_utils import (
     ensure_ceph_pool,
     migrate_database,
     register_configs,
-    restart_map
+    restart_map,
     set_ceph_env_variables,
     )
 
