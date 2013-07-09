@@ -94,8 +94,9 @@ def register_configs():
     # Register config files with their respective contexts.
     # Regstration of some configs may not be required depending on
     # existing of certain relations.
+    release = get_os_codename_package('glance-common', fatal=False)
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
-                                          openstack_release='grizzly')
+                                          openstack_release=release)
 
     confs = ['/etc/glance/glance-registry.conf',
              '/etc/glance/glance-api.conf',
