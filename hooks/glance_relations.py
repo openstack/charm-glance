@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import os
 import json
+import sys
 
 from glance_utils import (
     do_openstack_upgrade,
@@ -25,17 +26,18 @@ from charmhelpers.core.hookenv import (
     log as juju_log,
     relation_set,
     relation_ids,
-    unit_get)
+    unit_get,
+    UnregisteredHookError, )
 
 from charmhelpers.core.host import (
     restart_on_change,
     apt_install,
     apt_update,
-    service_stop)
+    service_stop, )
 
 from charmhelpers.contrib.hahelpers.cluster_utils import (
     eligible_leader,
-    is_clustered)
+    is_clustered, )
 
 from charmhelpers.contrib.hahelpers.utils import relation_get_dict
 
@@ -45,11 +47,11 @@ from charmhelpers.contrib.openstack.openstack_utils import (
     get_os_codename_install_source,
     get_os_version_codename,
     save_script_rc,
-    lsb_release)
+    lsb_release, )
 
 from subprocess import (
     check_output,
-    check_call)
+    check_call, )
 
 from commands import getstatusoutput
 
@@ -358,6 +360,5 @@ def configure_https():
 if __name__ == '__main__':
     try:
         hooks.execute(sys.argv)
-    #except UnregisteredHookError as e:
-    except Exception as e:
+    except UnregisteredHookError as e:
         juju_log('Unknown hook {} - skiping.'.format(e))
