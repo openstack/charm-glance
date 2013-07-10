@@ -33,8 +33,6 @@ from charmhelpers.contrib.openstack.openstack_utils import (
     get_os_codename_package,
     configure_installation_source, )
 
-CONFIGS = register_configs()
-
 CLUSTER_RES = "res_glance_vip"
 
 PACKAGES = [
