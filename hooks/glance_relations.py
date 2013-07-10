@@ -29,7 +29,6 @@ from charmhelpers.contrib.hahelpers.cluster_utils import (
     is_clustered)
 
 from charmhelpers.contrib.hahelpers.utils import (
-    relation_list,
     do_hooks,
     relation_get_dict)
 
@@ -54,17 +53,15 @@ CONFIGS = register_configs()
 
 PACKAGES = [
     "apache2", "glance", "python-mysqldb", "python-swift",
-    "python-keystone", "uuid", "haproxy",
-    ]
+    "python-keystone", "uuid", "haproxy", ]
 
 SERVICES = [
-    "glance-api", "glance-registry",
-    ]
+    "glance-api", "glance-registry", ]
 
 CHARM = "glance"
 SERVICE_NAME = service_name()
 
-config = json.loads(check_output(['config-get','--format=json']))
+config = json.loads(check_output(['config-get', '--format=json']))
 
 
 def install_hook():
@@ -72,7 +69,7 @@ def install_hook():
 
     src = config['openstack-origin']
     if (lsb_release()['DISTRIB_CODENAME'] == 'precise' and
-        src == 'distro'):
+       src == 'distro'):
         src = 'cloud:precise-folsom'
 
     configure_installation_source(src)
@@ -88,7 +85,7 @@ def install_hook():
 
 def db_joined():
     relation_set(database=config['database'], username=config['database-user'],
-                hostname=unit_get('private-address'))
+                 hostname=unit_get('private-address'))
 
 
 @restart_on_change(restart_map())
@@ -129,10 +126,10 @@ def image_service_joined(relation_id=None):
         host = config["vip"]
 
     relation_data = {
-        'glance-api-server': "%s://%s:9292" % (scheme, host),
-        }
+        'glance-api-server': "%s://%s:9292" % (scheme, host), }
 
-    juju_log("%s: image-service_joined: To peer glance-api-server=%s" % (CHARM, relation_data['glance-api-server']))
+    juju_log("%s: image-service_joined: To peer glance-api-server=%s" %
+             (CHARM, relation_data['glance-api-server']))
 
     relation_set(relation_id=relation_id, **relation_data)
 
@@ -201,8 +198,7 @@ def keystone_joined(relation_id=None):
         'region': config['region'],
         'public_url': url,
         'admin_url': url,
-        'internal_url': url,
-        }
+        'internal_url': url, }
 
     relation_set(relation_id=relation_id, **relation_data)
 
@@ -231,14 +227,14 @@ def keystone_changed():
 @restart_on_change(restart_map())
 def config_changed():
     # Determine whether or not we should do an upgrade, based on whether or not
-    # the version offered in openstack-origin is greater than what is installed.
+    # the version offered in openstack-origin is greater than what is installed
     install_src = config["openstack-origin"]
     available = get_os_codename_install_source(install_src)
     installed = get_os_codename_package("glance-common")
 
     if (available and
-        get_os_version_codename(available) > \
-        get_os_version_codename(installed)):
+       get_os_version_codename(available) >
+       get_os_version_codename(installed)):
         juju_log('%s: Upgrading OpenStack release: %s -> %s' % (CHARM, installed, available))
         do_openstack_upgrade(config["openstack-origin"], ' '.join(PACKAGES))
 
@@ -252,9 +248,6 @@ def config_changed():
             keystone_changed()
 
         for r_id in relation_ids('ceph'):
-            #for relid in relids:
-            #    for unit in relation_list(relid):
-            #        ceph_changed(relation_id=r_id, unit=unit)
             ceph_changed()
 
         for r_id in relation_ids('object-store'):
@@ -290,22 +283,18 @@ def ha_relation_joined():
 
     resources = {
         'res_glance_vip': 'ocf:heartbeat:IPaddr2',
-        'res_glance_haproxy': 'lsb:haproxy',
-        }
+        'res_glance_haproxy': 'lsb:haproxy', }
 
     resource_params = {
-        'res_glance_vip': 'params ip="%s" cidr_netmask="%s" nic="%s"' % \
+        'res_glance_vip': 'params ip="%s" cidr_netmask="%s" nic="%s"' %
                           (vip, vip_cidr, vip_iface),
-        'res_glance_haproxy': 'op monitor interval="5s"',
-        }
+        'res_glance_haproxy': 'op monitor interval="5s"', }
 
     init_services = {
-        'res_glance_haproxy': 'haproxy',
-        }
+        'res_glance_haproxy': 'haproxy', }
 
     clones = {
-        'cl_glance_haproxy': 'res_glance_haproxy',
-        }
+        'cl_glance_haproxy': 'res_glance_haproxy', }
 
     relation_set(init_services=init_services,
                  corosync_bindiface=corosync_bindiface,
@@ -318,7 +307,7 @@ def ha_relation_joined():
 def ha_relation_changed():
     relation_data = relation_get_dict()
     if ('clustered' in relation_data and
-        eligible_leader(CLUSTER_RES)):
+       eligible_leader(CLUSTER_RES)):
         host = config["vip"]
         scheme = "http"
         if 'https' in CONFIGS.complete_contexts():
@@ -336,9 +325,8 @@ def ha_relation_changed():
 
         for r_id in relation_ids('image-service'):
             relation_data = {
-                'glance-api-server': url
-                }
-            relation_set(relation_id=rid, **relation_data)
+                'glance-api-server': url, }
+            relation_set(relation_id=r_id, **relation_data)
 
 
 def configure_https():
@@ -363,22 +351,22 @@ def configure_https():
 
 
 hooks = {
-  'install': install_hook,
-  'config-changed': config_changed,
-  'shared-db-relation-joined': db_joined,
-  'shared-db-relation-changed': db_changed,
-  'image-service-relation-joined': image_service_joined,
-  'object-store-relation-joined': object_store_joined,
-  'object-store-relation-changed': object_store_changed,
-  'identity-service-relation-joined': keystone_joined,
-  'identity-service-relation-changed': keystone_changed,
-  'ceph-relation-joined': ceph_joined,
-  'ceph-relation-changed': ceph_changed,
-  'cluster-relation-changed': cluster_changed,
-  'cluster-relation-departed': cluster_changed,
-  'ha-relation-joined': ha_relation_joined,
-  'ha-relation-changed': ha_relation_changed,
-  'upgrade-charm': upgrade_charm,
+    'install': install_hook,
+    'config-changed': config_changed,
+    'shared-db-relation-joined': db_joined,
+    'shared-db-relation-changed': db_changed,
+    'image-service-relation-joined': image_service_joined,
+    'object-store-relation-joined': object_store_joined,
+    'object-store-relation-changed': object_store_changed,
+    'identity-service-relation-joined': keystone_joined,
+    'identity-service-relation-changed': keystone_changed,
+    'ceph-relation-joined': ceph_joined,
+    'ceph-relation-changed': ceph_changed,
+    'cluster-relation-changed': cluster_changed,
+    'cluster-relation-departed': cluster_changed,
+    'ha-relation-joined': ha_relation_joined,
+    'ha-relation-changed': ha_relation_changed,
+    'upgrade-charm': upgrade_charm,
 }
 
 do_hooks(hooks)
