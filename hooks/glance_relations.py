@@ -23,6 +23,7 @@ from charmhelpers.core.host import (
     restart_on_change,
     apt_install,
     apt_update,
+    service_stop,
     )
 
 from charmhelpers.contrib.hahelpers.cluster_utils import (
@@ -32,8 +33,6 @@ from charmhelpers.contrib.hahelpers.cluster_utils import (
 
 from charmhelpers.contrib.hahelpers.utils import (
     juju_log,
-    start,
-    stop,
     relation_list,
     do_hooks,
     relation_get_dict,
@@ -88,7 +87,8 @@ def install_hook():
     apt_update()
     apt_install(PACKAGES)
 
-    stop(*SERVICES)
+    for service in SERVICES:
+        service_stop(service)
 
     configure_https()
 
