@@ -242,19 +242,10 @@ def config_changed():
         do_openstack_upgrade(config["openstack-origin"], ' '.join(PACKAGES))
 
         # Update the new config files for existing relations.
-        for r_id in relation_ids('shared-db'):
-            juju_log('%s: Configuring database after upgrade to %s.' % (CHARM, install_src))
-            db_changed()
-
-        for r_id in relation_ids('identity-service'):
-            juju_log('%s: Configuring identity service after upgrade to %s' % (CHARM, install_src))
-            keystone_changed()
-
-        for r_id in relation_ids('ceph'):
-            ceph_changed()
-
-        for r_id in relation_ids('object-store'):
-            object_store_joined()
+        db_changed()
+        keystone_changed()
+        ceph_changed()
+        object_store_joined()
 
     configure_https()
 
