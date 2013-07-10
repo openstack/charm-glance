@@ -239,7 +239,7 @@ def config_changed():
        get_os_version_codename(available) >
        get_os_version_codename(installed)):
         juju_log('%s: Upgrading OpenStack release: %s -> %s' % (CHARM, installed, available))
-        do_openstack_upgrade(config["openstack-origin"], ' '.join(PACKAGES))
+        do_openstack_upgrade(CONFIGS)
 
         # Update the new config files for existing relations.
         db_changed()

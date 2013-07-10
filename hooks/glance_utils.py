@@ -14,6 +14,7 @@ from charmhelpers.core.host import (
     apt_update, )
 
 from charmhelpers.core.hookenv import (
+    config,
     relation_get,
     relation_ids,
     related_units,
@@ -197,26 +198,34 @@ def execute(cmd, die=False, echo=False):
     return (stdout, stderr, rc)
 
 
-def do_openstack_upgrade(install_src, packages):
-    # update openstack components to those provided by a new installation
-    # source it is assumed the calling hook has confirmed that the upgrade
-    # is sane.old_rel = get_os_codename_package('keystone')
-    new_rel = get_os_codename_install_source(install_src)
+def do_openstack_upgrade(configs):
+    """
+    Perform an uprade of cinder.  Takes care of upgrading packages, rewriting
+    configs + database migration and potentially any other post-upgrade
+    actions.
 
-    # Backup previous config.
-    juju_log('INFO', "Backing up contents of /etc/glance.")
-    stamp = time.strftime('%Y%m%d%H%M')
-    cmd = 'tar -pcf /var/lib/juju/keystone-backup-%s.tar /etc/glance' % stamp
-    execute(cmd, die=True, echo=True)
+    :param configs: The charms main OSConfigRenderer object.
 
-    # Setup apt repository access and kick off the actual package upgrade.
-    configure_installation_source(install_src)
+    """
+    new_src = config('openstack-origin')
+    new_os_rel = get_os_codename_install_source(new_src)
+
+    juju_log('Performing OpenStack upgrade to %s.' % (new_os_rel))
+
+    configure_installation_source(new_src)
     dpkg_opts = [
         '--option', 'Dpkg::Options::=--force-confnew',
         '--option', 'Dpkg::Options::=--force-confdef',
     ]
     apt_update()
-    apt_install(packages=packages, options=dpkg_opts, fatal=True)
+    apt_install(packages=PACKAGES, options=dpkg_opts, fatal=True)
+
+    # set CONFIGS to load templates from new release and regenerate config
+    configs.set_release(openstack_release=new_os_rel)
+    configs.write_all()
+
+    if eligible_leader(CLUSTER_RES):
+        migrate_database()
 
 
 def restart_map():
