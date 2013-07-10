@@ -9,6 +9,10 @@ import glance_contexts
 
 from collections import OrderedDict
 
+from charmhelpers.core.host import (
+    apt_install,
+    apt_update, )
+
 from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
@@ -207,11 +211,12 @@ def do_openstack_upgrade(install_src, packages):
 
     # Setup apt repository access and kick off the actual package upgrade.
     configure_installation_source(install_src)
-    execute('apt-get update', die=True, echo=True)
-    os.environ['DEBIAN_FRONTEND'] = 'noninteractive'
-    cmd = 'apt-get --option Dpkg::Options::=--force-confnew -y '\
-          'install %s --no-install-recommends' % packages
-    execute(cmd, echo=True, die=True)
+    dpkg_opts = [
+        '--option', 'Dpkg::Options::=--force-confnew',
+        '--option', 'Dpkg::Options::=--force-confdef',
+    ]
+    apt_update()
+    apt_install(packages=packages, options=dpkg_opts, fatal=True)
 
 
 def restart_map():
