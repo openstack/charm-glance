@@ -14,7 +14,11 @@ from glance_utils import (
     PACKAGES,
     SERVICES,
     CHARM,
-    SERVICE_NAME, )
+    SERVICE_NAME,
+    GLANCE_REGISTRY_CONF,
+    GLANCE_REGISTRY_PASTE_INI,
+    GLANCE_API_CONF,
+    GLANCE_API_PASTE_INI, )
 
 from charmhelpers.core.hookenv import (
     log as juju_log,
@@ -87,10 +91,10 @@ def db_changed():
         juju_log('shared-db relation incomplete. Peer not ready?')
         return
 
-    CONFIGS.write('/etc/glance/glance-registry.conf')
+    CONFIGS.write(GLANCE_REGISTRY_CONF)
     # since folsom, a db connection setting in glance-api.conf is required.
     if rel != "essex":
-        CONFIGS.write('/etc/glance/glance-api.conf')
+        CONFIGS.write(GLANCE_API_CONF)
 
     if eligible_leader(CLUSTER_RES):
         if rel == "essex":
@@ -137,7 +141,7 @@ def object_store_joined():
         juju_log('swift relation incomplete')
         return
 
-    CONFIGS.write('/etc/glance/glance-api.conf')
+    CONFIGS.write(GLANCE_API_CONF)
 
 
 def object_store_changed():
@@ -160,7 +164,7 @@ def ceph_changed():
         juju_log('Could not create ceph keyring: peer not ready?')
         return
 
-    CONFIGS.write('/etc/glance/glance-api.conf')
+    CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write('/etc/ceph/ceph.conf')
 
     set_ceph_env_variables(service=SERVICE_NAME)
@@ -200,11 +204,11 @@ def keystone_changed():
         juju_log('identity-service relation incomplete. Peer not ready?')
         return
 
-    CONFIGS.write('/etc/glance/glance-api.conf')
-    CONFIGS.write('/etc/glance/glance-registry.conf')
+    CONFIGS.write(GLANCE_API_CONF)
+    CONFIGS.write(GLANCE_REGISTRY_CONF)
 
-    CONFIGS.write('/etc/glance/glance-api-paste.ini')
-    CONFIGS.write('/etc/glance/glance-registry-paste.ini')
+    CONFIGS.write(GLANCE_API_PASTE_INI)
+    CONFIGS.write(GLANCE_REGISTRY_PASTE_INI)
 
     # Configure any object-store / swift relations now that we have an
     # identity-service
@@ -254,7 +258,7 @@ def config_changed():
 
 @restart_on_change(restart_map())
 def cluster_changed():
-    CONFIGS.write('/etc/glance/glance-api.conf')
+    CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write('/etc/haproxy/haproxy.cfg')
 
 
