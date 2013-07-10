@@ -15,6 +15,7 @@ from charmhelpers.core.host import (
 
 from charmhelpers.core.hookenv import (
     config,
+    log as juju_log,
     relation_get,
     relation_ids,
     related_units,
@@ -23,9 +24,6 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.contrib.openstack import (
     templating,
     context, )
-
-from charmhelpers.contrib.hahelpers.utils import (
-    juju_log, )
 
 from charmhelpers.contrib.hahelpers.ceph_utils import (
     create_keyring as ceph_create_keyring,
@@ -194,7 +192,7 @@ def execute(cmd, die=False, echo=False):
     rc = p.returncode
 
     if die and rc != 0:
-        juju_log('ERROR', 'command %s return non-zero.' % cmd)
+        juju_log('command %s return non-zero.' % cmd)
     return (stdout, stderr, rc)
 
 
