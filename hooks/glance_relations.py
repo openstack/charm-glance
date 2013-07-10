@@ -9,11 +9,15 @@ from glance_utils import (
     migrate_database,
     register_configs,
     restart_map,
-    set_ceph_env_variables)
+    set_ceph_env_variables,
+    CLUSTER_RES,
+    PACKAGES,
+    SERVICES,
+    CHARM,
+    SERVICE_NAME, )
 
 from charmhelpers.core.hookenv import (
     log as juju_log,
-    service_name,
     relation_set,
     relation_ids,
     unit_get)
@@ -46,20 +50,7 @@ from subprocess import (
 
 from commands import getstatusoutput
 
-CLUSTER_RES = "res_glance_vip"
-
 CONFIGS = register_configs()
-
-
-PACKAGES = [
-    "apache2", "glance", "python-mysqldb", "python-swift",
-    "python-keystone", "uuid", "haproxy", ]
-
-SERVICES = [
-    "glance-api", "glance-registry", ]
-
-CHARM = "glance"
-SERVICE_NAME = service_name()
 
 config = json.loads(check_output(['config-get', '--format=json']))
 

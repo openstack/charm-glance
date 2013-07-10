@@ -12,7 +12,8 @@ from collections import OrderedDict
 from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
-    related_units, )
+    related_units,
+    service_name, )
 
 from charmhelpers.contrib.openstack import (
     templating,
@@ -31,6 +32,20 @@ from charmhelpers.contrib.openstack.openstack_utils import (
     get_os_codename_install_source,
     get_os_codename_package,
     configure_installation_source, )
+
+CONFIGS = register_configs()
+
+CLUSTER_RES = "res_glance_vip"
+
+PACKAGES = [
+    "apache2", "glance", "python-mysqldb", "python-swift",
+    "python-keystone", "uuid", "haproxy", ]
+
+SERVICES = [
+    "glance-api", "glance-registry", ]
+
+CHARM = "glance"
+SERVICE_NAME = service_name()
 
 GLANCE_REGISTRY_CONF = "/etc/glance/glance-registry.conf"
 GLANCE_REGISTRY_PASTE_INI = "/etc/glance/glance-registry-paste.ini"
