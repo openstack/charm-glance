@@ -56,12 +56,12 @@ CONF_DIR = "/etc/glance"
 TEMPLATES = 'templates/'
 
 CONFIG_FILES = OrderedDict([
-    ('/etc/glance/glance-registry.conf', {
+    (GLANCE_REGISTRY_CONF, {
         'hook_contexts': [context.SharedDBContext(),
                           context.IdentityServiceContext()],
         'services': ['glance-registry']
     }),
-    ('/etc/glance/glance-api.conf', {
+    (GLANCE_API_CONF, {
         'hook_contexts': [context.SharedDBContext(),
                           context.IdentityServiceContext(),
                           glance_contexts.CephContext(),
@@ -69,11 +69,11 @@ CONFIG_FILES = OrderedDict([
                           glance_contexts.HAProxyContext()],
         'services': ['glance-api']
     }),
-    ('/etc/glance/glance-api-paste.ini', {
+    (GLANCE_API_PASTE_INI, {
         'hook_contexts': [context.IdentityServiceContext()],
         'services': ['glance-api']
     }),
-    ('/etc/glance/glance-registry-paste.ini', {
+    (GLANCE_REGISTRY_PASTE_INI, {
         'hook_contexts': [context.IdentityServiceContext()],
         'services': ['glance-registry']
     }),
@@ -101,10 +101,10 @@ def register_configs():
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
 
-    confs = ['/etc/glance/glance-registry.conf',
-             '/etc/glance/glance-api.conf',
-             '/etc/glance/glance-api-paste.ini',
-             '/etc/glance/glance-registry-paste.ini',
+    confs = [GLANCE_REGISTRY_CONF,
+             GLANCE_API_CONF,
+             GLANCE_API_PASTE_INI,
+             GLANCE_REGISTRY_PASTE_INI,
              '/etc/haproxy/haproxy.cfg',
              '/etc/apache2/sites-available/openstack_https_frontend', ]
 
