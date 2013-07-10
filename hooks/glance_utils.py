@@ -12,30 +12,25 @@ from collections import OrderedDict
 from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
-    related_units,
-    )
+    related_units, )
 
 from charmhelpers.contrib.openstack import (
     templating,
-    context,
-    )
+    context, )
 
 from charmhelpers.contrib.hahelpers.utils import (
-    juju_log,
-    )
+    juju_log, )
 
 from charmhelpers.contrib.hahelpers.ceph_utils import (
     create_keyring as ceph_create_keyring,
     create_pool as ceph_create_pool,
     keyring_path as ceph_keyring_path,
-    pool_exists as ceph_pool_exists,
-    )
+    pool_exists as ceph_pool_exists, )
 
 from charmhelpers.contrib.openstack.openstack_utils import (
     get_os_codename_install_source,
     get_os_codename_package,
-    configure_installation_source,
-    )
+    configure_installation_source, )
 
 CHARM = "glance"
 
@@ -49,7 +44,7 @@ GLANCE_API_PASTE_INI = "/etc/glance/glance-api-paste.ini"
 CONF_DIR = "/etc/glance"
 
 # Flag used to track config changes.
-CONFIG_CHANGED =  False
+CONFIG_CHANGED = False
 
 TEMPLATES = 'templates/'
 
@@ -90,6 +85,7 @@ CONFIG_FILES = OrderedDict([
     })
 ])
 
+
 def register_configs():
     # Register config files with their respective contexts.
     # Regstration of some configs may not be required depending on
@@ -103,7 +99,7 @@ def register_configs():
              '/etc/glance/glance-api-paste.ini',
              '/etc/glance/glance-registry-paste.ini',
              '/etc/haproxy/haproxy.cfg',
-             '/etc/apache2/sites-available/openstack_https_frontend',]
+             '/etc/apache2/sites-available/openstack_https_frontend', ]
 
     if relation_ids('ceph'):
         if not os.path.isdir('/etc/ceph'):
@@ -166,7 +162,7 @@ def execute(cmd, die=False, echo=False):
     returns a tuple: (stdout, stderr, return code)
     """
     p = subprocess.Popen(cmd.split(" "),
-                         stdout=subprocess.PIPE, 
+                         stdout=subprocess.PIPE,
                          stdin=subprocess.PIPE,
                          stderr=subprocess.PIPE)
     stdout = ""
@@ -193,9 +189,9 @@ def execute(cmd, die=False, echo=False):
 
 
 def do_openstack_upgrade(install_src, packages):
-    # update openstack components to those provided by a new installation source
-    # it is assumed the calling hook has confirmed that the upgrade is sane.
-    #old_rel = get_os_codename_package('keystone')
+    # update openstack components to those provided by a new installation
+    # source it is assumed the calling hook has confirmed that the upgrade
+    # is sane.old_rel = get_os_codename_package('keystone')
     new_rel = get_os_codename_install_source(install_src)
 
     # Backup previous config.
