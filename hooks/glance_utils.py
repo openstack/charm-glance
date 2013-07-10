@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import os
-import time
 import sys
 import subprocess
 
@@ -24,6 +23,10 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.contrib.openstack import (
     templating,
     context, )
+
+from charmhelpers.contrib.hahelpers.cluster_utils import (
+    eligible_leader,
+)
 
 from charmhelpers.contrib.hahelpers.ceph_utils import (
     create_keyring as ceph_create_keyring,

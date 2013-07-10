@@ -61,6 +61,7 @@ CONFIGS = register_configs()
 
 config = json.loads(check_output(['config-get', '--format=json']))
 
+
 @hooks.hook('install')
 def install_hook():
     juju_log('Installing glance packages')
@@ -238,7 +239,8 @@ def config_changed():
     if (available and
        get_os_version_codename(available) >
        get_os_version_codename(installed)):
-        juju_log('%s: Upgrading OpenStack release: %s -> %s' % (CHARM, installed, available))
+        juju_log('%s: Upgrading OpenStack release: %s -> %s' %
+                 (CHARM, installed, available))
         do_openstack_upgrade(CONFIGS)
 
         # Update the new config files for existing relations.
