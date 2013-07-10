@@ -12,6 +12,7 @@ from glance_utils import (
     set_ceph_env_variables)
 
 from charmhelpers.core.hookenv import (
+    log as juju_log,
     service_name,
     relation_set,
     relation_ids,
@@ -28,7 +29,6 @@ from charmhelpers.contrib.hahelpers.cluster_utils import (
     is_clustered)
 
 from charmhelpers.contrib.hahelpers.utils import (
-    juju_log,
     relation_list,
     do_hooks,
     relation_get_dict)
@@ -68,7 +68,7 @@ config = json.loads(check_output(['config-get','--format=json']))
 
 
 def install_hook():
-    juju_log('INFO', 'Installing glance packages')
+    juju_log('Installing glance packages')
 
     src = config['openstack-origin']
     if (lsb_release()['DISTRIB_CODENAME'] == 'precise' and
@@ -96,7 +96,7 @@ def db_changed():
     rel = get_os_codename_package("glance-common")
 
     if 'shared-db' not in CONFIGS.complete_contexts():
-        juju_log('INFO', 'shared-db relation incomplete. Peer not ready?')
+        juju_log('shared-db relation incomplete. Peer not ready?')
         return
 
     CONFIGS.write('/etc/glance/glance-registry.conf')
@@ -108,10 +108,10 @@ def db_changed():
         if rel == "essex":
             (status, output) = getstatusoutput('glance-manage db_version')
             if status != 0:
-                juju_log('INFO', 'Setting version_control to 0')
+                juju_log('Setting version_control to 0')
                 check_call(["glance-manage", "version_control", "0"])
 
-        juju_log('INFO', 'Cluster leader, performing db sync')
+        juju_log('Cluster leader, performing db sync')
         migrate_database()
 
 
@@ -132,7 +132,7 @@ def image_service_joined(relation_id=None):
         'glance-api-server': "%s://%s:9292" % (scheme, host),
         }
 
-    juju_log("INFO", "%s: image-service_joined: To peer glance-api-server=%s" % (CHARM, relation_data['glance-api-server']))
+    juju_log("%s: image-service_joined: To peer glance-api-server=%s" % (CHARM, relation_data['glance-api-server']))
 
     relation_set(relation_id=relation_id, **relation_data)
 
@@ -141,12 +141,12 @@ def image_service_joined(relation_id=None):
 def object_store_joined():
 
     if 'identity-service' not in CONFIGS.complete_contexts():
-        juju_log('INFO', 'Deferring swift stora configuration until ' \
-                         'an identity-service relation exists')
+        juju_log('Deferring swift stora configuration until '
+                 'an identity-service relation exists')
         return
 
     if 'object-store' not in CONFIGS.complete_contexts():
-        juju_log('INFO', 'swift relation incomplete')
+        juju_log('swift relation incomplete')
         return
 
     CONFIGS.write('/etc/glance/glance-api.conf')
@@ -165,11 +165,11 @@ def ceph_joined():
 @restart_on_change(restart_map())
 def ceph_changed():
     if 'ceph' not in CONFIGS.complete_contexts():
-        juju_log('ERROR', 'ceph relation incomplete. Peer not ready?')
+        juju_log('ceph relation incomplete. Peer not ready?')
         return
 
     if not ensure_ceph_keyring(service=SERVICE_NAME):
-        juju_log('ERROR', 'Could not create ceph keyring: peer not ready?')
+        juju_log('Could not create ceph keyring: peer not ready?')
         return
 
     CONFIGS.write('/etc/glance/glance-api.conf')
@@ -183,8 +183,7 @@ def ceph_changed():
 
 def keystone_joined(relation_id=None):
     if not eligible_leader(CLUSTER_RES):
-        juju_log('INFO',
-                 'Deferring keystone_joined() to service leader.')
+        juju_log('Deferring keystone_joined() to service leader.')
         return
 
     scheme = "http"
@@ -211,7 +210,7 @@ def keystone_joined(relation_id=None):
 @restart_on_change(restart_map())
 def keystone_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
-        juju_log('INFO', 'identity-service relation incomplete. Peer not ready?')
+        juju_log('identity-service relation incomplete. Peer not ready?')
         return
 
     CONFIGS.write('/etc/glance/glance-api.conf')
@@ -240,16 +239,16 @@ def config_changed():
     if (available and
         get_os_version_codename(available) > \
         get_os_version_codename(installed)):
-        juju_log('INFO', '%s: Upgrading OpenStack release: %s -> %s' % (CHARM, installed, available))
+        juju_log('%s: Upgrading OpenStack release: %s -> %s' % (CHARM, installed, available))
         do_openstack_upgrade(config["openstack-origin"], ' '.join(PACKAGES))
 
         # Update the new config files for existing relations.
         for r_id in relation_ids('shared-db'):
-            juju_log('INFO', '%s: Configuring database after upgrade to %s.' % (CHARM, install_src))
+            juju_log('%s: Configuring database after upgrade to %s.' % (CHARM, install_src))
             db_changed()
 
         for r_id in relation_ids('identity-service'):
-            juju_log('INFO', '%s: Configuring identity service after upgrade to %s' % (CHARM, install_src))
+            juju_log('%s: Configuring identity service after upgrade to %s' % (CHARM, install_src))
             keystone_changed()
 
         for r_id in relation_ids('ceph'):
@@ -325,7 +324,7 @@ def ha_relation_changed():
         if 'https' in CONFIGS.complete_contexts():
             scheme = "https"
         url = "%s://%s:9292" % (scheme, host)
-        juju_log('INFO', '%s: Cluster configured, notifying other services' % CHARM)
+        juju_log('%s: Cluster configured, notifying other services' % CHARM)
 
         for r_id in relation_ids('identity-service'):
             relation_set(relation_id=r_id,
