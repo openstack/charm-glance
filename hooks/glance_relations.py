@@ -21,6 +21,7 @@ from glance_utils import (
     GLANCE_API_PASTE_INI, )
 
 from charmhelpers.core.hookenv import (
+    Hooks,
     log as juju_log,
     relation_set,
     relation_ids,
@@ -36,9 +37,7 @@ from charmhelpers.contrib.hahelpers.cluster_utils import (
     eligible_leader,
     is_clustered)
 
-from charmhelpers.contrib.hahelpers.utils import (
-    do_hooks,
-    relation_get_dict)
+from charmhelpers.contrib.hahelpers.utils import relation_get_dict
 
 from charmhelpers.contrib.openstack.openstack_utils import (
     configure_installation_source,
@@ -54,11 +53,13 @@ from subprocess import (
 
 from commands import getstatusoutput
 
+hooks = Hooks()
+
 CONFIGS = register_configs()
 
 config = json.loads(check_output(['config-get', '--format=json']))
 
-
+@hooks.hooks('install')
 def install_hook():
     juju_log('Installing glance packages')
 
@@ -78,11 +79,13 @@ def install_hook():
     configure_https()
 
 
+@hooks.hooks('shared-db-relation-joined')
 def db_joined():
     relation_set(database=config['database'], username=config['database-user'],
                  hostname=unit_get('private-address'))
 
 
+@hooks.hooks('shared-db-relation-changed')
 @restart_on_change(restart_map())
 def db_changed():
     rel = get_os_codename_package("glance-common")
@@ -107,6 +110,7 @@ def db_changed():
         migrate_database()
 
 
+@hooks.hooks('image-service-relation-joined')
 def image_service_joined(relation_id=None):
 
     if not eligible_leader(CLUSTER_RES):
@@ -129,6 +133,7 @@ def image_service_joined(relation_id=None):
     relation_set(relation_id=relation_id, **relation_data)
 
 
+@hooks.hooks('object-store-relation-joined')
 @restart_on_change(restart_map())
 def object_store_joined():
 
@@ -144,16 +149,14 @@ def object_store_joined():
     CONFIGS.write(GLANCE_API_CONF)
 
 
-def object_store_changed():
-    pass
-
-
+@hooks.hooks('ceph-relation-joined')
 def ceph_joined():
     if not os.path.isdir('/etc/ceph'):
         os.mkdir('/etc/ceph')
     apt_install(['ceph-common', 'python-ceph'])
 
 
+@hooks.hooks('ceph-relation-changed')
 @restart_on_change(restart_map())
 def ceph_changed():
     if 'ceph' not in CONFIGS.complete_contexts():
@@ -173,6 +176,7 @@ def ceph_changed():
         ensure_ceph_pool(service=SERVICE_NAME)
 
 
+@hooks.hooks('identity-service-relation-joined')
 def keystone_joined(relation_id=None):
     if not eligible_leader(CLUSTER_RES):
         juju_log('Deferring keystone_joined() to service leader.')
@@ -198,6 +202,7 @@ def keystone_joined(relation_id=None):
     relation_set(relation_id=relation_id, **relation_data)
 
 
+@hooks.hooks('identity-service-relation-changed')
 @restart_on_change(restart_map())
 def keystone_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
@@ -219,6 +224,7 @@ def keystone_changed():
     configure_https()
 
 
+@hooks.hooks('config-changed')
 @restart_on_change(restart_map())
 def config_changed():
     # Determine whether or not we should do an upgrade, based on whether or not
@@ -256,16 +262,19 @@ def config_changed():
     save_script_rc(**env_vars)
 
 
+@hooks.hooks('cluster-relation-changed')
 @restart_on_change(restart_map())
 def cluster_changed():
     CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write('/etc/haproxy/haproxy.cfg')
 
 
+@hooks.hooks('upgrade-charm')
 def upgrade_charm():
     cluster_changed()
 
 
+@hooks.hooks('ha-relation-joined')
 def ha_relation_joined():
     corosync_bindiface = config["ha-bindiface"]
     corosync_mcastport = config["ha-mcastport"]
@@ -299,6 +308,7 @@ def ha_relation_joined():
                  clones=clones)
 
 
+@hooks.hooks('ha-relation-changed')
 def ha_relation_changed():
     relation_data = relation_get_dict()
     if ('clustered' in relation_data and
@@ -345,23 +355,9 @@ def configure_https():
         image_service_joined(relation_id=r_id)
 
 
-hooks = {
-    'install': install_hook,
-    'config-changed': config_changed,
-    'shared-db-relation-joined': db_joined,
-    'shared-db-relation-changed': db_changed,
-    'image-service-relation-joined': image_service_joined,
-    'object-store-relation-joined': object_store_joined,
-    'object-store-relation-changed': object_store_changed,
-    'identity-service-relation-joined': keystone_joined,
-    'identity-service-relation-changed': keystone_changed,
-    'ceph-relation-joined': ceph_joined,
-    'ceph-relation-changed': ceph_changed,
-    'cluster-relation-changed': cluster_changed,
-    'cluster-relation-departed': cluster_changed,
-    'ha-relation-joined': ha_relation_joined,
-    'ha-relation-changed': ha_relation_changed,
-    'upgrade-charm': upgrade_charm,
-}
-
-do_hooks(hooks)
+if __name__ == '__main__':
+    try:
+        hooks.execute(sys.argv)
+    #except UnregisteredHookError as e:
+    except Exception as e:
+        juju_log('Unknown hook {} - skiping.'.format(e))
