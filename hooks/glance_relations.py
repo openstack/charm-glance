@@ -21,6 +21,8 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     restart_on_change,
+    apt_install,
+    apt_update,
     )
 
 from charmhelpers.contrib.hahelpers.cluster_utils import (
