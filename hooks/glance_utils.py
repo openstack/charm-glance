@@ -32,19 +32,11 @@ from charmhelpers.contrib.openstack.openstack_utils import (
     get_os_codename_package,
     configure_installation_source, )
 
-CHARM = "glance"
-
-SERVICES = "glance-api glance-registry"
-PACKAGES = "apache2 glance python-mysqldb python-swift python-keystone uuid haproxy"
-
 GLANCE_REGISTRY_CONF = "/etc/glance/glance-registry.conf"
 GLANCE_REGISTRY_PASTE_INI = "/etc/glance/glance-registry-paste.ini"
 GLANCE_API_CONF = "/etc/glance/glance-api.conf"
 GLANCE_API_PASTE_INI = "/etc/glance/glance-api-paste.ini"
 CONF_DIR = "/etc/glance"
-
-# Flag used to track config changes.
-CONFIG_CHANGED = False
 
 TEMPLATES = 'templates/'
 
