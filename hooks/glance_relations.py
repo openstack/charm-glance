@@ -9,34 +9,29 @@ from glance_utils import (
     migrate_database,
     register_configs,
     restart_map,
-    set_ceph_env_variables,
-    )
+    set_ceph_env_variables)
 
 from charmhelpers.core.hookenv import (
     service_name,
     relation_set,
     relation_ids,
-    unit_get,
-    )
+    unit_get)
 
 from charmhelpers.core.host import (
     restart_on_change,
     apt_install,
     apt_update,
-    service_stop,
-    )
+    service_stop)
 
 from charmhelpers.contrib.hahelpers.cluster_utils import (
     eligible_leader,
-    is_clustered,
-    )
+    is_clustered)
 
 from charmhelpers.contrib.hahelpers.utils import (
     juju_log,
     relation_list,
     do_hooks,
-    relation_get_dict,
-    )
+    relation_get_dict)
 
 from charmhelpers.contrib.openstack.openstack_utils import (
     configure_installation_source,
@@ -44,13 +39,11 @@ from charmhelpers.contrib.openstack.openstack_utils import (
     get_os_codename_install_source,
     get_os_version_codename,
     save_script_rc,
-    lsb_release,
-    )
+    lsb_release)
 
 from subprocess import (
     check_output,
-    check_call,
-    )
+    check_call)
 
 from commands import getstatusoutput
 
