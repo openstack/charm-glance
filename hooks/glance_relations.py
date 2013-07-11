@@ -26,6 +26,7 @@ from charmhelpers.core.hookenv import (
     config,
     Hooks,
     log as juju_log,
+    relation_get,
     relation_set,
     relation_ids,
     unit_get,
@@ -40,8 +41,6 @@ from charmhelpers.core.host import (
 from charmhelpers.contrib.hahelpers.cluster_utils import (
     eligible_leader,
     is_clustered, )
-
-from charmhelpers.contrib.hahelpers.utils import relation_get_dict
 
 from charmhelpers.contrib.openstack.openstack_utils import (
     configure_installation_source,
@@ -297,9 +296,10 @@ def ha_relation_joined():
 
 @hooks.hook('ha-relation-changed')
 def ha_relation_changed():
-    relation_data = relation_get_dict()
-    if ('clustered' in relation_data and
-       eligible_leader(CLUSTER_RES)):
+    if not relation_get('clustered'):
+        juju_log('glance subordinate is not fully clustered.')
+        return
+    if eligible_leader(CLUSTER_RES):
         host = config["vip"]
         scheme = "http"
         if 'https' in CONFIGS.complete_contexts():
