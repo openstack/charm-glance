@@ -11,6 +11,7 @@ from distutils.version import StrictVersion
 
 from charmhelpers.core.hookenv import (
     config,
+    charm_dir,
 )
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
@@ -241,7 +242,9 @@ def save_script_rc(script_path="scripts/scriptrc", **env_vars):
     service changes.
     """
     unit_name = os.getenv('JUJU_UNIT_NAME').replace('/', '-')
-    juju_rc_path = "/var/lib/juju/units/%s/charm/%s" % (unit_name, script_path)
+    juju_rc_path = "%s/%s" % (charm_dir(), script_path)
+    if not os.path.exists(os.path.dirname(juju_rc_path)):
+        os.mkdir(os.path.dirname(juju_rc_path))
     with open(juju_rc_path, 'wb') as rc_script:
         rc_script.write(
             "#!/bin/bash\n")
