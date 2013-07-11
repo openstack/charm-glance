@@ -22,7 +22,7 @@ from glance_utils import (
     CEPH_CONF, )
 
 from charmhelpers.core.hookenv import (
-    config,
+    config as charm_conf,
     Hooks,
     log as juju_log,
     relation_get,
@@ -58,6 +58,7 @@ hooks = Hooks()
 
 CONFIGS = register_configs()
 
+config = charm_conf()
 
 @hooks.hook('install')
 def install_hook():
