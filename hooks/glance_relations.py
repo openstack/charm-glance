@@ -1,6 +1,5 @@
 #!/usr/bin/python
 import os
-import json
 import sys
 
 from glance_utils import (
@@ -51,7 +50,6 @@ from charmhelpers.contrib.openstack.openstack_utils import (
     lsb_release, )
 
 from subprocess import (
-    check_output,
     check_call, )
 
 from commands import getstatusoutput
