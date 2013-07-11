@@ -19,7 +19,9 @@ from glance_utils import (
     GLANCE_REGISTRY_CONF,
     GLANCE_REGISTRY_PASTE_INI,
     GLANCE_API_CONF,
-    GLANCE_API_PASTE_INI, )
+    GLANCE_API_PASTE_INI,
+    HAPROXY_CONF,
+    CEPH_CONF, )
 
 from charmhelpers.core.hookenv import (
     Hooks,
@@ -171,7 +173,7 @@ def ceph_changed():
         return
 
     CONFIGS.write(GLANCE_API_CONF)
-    CONFIGS.write('/etc/ceph/ceph.conf')
+    CONFIGS.write(CEPH_CONF)
 
     set_ceph_env_variables(service=SERVICE_NAME)
 
@@ -255,7 +257,7 @@ def config_changed():
 @restart_on_change(restart_map())
 def cluster_changed():
     CONFIGS.write(GLANCE_API_CONF)
-    CONFIGS.write('/etc/haproxy/haproxy.cfg')
+    CONFIGS.write(HAPROXY_CONF)
 
 
 @hooks.hook('upgrade-charm')

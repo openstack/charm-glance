@@ -55,6 +55,10 @@ GLANCE_REGISTRY_CONF = "/etc/glance/glance-registry.conf"
 GLANCE_REGISTRY_PASTE_INI = "/etc/glance/glance-registry-paste.ini"
 GLANCE_API_CONF = "/etc/glance/glance-api.conf"
 GLANCE_API_PASTE_INI = "/etc/glance/glance-api-paste.ini"
+CEPH_CONF = "/etc/ceph/ceph.conf"
+HAPROXY_CONF = "/etc/haproxy/haproxy.cfg"
+HTTPS_APACHE_CONF = "/etc/apache2/sites-available/openstack_https_frontend"
+
 CONF_DIR = "/etc/glance"
 
 TEMPLATES = 'templates/'
@@ -81,16 +85,16 @@ CONFIG_FILES = OrderedDict([
         'hook_contexts': [context.IdentityServiceContext()],
         'services': ['glance-registry']
     }),
-    ('/etc/ceph/ceph.conf', {
+    (CEPH_CONF, {
         'hook_contexts': [context.CephContext()],
         'services': []
     }),
-    ('/etc/haproxy/haproxy.cfg', {
+    (HAPROXY_CONF, {
         'hook_contexts': [context.HAProxyContext(),
                           glance_contexts.HAProxyContext()],
         'services': ['haproxy'],
     }),
-    ('/etc/apache2/sites-available/openstack_https_frontend', {
+    (HTTPS_APACHE_CONF, {
         'hook_contexts': [glance_contexts.ApacheSSLContext()],
         'services': ['apache2'],
     })
@@ -109,13 +113,13 @@ def register_configs():
              GLANCE_API_CONF,
              GLANCE_API_PASTE_INI,
              GLANCE_REGISTRY_PASTE_INI,
-             '/etc/haproxy/haproxy.cfg',
-             '/etc/apache2/sites-available/openstack_https_frontend', ]
+             HAPROXY_CONF,
+             HTTPS_APACHE_CONF, ]
 
     if relation_ids('ceph'):
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
-        confs.append('/etc/ceph/ceph.conf')
+        confs.append(CEPH_CONF)
 
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['hook_contexts'])
