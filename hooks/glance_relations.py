@@ -24,6 +24,7 @@ from glance_utils import (
     CEPH_CONF, )
 
 from charmhelpers.core.hookenv import (
+    config,
     Hooks,
     log as juju_log,
     relation_set,
@@ -60,8 +61,6 @@ from commands import getstatusoutput
 hooks = Hooks()
 
 CONFIGS = register_configs()
-
-config = json.loads(check_output(['config-get', '--format=json']))
 
 
 @hooks.hook('install')
