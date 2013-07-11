@@ -243,12 +243,6 @@ def config_changed():
                  (CHARM, installed, available))
         do_openstack_upgrade(CONFIGS)
 
-        # Update the new config files for existing relations.
-        db_changed()
-        keystone_changed()
-        ceph_changed()
-        object_store_joined()
-
     configure_https()
 
     env_vars = {'OPENSTACK_PORT_MCASTPORT': config["ha-mcastport"],

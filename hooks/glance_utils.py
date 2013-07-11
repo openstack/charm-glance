@@ -164,41 +164,6 @@ def set_ceph_env_variables(service):
         out.write('env CEPH_ARGS="--id %s"\n' % service)
 
 
-def execute(cmd, die=False, echo=False):
-    """ Executes a command
-
-    if die=True, script will exit(1) if command does not return 0
-    if echo=True, output of command will be printed to stdout
-
-    returns a tuple: (stdout, stderr, return code)
-    """
-    p = subprocess.Popen(cmd.split(" "),
-                         stdout=subprocess.PIPE,
-                         stdin=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-    stdout = ""
-    stderr = ""
-
-    def print_line(l):
-        if echo:
-            print l.strip('\n')
-            sys.stdout.flush()
-
-    for l in iter(p.stdout.readline, ''):
-        print_line(l)
-        stdout += l
-    for l in iter(p.stderr.readline, ''):
-        print_line(l)
-        stderr += l
-
-    p.communicate()
-    rc = p.returncode
-
-    if die and rc != 0:
-        juju_log('command %s return non-zero.' % cmd)
-    return (stdout, stderr, rc)
-
-
 def do_openstack_upgrade(configs):
     """
     Perform an uprade of cinder.  Takes care of upgrading packages, rewriting
