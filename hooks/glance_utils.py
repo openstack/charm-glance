@@ -157,17 +157,6 @@ def ensure_ceph_pool(service):
         ceph_create_pool(service=service, name=service)
 
 
-def set_ceph_env_variables(service):
-    # XXX: Horrid kludge to make cinder-volume use
-    # a different ceph username than admin
-    env = open('/etc/environment', 'r').read()
-    if 'CEPH_ARGS' not in env:
-        with open('/etc/environment', 'a') as out:
-            out.write('CEPH_ARGS="--id %s"\n' % service)
-    with open('/etc/init/glance.override', 'w') as out:
-        out.write('env CEPH_ARGS="--id %s"\n' % service)
-
-
 def do_openstack_upgrade(configs):
     """
     Perform an uprade of cinder.  Takes care of upgrading packages, rewriting

@@ -10,7 +10,6 @@ from glance_utils import (
     migrate_database,
     register_configs,
     restart_map,
-    set_ceph_env_variables,
     CLUSTER_RES,
     PACKAGES,
     SERVICES,
@@ -173,8 +172,6 @@ def ceph_changed():
 
     CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write(CEPH_CONF)
-
-    set_ceph_env_variables(service=SERVICE_NAME)
 
     if eligible_leader(CLUSTER_RES):
         ensure_ceph_pool(service=SERVICE_NAME)
