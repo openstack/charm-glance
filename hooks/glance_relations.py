@@ -13,7 +13,6 @@ from glance_utils import (
     PACKAGES,
     SERVICES,
     CHARM,
-    SERVICE_NAME,
     GLANCE_REGISTRY_CONF,
     GLANCE_REGISTRY_PASTE_INI,
     GLANCE_API_CONF,
@@ -22,12 +21,13 @@ from glance_utils import (
     CEPH_CONF, )
 
 from charmhelpers.core.hookenv import (
-    config as charm_conf,
+    config,
     Hooks,
     log as juju_log,
     relation_get,
     relation_set,
     relation_ids,
+    service_name,
     unit_get,
     UnregisteredHookError, )
 
@@ -58,13 +58,12 @@ hooks = Hooks()
 
 CONFIGS = register_configs()
 
-config = charm_conf()
 
 @hooks.hook('install')
 def install_hook():
     juju_log('Installing glance packages')
 
-    src = config['openstack-origin']
+    src = config('openstack-origin')
     if (lsb_release()['DISTRIB_CODENAME'] == 'precise' and
        src == 'distro'):
         src = 'cloud:precise-folsom'
@@ -82,7 +81,7 @@ def install_hook():
 
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
-    relation_set(database=config['database'], username=config['database-user'],
+    relation_set(database=config('database'), username=config('database-user'),
                  hostname=unit_get('private-address'))
 
 
@@ -123,7 +122,7 @@ def image_service_joined(relation_id=None):
 
     host = unit_get('private-address')
     if is_clustered():
-        host = config["vip"]
+        host = config("vip")
 
     relation_data = {
         'glance-api-server': "%s://%s:9292" % (scheme, host), }
@@ -164,7 +163,7 @@ def ceph_changed():
         juju_log('ceph relation incomplete. Peer not ready?')
         return
 
-    if not ensure_ceph_keyring(service=SERVICE_NAME):
+    if not ensure_ceph_keyring(service=service_name()):
         juju_log('Could not create ceph keyring: peer not ready?')
         return
 
@@ -172,7 +171,7 @@ def ceph_changed():
     CONFIGS.write(CEPH_CONF)
 
     if eligible_leader(CLUSTER_RES):
-        ensure_ceph_pool(service=SERVICE_NAME)
+        ensure_ceph_pool(service=service_name())
 
 
 @hooks.hook('identity-service-relation-joined')
@@ -187,13 +186,13 @@ def keystone_joined(relation_id=None):
 
     host = unit_get('private-address')
     if is_clustered():
-        host = config["vip"]
+        host = config("vip")
 
     url = "%s://%s:9292" % (scheme, host)
 
     relation_data = {
         'service': 'glance',
-        'region': config['region'],
+        'region': config('region'),
         'public_url': url,
         'admin_url': url,
         'internal_url': url, }
@@ -228,7 +227,7 @@ def keystone_changed():
 def config_changed():
     # Determine whether or not we should do an upgrade, based on whether or not
     # the version offered in openstack-origin is greater than what is installed
-    install_src = config["openstack-origin"]
+    install_src = config("openstack-origin")
     available = get_os_codename_install_source(install_src)
     installed = get_os_codename_package("glance-common")
 
@@ -241,7 +240,7 @@ def config_changed():
 
     configure_https()
 
-    env_vars = {'OPENSTACK_PORT_MCASTPORT': config["ha-mcastport"],
+    env_vars = {'OPENSTACK_PORT_MCASTPORT': config("ha-mcastport"),
                 'OPENSTACK_SERVICE_API': "glance-api",
                 'OPENSTACK_SERVICE_REGISTRY': "glance-registry"}
     save_script_rc(**env_vars)
@@ -261,11 +260,11 @@ def upgrade_charm():
 
 @hooks.hook('ha-relation-joined')
 def ha_relation_joined():
-    corosync_bindiface = config["ha-bindiface"]
-    corosync_mcastport = config["ha-mcastport"]
-    vip = config["vip"]
-    vip_iface = config["vip_iface"]
-    vip_cidr = config["vip_cidr"]
+    corosync_bindiface = config("ha-bindiface")
+    corosync_mcastport = config("ha-mcastport")
+    vip = config("vip")
+    vip_iface = config("vip_iface")
+    vip_cidr = config("vip_cidr")
 
     #if vip and vip_iface and vip_cidr and \
     #    corosync_bindiface and corosync_mcastport:
@@ -299,7 +298,7 @@ def ha_relation_changed():
         juju_log('glance subordinate is not fully clustered.')
         return
     if eligible_leader(CLUSTER_RES):
-        host = config["vip"]
+        host = config("vip")
         scheme = "http"
         if 'https' in CONFIGS.complete_contexts():
             scheme = "https"
@@ -309,7 +308,7 @@ def ha_relation_changed():
         for r_id in relation_ids('identity-service'):
             relation_set(relation_id=r_id,
                          service="glance",
-                         region=config["region"],
+                         region=config("region"),
                          public_url=url,
                          admin_url=url,
                          internal_url=url)

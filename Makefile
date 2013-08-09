@@ -6,3 +6,6 @@ lint:
 
 sync:
 	@charm-helper-sync -c charm-helpers-sync.yaml
+
+test:
+	@nosetests -svd tests/

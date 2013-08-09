@@ -16,8 +16,7 @@ from charmhelpers.core.hookenv import (
     log as juju_log,
     relation_get,
     relation_ids,
-    related_units,
-    service_name, )
+    related_units, )
 
 from charmhelpers.contrib.openstack import (
     templating,
@@ -48,7 +47,6 @@ SERVICES = [
     "glance-api", "glance-registry", ]
 
 CHARM = "glance"
-SERVICE_NAME = service_name()
 
 GLANCE_REGISTRY_CONF = "/etc/glance/glance-registry.conf"
 GLANCE_REGISTRY_PASTE_INI = "/etc/glance/glance-registry-paste.ini"
