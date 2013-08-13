@@ -22,6 +22,7 @@ TO_PATCH = [
     'juju_log',
     'relation_ids',
     'relation_set',
+    'relation_get',
     'service_name',
     'unit_get',
     # charmhelpers.core.host
@@ -327,4 +328,62 @@ class GlanceRelationTests(CharmTestCase):
 #        self.get_os_codename_install_source.return_value = 'precise'
 #        self.get_os_codename_package = 'precise'
 
+    @patch.object(relations, 'CONFIGS')
+    def test_cluster_changed(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['cluster']
+        configs.write = MagicMock()
+        relations.cluster_changed()
+        self.assertEquals([call('/etc/glance/glance-api.conf'),
+                           call('/etc/haproxy/haproxy.cfg')],
+                           configs.write.call_args_list)
 
+    @patch.object(relations, 'cluster_changed')
+    def test_upgrade_charm(self, cluster_changed):
+        relations.upgrade_charm()
+        cluster_changed.assert_called_with()
+
+    def test_ha_relation_joined(self):
+        self.test_config.set('ha-bindiface', 'em0')
+        self.test_config.set('ha-mcastport', '8080')
+        self.test_config.set('vip', '10.10.10.10')
+        self.test_config.set('vip_iface', 'em1')
+        self.test_config.set('vip_cidr', '24')
+        relations.ha_relation_joined()
+        args = {
+            'corosync_bindiface': 'em0',
+            'corosync_mcastport': '8080',
+            'init_services': {'res_glance_haproxy': 'haproxy'},
+            'resources': {'res_glance_vip': 'ocf:heartbeat:IPaddr2',
+                          'res_glance_haproxy': 'lsb:haproxy'},
+            'resource_params': {'res_glance_vip': 'params ip="10.10.10.10" cidr_netmask="24" nic="em1"',
+                                'res_glance_haproxy': 'op monitor interval="5s"'},
+            'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
+        }
+        self.relation_set.assert_called_with(**args)
+
+    def test_ha_relation_changed_not_clustered(self):
+        self.relation_get.return_value = False
+        relations.ha_relation_changed()
+        self.juju_log.assert_called_with('glance subordinate is not fully clustered.')
+
+    @patch.object(relations, 'CONFIGS')
+    def test_ha_relation_changed_with_https(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['https']
+        configs.write = MagicMock()
+        self.relation_get.return_value = True
+        self.test_config.set('vip', '10.10.10.10')
+        self.test_config.set('region', 'FirstRegion')
+        self.relation_ids.return_value = ['identity-service:0',
+                                          'identity-service:1']
+        relations.ha_relation_changed()
+        self.juju_log.assert_called_with('glance: Cluster configured, notifying other services')
+        # TODO: Figure out what's needed to test both relations and not only the last one
+        # as this seems process.
+        #self.relation_set.assert_called_with(relation_id="identity-service:0",
+        #                                     service="glance",
+        #                                     region="FirstRegion",
+        #                                     public_url="https://10.10.10.10:9292",
+        #                                     admin_url="https://10.10.10.10:9292",
+        #                                     internal_url="https://10.10.10.10:9292")
