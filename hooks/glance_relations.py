@@ -44,10 +44,7 @@ from charmhelpers.contrib.hahelpers.cluster_utils import (
 from charmhelpers.contrib.openstack.openstack_utils import (
     configure_installation_source,
     get_os_codename_package,
-    get_os_codename_install_source,
-    get_os_version_codename,
     openstack_upgrade_available,
-    save_script_rc,
     lsb_release, )
 
 from subprocess import (
