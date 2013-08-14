@@ -8,4 +8,5 @@ sync:
 	@charm-helper-sync -c charm-helpers-sync.yaml
 
 test:
-	@nosetests -svd tests/
+	#@nosetests -svd tests/
+	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage  tests
