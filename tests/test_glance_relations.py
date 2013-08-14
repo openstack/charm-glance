@@ -32,7 +32,9 @@ TO_PATCH = [
     'service_stop',
     #charmhelpers.contrib.openstack.utils
     'configure_installation_source',
+    'get_os_codename_install_source',
     'get_os_codename_package',
+    'get_os_version_codename',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'eligible_leader',
     'is_clustered',
@@ -43,8 +45,6 @@ TO_PATCH = [
     'migrate_database',
     'ensure_ceph_keyring',
     'ensure_ceph_pool',
-    # glance_relations
-    'configure_https',
     # other
     'getstatusoutput',
     'check_call',
@@ -128,18 +128,58 @@ class GlanceRelationTests(CharmTestCase):
         self.migrate_database.assert_called_with()
 
     @patch.object(relations, 'CONFIGS')
-    def test_image_service_joined(self, configs):
-        # look at compute joined
+    def test_image_service_joined_clustered_with_https(self, configs):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['https']
         configs.write = MagicMock()
+        self.unit_get.return_value = 'glance.foohost.com'
+        self.is_clustered.return_value = True
+        self.test_config.set('vip', '10.10.10.10')
         relations.image_service_joined()
         self.assertTrue(self.eligible_leader.called)
-        # TODO: Look into changing 'glance-api-server'
-        #self.relation_set.assert_called_with(
-        #    relation_id=None,
-        #    glance-api-server='https://',
-        #)
+        self.unit_get.assert_called_with('private-address')
+        self.relation_set.assert_called_with(relation_id=None,
+                                             glance_api_server="https://10.10.10.10:9292")
+
+    @patch.object(relations, 'CONFIGS')
+    def test_image_service_joined_not_clustered_with_https(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['https']
+        configs.write = MagicMock()
+        self.unit_get.return_value = 'glance.foohost.com'
+        self.is_clustered.return_value = False
+        relations.image_service_joined()
+        self.assertTrue(self.eligible_leader.called)
+        self.unit_get.assert_called_with('private-address')
+        self.relation_set.assert_called_with(relation_id=None,
+                                             glance_api_server="https://glance.foohost.com:9292")
+
+    @patch.object(relations, 'CONFIGS')
+    def test_image_service_joined_clustered_with_http(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['']
+        configs.write = MagicMock()
+        self.unit_get.return_value = 'glance.foohost.com'
+        self.is_clustered.return_value = True
+        self.test_config.set('vip', '10.10.10.10')
+        relations.image_service_joined()
+        self.assertTrue(self.eligible_leader.called)
+        self.unit_get.assert_called_with('private-address')
+        self.relation_set.assert_called_with(relation_id=None,
+                                             glance_api_server="http://10.10.10.10:9292")
+
+    @patch.object(relations, 'CONFIGS')
+    def test_image_service_joined_not_clustered_with_http(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = []
+        configs.write = MagicMock()
+        self.unit_get.return_value = 'glance.foohost.com'
+        self.is_clustered.return_value = False
+        relations.image_service_joined()
+        self.assertTrue(self.eligible_leader.called)
+        self.unit_get.assert_called_with('private-address')
+        self.relation_set.assert_called_with(relation_id=None,
+                                             glance_api_server="http://glance.foohost.com:9292")
 
     @patch.object(relations, 'CONFIGS')
     def test_object_store_joined_without_identity_service(self, configs):
@@ -291,8 +331,9 @@ class GlanceRelationTests(CharmTestCase):
             internal_url='https://10.10.10.10:9292',
         )
 
+    @patch.object(relations, 'configure_https')
     @patch.object(relations, 'CONFIGS')
-    def test_keystone_changed_no_object_store_relation(self, configs):
+    def test_keystone_changed_no_object_store_relation(self, configs, configure_https):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['identity-service']
         configs.write = MagicMock()
@@ -303,11 +344,12 @@ class GlanceRelationTests(CharmTestCase):
                            call('/etc/glance/glance-api-paste.ini'),
                            call('/etc/glance/glance-registry-paste.ini')],
                            configs.write.call_args_list)
-        self.configure_https.assert_called_with()
+        self.assertTrue(configure_https.called)
 
-    @patch.object(relations, 'CONFIGS')
+    @patch.object(relations, 'configure_https')
     @patch.object(relations, 'object_store_joined')
-    def test_keystone_changed_no_object_store_relation(self, object_store_joined, configs):
+    @patch.object(relations, 'CONFIGS')
+    def test_keystone_changed_no_object_store_relation(self, configs, object_store_joined, configure_https):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['identity-service']
         configs.write = MagicMock()
@@ -319,14 +361,17 @@ class GlanceRelationTests(CharmTestCase):
                            call('/etc/glance/glance-registry-paste.ini')],
                            configs.write.call_args_list)
         object_store_joined.assert_called_with()
-        self.configure_https.assert_called_with()
+        self.assertTrue(configure_https.called)
 
-#    TODO: config_changed
-#    def test_config_changed(self):
-#        relations.config_changed()
-#        self.test_config.set('openstack-origin', 'cloud:precise-grizzly')
-#        self.get_os_codename_install_source.return_value = 'precise'
-#        self.get_os_codename_package = 'precise'
+    def test_config_changed(self):
+        self.test_config.set('openstack-origin', 'cloud:precise-grizzly')
+        self.get_os_codename_install_source.return_value = '10.0'
+        self.get_os_codename_package.return_value = '9.0'
+        relations.config_changed()
+        #self.juju_log.assert_called_with(
+        #    'glance: Upgrading OpenStack release: 9.0 -> 10.0'
+        #)
+
 
     @patch.object(relations, 'CONFIGS')
     def test_cluster_changed(self, configs):
@@ -375,15 +420,93 @@ class GlanceRelationTests(CharmTestCase):
         self.relation_get.return_value = True
         self.test_config.set('vip', '10.10.10.10')
         self.test_config.set('region', 'FirstRegion')
-        self.relation_ids.return_value = ['identity-service:0',
-                                          'identity-service:1']
+        self.relation_ids.return_value = ['relation-made:0']
         relations.ha_relation_changed()
         self.juju_log.assert_called_with('glance: Cluster configured, notifying other services')
-        # TODO: Figure out what's needed to test both relations and not only the last one
-        # as this seems process.
-        #self.relation_set.assert_called_with(relation_id="identity-service:0",
-        #                                     service="glance",
-        #                                     region="FirstRegion",
-        #                                     public_url="https://10.10.10.10:9292",
-        #                                     admin_url="https://10.10.10.10:9292",
-        #                                     internal_url="https://10.10.10.10:9292")
+        self.assertEquals([call('identity-service'), call('image-service')],
+                          self.relation_ids.call_args_list)
+        ex = [
+            call(service='glance',
+                 region='FirstRegion',
+                 public_url='https://10.10.10.10:9292',
+                 internal_url='https://10.10.10.10:9292',
+                 relation_id='relation-made:0',
+                 admin_url='https://10.10.10.10:9292'),
+            call(glance_api_server='https://10.10.10.10:9292',
+                 relation_id='relation-made:0')
+        ]
+        self.assertEquals(ex, self.relation_set.call_args_list)
+
+    @patch.object(relations, 'CONFIGS')
+    def test_ha_relation_changed_with_http(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['']
+        configs.write = MagicMock()
+        self.relation_get.return_value = True
+        self.test_config.set('vip', '10.10.10.10')
+        self.test_config.set('region', 'FirstRegion')
+        self.relation_ids.return_value = ['relation-made:0']
+        relations.ha_relation_changed()
+        self.juju_log.assert_called_with('glance: Cluster configured, notifying other services')
+        self.assertEquals([call('identity-service'), call('image-service')],
+                          self.relation_ids.call_args_list)
+        ex = [
+            call(service='glance',
+                 region='FirstRegion',
+                 public_url='http://10.10.10.10:9292',
+                 internal_url='http://10.10.10.10:9292',
+                 relation_id='relation-made:0',
+                 admin_url='http://10.10.10.10:9292'),
+            call(glance_api_server='http://10.10.10.10:9292',
+                 relation_id='relation-made:0')
+        ]
+        self.assertEquals(ex, self.relation_set.call_args_list)
+
+    @patch.object(relations, 'keystone_joined')
+    @patch.object(relations, 'CONFIGS')
+    def test_configure_https_enable_with_identity_service(self, configs, keystone_joined):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['https']
+        configs.write = MagicMock()
+        self.relation_ids.return_value = ['identity-service:0']
+        relations.configure_https()
+        cmd = ['a2ensite', 'openstack_https_frontend']
+        self.check_call.assert_called_with(cmd)
+        keystone_joined.assert_called_with(relation_id='identity-service:0')
+
+    @patch.object(relations, 'keystone_joined')
+    @patch.object(relations, 'CONFIGS')
+    def test_configure_https_disable_with_keystone_joined(self, configs, keystone_joined):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['']
+        configs.write = MagicMock()
+        self.relation_ids.return_value = ['identity-service:0']
+        relations.configure_https()
+        cmd = ['a2dissite', 'openstack_https_frontend']
+        self.check_call.assert_called_with(cmd)
+        keystone_joined.assert_called_with(relation_id='identity-service:0')
+
+    @patch.object(relations, 'image_service_joined')
+    @patch.object(relations, 'CONFIGS')
+    def test_configure_https_enable_with_image_service(self, configs, image_service_joined):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['https']
+        configs.write = MagicMock()
+        self.relation_ids.return_value = ['image-service:0']
+        relations.configure_https()
+        cmd = ['a2ensite', 'openstack_https_frontend']
+        self.check_call.assert_called_with(cmd)
+        image_service_joined.assert_called_with(relation_id='image-service:0')
+
+    @patch.object(relations, 'image_service_joined')
+    @patch.object(relations, 'CONFIGS')
+    def test_configure_https_disable_with_image_service(self, configs, image_service_joined):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['']
+        configs.write = MagicMock()
+        self.relation_ids.return_value = ['image-service:0']
+        relations.configure_https()
+        cmd = ['a2dissite', 'openstack_https_frontend']
+        self.check_call.assert_called_with(cmd)
+        image_service_joined.assert_called_with(relation_id='image-service:0')
+

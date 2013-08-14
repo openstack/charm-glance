@@ -125,10 +125,10 @@ def image_service_joined(relation_id=None):
         host = config("vip")
 
     relation_data = {
-        'glance-api-server': "%s://%s:9292" % (scheme, host), }
+        'glance_api_server': "%s://%s:9292" % (scheme, host), }
 
-    juju_log("%s: image-service_joined: To peer glance-api-server=%s" %
-             (CHARM, relation_data['glance-api-server']))
+    juju_log("%s: image-service_joined: To peer glance_api_server=%s" %
+             (CHARM, relation_data['glance_api_server']))
 
     relation_set(relation_id=relation_id, **relation_data)
 
@@ -315,7 +315,7 @@ def ha_relation_changed():
 
         for r_id in relation_ids('image-service'):
             relation_data = {
-                'glance-api-server': url, }
+                'glance_api_server': url, }
             relation_set(relation_id=r_id, **relation_data)
 
 
@@ -332,7 +332,6 @@ def configure_https():
     else:
         cmd = ['a2dissite', 'openstack_https_frontend']
         check_call(cmd)
-        return
 
     for r_id in relation_ids('identity-service'):
         keystone_joined(relation_id=r_id)
