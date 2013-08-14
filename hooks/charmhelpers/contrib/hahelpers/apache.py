@@ -1,0 +1,58 @@
+#
+# Copyright 2012 Canonical Ltd.
+#
+# This file is sourced from lp:openstack-charm-helpers
+#
+# Authors:
+#  James Page <james.page@ubuntu.com>
+#  Adam Gandelman <adamg@ubuntu.com>
+#
+
+import subprocess
+
+from charmhelpers.core.hookenv import (
+    config as config_get,
+    relation_get,
+    relation_ids,
+    related_units as relation_list,
+    log,
+    INFO,
+)
+
+
+def get_cert():
+    cert = config_get('ssl_cert')
+    key = config_get('ssl_key')
+    if not (cert and key):
+        log("Inspecting identity-service relations for SSL certificate.",
+            level=INFO)
+        cert = key = None
+        for r_id in relation_ids('identity-service'):
+            for unit in relation_list(r_id):
+                if not cert:
+                    cert = relation_get('ssl_cert',
+                                        rid=r_id, unit=unit)
+                if not key:
+                    key = relation_get('ssl_key',
+                                       rid=r_id, unit=unit)
+    return (cert, key)
+
+
+def get_ca_cert():
+    ca_cert = None
+    log("Inspecting identity-service relations for CA SSL certificate.",
+        level=INFO)
+    for r_id in relation_ids('identity-service'):
+        for unit in relation_list(r_id):
+            if not ca_cert:
+                ca_cert = relation_get('ca_cert',
+                                       rid=r_id, unit=unit)
+    return ca_cert
+
+
+def install_ca_cert(ca_cert):
+    if ca_cert:
+        with open('/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
+                  'w') as crt:
+            crt.write(ca_cert)
+        subprocess.check_call(['update-ca-certificates', '--fresh'])

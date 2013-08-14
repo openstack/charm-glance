@@ -32,7 +32,6 @@ TO_PATCH = [
     'service_stop',
     #charmhelpers.contrib.openstack.utils
     'configure_installation_source',
-    'get_os_codename_install_source',
     'get_os_codename_package',
     'openstack_upgrade_available',
     # charmhelpers.contrib.hahelpers.cluster_utils

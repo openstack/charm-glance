@@ -8,7 +8,7 @@ from charmhelpers.contrib.openstack.context import (
     ApacheSSLContext as SSLContext,
 )
 
-from charmhelpers.contrib.hahelpers.cluster_utils import (
+from charmhelpers.contrib.hahelpers.cluster import (
     determine_api_port,
     determine_haproxy_port,
 )

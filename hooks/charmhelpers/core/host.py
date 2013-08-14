@@ -9,12 +9,14 @@ import apt_pkg
 import os
 import pwd
 import grp
+import random
+import string
 import subprocess
 import hashlib
 
 from collections import OrderedDict
 
-from hookenv import log, execution_environment
+from hookenv import log
 
 
 def service_start(service_name):
@@ -37,6 +39,18 @@ def service_reload(service_name, restart_on_failure=False):
 def service(action, service_name):
     cmd = ['service', service_name, action]
     return subprocess.call(cmd) == 0
+
+
+def service_running(service):
+    try:
+        output = subprocess.check_output(['service', service, 'status'])
+    except subprocess.CalledProcessError:
+        return False
+    else:
+        if ("start/running" in output or "is running" in output):
+            return True
+        else:
+            return False
 
 
 def adduser(username, password=None, shell='/bin/bash', system_user=False):
@@ -74,36 +88,33 @@ def add_user_to_group(username, group):
 
 def rsync(from_path, to_path, flags='-r', options=None):
     """Replicate the contents of a path"""
-    context = execution_environment()
     options = options or ['--delete', '--executability']
     cmd = ['/usr/bin/rsync', flags]
     cmd.extend(options)
-    cmd.append(from_path.format(**context))
-    cmd.append(to_path.format(**context))
+    cmd.append(from_path)
+    cmd.append(to_path)
     log(" ".join(cmd))
     return subprocess.check_output(cmd).strip()
 
 
 def symlink(source, destination):
     """Create a symbolic link"""
-    context = execution_environment()
     log("Symlinking {} as {}".format(source, destination))
     cmd = [
         'ln',
         '-sf',
-        source.format(**context),
-        destination.format(**context)
+        source,
+        destination,
     ]
     subprocess.check_call(cmd)
 
 
 def mkdir(path, owner='root', group='root', perms=0555, force=False):
     """Create a directory"""
-    context = execution_environment()
     log("Making dir {} {}:{} {:o}".format(path, owner, group,
                                           perms))
-    uid = pwd.getpwnam(owner.format(**context)).pw_uid
-    gid = grp.getgrnam(group.format(**context)).gr_gid
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
     realpath = os.path.abspath(path)
     if os.path.exists(realpath):
         if force and not os.path.isdir(realpath):
@@ -114,28 +125,15 @@ def mkdir(path, owner='root', group='root', perms=0555, force=False):
     os.chown(realpath, uid, gid)
 
 
-def write_file(path, fmtstr, owner='root', group='root', perms=0444, **kwargs):
+def write_file(path, content, owner='root', group='root', perms=0444):
     """Create or overwrite a file with the contents of a string"""
-    context = execution_environment()
-    context.update(kwargs)
-    log("Writing file {} {}:{} {:o}".format(path, owner, group,
-        perms))
-    uid = pwd.getpwnam(owner.format(**context)).pw_uid
-    gid = grp.getgrnam(group.format(**context)).gr_gid
-    with open(path.format(**context), 'w') as target:
+    log("Writing file {} {}:{} {:o}".format(path, owner, group, perms))
+    uid = pwd.getpwnam(owner).pw_uid
+    gid = grp.getgrnam(group).gr_gid
+    with open(path, 'w') as target:
         os.fchown(target.fileno(), uid, gid)
         os.fchmod(target.fileno(), perms)
-        target.write(fmtstr.format(**context))
-
-
-def render_template_file(source, destination, **kwargs):
-    """Create or overwrite a file using a template"""
-    log("Rendering template {} for {}".format(source,
-        destination))
-    context = execution_environment()
-    with open(source.format(**context), 'r') as template:
-        write_file(destination.format(**context), template.read(),
-                   **kwargs)
+        target.write(content)
 
 
 def filter_installed_packages(packages):
@@ -271,3 +269,15 @@ def lsb_release():
             k, v = l.split('=')
             d[k.strip()] = v.strip()
     return d
+
+
+def pwgen(length=None):
+    '''Generate a random pasword.'''
+    if length is None:
+        length = random.choice(range(35, 45))
+    alphanumeric_chars = [
+        l for l in (string.letters + string.digits)
+        if l not in 'l0QD1vAEIOUaeiou']
+    random_chars = [
+        random.choice(alphanumeric_chars) for _ in range(length)]
+    return(''.join(random_chars))

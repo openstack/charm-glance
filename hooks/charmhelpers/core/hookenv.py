@@ -197,7 +197,7 @@ def relation_ids(reltype=None):
     relid_cmd_line = ['relation-ids', '--format=json']
     if reltype is not None:
         relid_cmd_line.append(reltype)
-        return json.loads(subprocess.check_output(relid_cmd_line))
+        return json.loads(subprocess.check_output(relid_cmd_line)) or []
     return []
 
 
@@ -208,7 +208,7 @@ def related_units(relid=None):
     units_cmd_line = ['relation-list', '--format=json']
     if relid is not None:
         units_cmd_line.extend(('-r', relid))
-    return json.loads(subprocess.check_output(units_cmd_line))
+    return json.loads(subprocess.check_output(units_cmd_line)) or []
 
 
 @cached
@@ -334,6 +334,7 @@ class Hooks(object):
                         decorated.__name__.replace('_', '-'), decorated)
             return decorated
         return wrapper
+
 
 def charm_dir():
     return os.environ.get('CHARM_DIR')

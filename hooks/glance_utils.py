@@ -22,17 +22,17 @@ from charmhelpers.contrib.openstack import (
     templating,
     context, )
 
-from charmhelpers.contrib.hahelpers.cluster_utils import (
+from charmhelpers.contrib.hahelpers.cluster import (
     eligible_leader,
 )
 
-from charmhelpers.contrib.hahelpers.ceph_utils import (
+from charmhelpers.contrib.hahelpers.ceph import (
     create_keyring as ceph_create_keyring,
     create_pool as ceph_create_pool,
     keyring_path as ceph_keyring_path,
     pool_exists as ceph_pool_exists, )
 
-from charmhelpers.contrib.openstack.openstack_utils import (
+from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
     get_os_codename_package,
     configure_installation_source, )

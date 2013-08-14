@@ -37,11 +37,11 @@ from charmhelpers.core.host import (
     apt_update,
     service_stop, )
 
-from charmhelpers.contrib.hahelpers.cluster_utils import (
+from charmhelpers.contrib.hahelpers.cluster import (
     eligible_leader,
     is_clustered, )
 
-from charmhelpers.contrib.openstack.openstack_utils import (
+from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     get_os_codename_package,
     openstack_upgrade_available,

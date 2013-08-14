@@ -1,85 +1,20 @@
-import logging
 import os
 
+from charmhelpers.core.host import apt_install
+
+from charmhelpers.core.hookenv import (
+    log,
+    ERROR,
+    INFO
+)
+
+from charmhelpers.contrib.openstack.utils import OPENSTACK_CODENAMES
+
 try:
-    import jinja2
+    from jinja2 import FileSystemLoader, ChoiceLoader, Environment
 except ImportError:
-    pass
-
-
-logging.basicConfig(level=logging.INFO)
-
-"""
-
-WIP Abstract templating system for the OpenStack charms.
-
-The idea is that an openstack charm can register a number of config files
-associated with common context generators.  The context generators are
-responsible for inspecting charm config/relation data/deployment state
-and presenting correct context to the template. Generic context generators
-could live somewhere in charmhelpers.contrib.openstack, and each
-charm can implement their own specific ones as well.
-
-Ideally a charm would register all its config files somewhere in its namespace,
-eg cinder_utils.py:
-
-from charmhelpers.contrib.openstack import templating, context
-
-config_files = {
-    '/etc/cinder/cinder.conf': [context.shared_db,
-                                context.amqp,
-                                context.ceph],
-    '/etc/cinder/api-paste.ini': [context.identity_service]
-}
-
-configs = templating.OSConfigRenderer(template_dir='templates/')
-
-[configs.register(k, v) for k, v in config_files.iteritems()]
-
-Hooks can then render config files as need, eg:
-
-def config_changed():
-    configs.render_all()
-
-def db_changed():
-    configs.render('/etc/cinder/cinder.conf')
-    check_call(['cinder-manage', 'db', 'sync'])
-
-This would look very similar for nova/glance/etc.
-
-
-The OSTemplteLoader is responsible for creating a jinja2.ChoiceLoader that
-should help reduce fragmentation of a charms' templates across OpenStack
-releases, so we do not need to maintain many copies of templates or juggle
-symlinks. The constructed loader lets the template be loaded from the most
-recent OS release-specific template dir or a base template dir.
-
-For example, say cinder has no changes in config structure across any OS
-releases, all OS releases share the same templates from the base directory:
-
-
-templates/api-paste.ini
-templates/cinder.conf
-
-Then, since Grizzly and beyond, cinder.conf's format has changed:
-
-templates/api-paste.ini
-templates/cinder.conf
-templates/grizzly/cinder.conf
-
-
-Grizzly and beyond will load from templates/grizzly, but any release prior will
-load from templates/.   If some change in Icehouse breaks config format again:
-
-templates/api-paste.ini
-templates/cinder.conf
-templates/grizzly/cinder.conf
-templates/icehouse/cinder.conf
-
-Icehouse and beyond will load from icehouse/, Grizzly + Havan from grizzly/,
-previous releases from the base templates/
-
-"""
+    # python-jinja2 may not be installed yet, or we're running unittests.
+    FileSystemLoader = ChoiceLoader = Environment = None
 
 
 class OSConfigException(Exception):
@@ -107,36 +42,36 @@ def get_loader(templates_dir, os_release):
                           jinja2.FilesystemLoaders, ordered in descending
                           order by OpenStack release.
     """
-    tmpl_dirs = (
-        ('essex', os.path.join(templates_dir, 'essex')),
-        ('folsom', os.path.join(templates_dir, 'folsom')),
-        ('grizzly', os.path.join(templates_dir, 'grizzly')),
-        ('havana', os.path.join(templates_dir, 'havana')),
-        ('icehouse', os.path.join(templates_dir, 'icehouse')),
-    )
+    tmpl_dirs = [(rel, os.path.join(templates_dir, rel))
+                 for rel in OPENSTACK_CODENAMES.itervalues()]
 
     if not os.path.isdir(templates_dir):
-        logging.error('Templates directory not found @ %s.' % templates_dir)
+        log('Templates directory not found @ %s.' % templates_dir,
+            level=ERROR)
         raise OSConfigException
 
     # the bottom contains tempaltes_dir and possibly a common templates dir
     # shipped with the helper.
-    loaders = [jinja2.FileSystemLoader(templates_dir)]
+    loaders = [FileSystemLoader(templates_dir)]
     helper_templates = os.path.join(os.path.dirname(__file__), 'templates')
     if os.path.isdir(helper_templates):
-        loaders.append(jinja2.FileSystemLoader(helper_templates))
+        loaders.append(FileSystemLoader(helper_templates))
 
     for rel, tmpl_dir in tmpl_dirs:
         if os.path.isdir(tmpl_dir):
-            loaders.insert(0, jinja2.FileSystemLoader(tmpl_dir))
+            loaders.insert(0, FileSystemLoader(tmpl_dir))
         if rel == os_release:
             break
-    logging.info('Creating choice loader with dirs: %s' %
-                 [l.searchpath for l in loaders])
-    return jinja2.ChoiceLoader(loaders)
+    log('Creating choice loader with dirs: %s' %
+        [l.searchpath for l in loaders], level=INFO)
+    return ChoiceLoader(loaders)
 
 
 class OSConfigTemplate(object):
+    """
+    Associates a config file template with a list of context generators.
+    Responsible for constructing a template context based on those generators.
+    """
     def __init__(self, config_file, contexts):
         self.config_file = config_file
 
@@ -170,46 +105,141 @@ class OSConfigTemplate(object):
 
 
 class OSConfigRenderer(object):
+    """
+    This class provides a common templating system to be used by OpenStack
+    charms.  It is intended to help charms share common code and templates,
+    and ease the burden of managing config templates across multiple OpenStack
+    releases.
+
+    Basic usage:
+        # import some common context generates from charmhelpers
+        from charmhelpers.contrib.openstack import context
+
+        # Create a renderer object for a specific OS release.
+        configs = OSConfigRenderer(templates_dir='/tmp/templates',
+                                   openstack_release='folsom')
+        # register some config files with context generators.
+        configs.register(config_file='/etc/nova/nova.conf',
+                         contexts=[context.SharedDBContext(),
+                                   context.AMQPContext()])
+        configs.register(config_file='/etc/nova/api-paste.ini',
+                         contexts=[context.IdentityServiceContext()])
+        configs.register(config_file='/etc/haproxy/haproxy.conf',
+                         contexts=[context.HAProxyContext()])
+        # write out a single config
+        configs.write('/etc/nova/nova.conf')
+        # write out all registered configs
+        configs.write_all()
+
+    Details:
+
+    OpenStack Releases and template loading
+    ---------------------------------------
+    When the object is instantiated, it is associated with a specific OS
+    release.  This dictates how the template loader will be constructed.
+
+    The constructed loader attempts to load the template from several places
+    in the following order:
+        - from the most recent OS release-specific template dir (if one exists)
+        - the base templates_dir
+        - a template directory shipped in the charm with this helper file.
+
+
+    For the example above, '/tmp/templates' contains the following structure:
+        /tmp/templates/nova.conf
+        /tmp/templates/api-paste.ini
+        /tmp/templates/grizzly/api-paste.ini
+        /tmp/templates/havana/api-paste.ini
+
+    Since it was registered with the grizzly release, it first seraches
+    the grizzly directory for nova.conf, then the templates dir.
+
+    When writing api-paste.ini, it will find the template in the grizzly
+    directory.
+
+    If the object were created with folsom, it would fall back to the
+    base templates dir for its api-paste.ini template.
+
+    This system should help manage changes in config files through
+    openstack releases, allowing charms to fall back to the most recently
+    updated config template for a given release
+
+    The haproxy.conf, since it is not shipped in the templates dir, will
+    be loaded from the module directory's template directory, eg
+    $CHARM/hooks/charmhelpers/contrib/openstack/templates.  This allows
+    us to ship common templates (haproxy, apache) with the helpers.
+
+    Context generators
+    ---------------------------------------
+    Context generators are used to generate template contexts during hook
+    execution.  Doing so may require inspecting service relations, charm
+    config, etc.  When registered, a config file is associated with a list
+    of generators.  When a template is rendered and written, all context
+    generates are called in a chain to generate the context dictionary
+    passed to the jinja2 template. See context.py for more info.
+    """
     def __init__(self, templates_dir, openstack_release):
         if not os.path.isdir(templates_dir):
-            logging.error('Could not locate templates dir %s' % templates_dir)
+            log('Could not locate templates dir %s' % templates_dir,
+                level=ERROR)
             raise OSConfigException
+
         self.templates_dir = templates_dir
         self.openstack_release = openstack_release
         self.templates = {}
         self._tmpl_env = None
 
+        if None in [Environment, ChoiceLoader, FileSystemLoader]:
+            # if this code is running, the object is created pre-install hook.
+            # jinja2 shouldn't get touched until the module is reloaded on next
+            # hook execution, with proper jinja2 bits successfully imported.
+            apt_install('python-jinja2')
+
     def register(self, config_file, contexts):
+        """
+        Register a config file with a list of context generators to be called
+        during rendering.
+        """
         self.templates[config_file] = OSConfigTemplate(config_file=config_file,
                                                        contexts=contexts)
-        logging.info('Registered config file: %s' % config_file)
+        log('Registered config file: %s' % config_file, level=INFO)
 
     def _get_tmpl_env(self):
         if not self._tmpl_env:
             loader = get_loader(self.templates_dir, self.openstack_release)
-            self._tmpl_env = jinja2.Environment(loader=loader)
+            self._tmpl_env = Environment(loader=loader)
+
+    def _get_template(self, template):
+        self._get_tmpl_env()
+        template = self._tmpl_env.get_template(template)
+        log('Loaded template from %s' % template.filename, level=INFO)
+        return template
 
     def render(self, config_file):
         if config_file not in self.templates:
-            logging.error('Config not registered: %s' % config_file)
+            log('Config not registered: %s' % config_file, level=ERROR)
             raise OSConfigException
         ctxt = self.templates[config_file].context()
         _tmpl = os.path.basename(config_file)
-        logging.info('Rendering from template: %s' % _tmpl)
-        self._get_tmpl_env()
-        _tmpl = self._tmpl_env.get_template(_tmpl)
-        logging.info('Loaded template from %s' % _tmpl.filename)
-        return _tmpl.render(ctxt)
+        log('Rendering from template: %s' % _tmpl, level=INFO)
+        template = self._get_template(_tmpl)
+        return template.render(ctxt)
 
     def write(self, config_file):
+        """
+        Write a single config file, raises if config file is not registered.
+        """
         if config_file not in self.templates:
-            logging.error('Config not registered: %s' % config_file)
+            log('Config not registered: %s' % config_file, level=ERROR)
             raise OSConfigException
         with open(config_file, 'wb') as out:
             out.write(self.render(config_file))
-        logging.info('Wrote template %s.' % config_file)
+        log('Wrote template %s.' % config_file, level=INFO)
 
     def write_all(self):
+        """
+        Write out all registered config files.
+        """
         [self.write(k) for k in self.templates.iterkeys()]
 
     def set_release(self, openstack_release):

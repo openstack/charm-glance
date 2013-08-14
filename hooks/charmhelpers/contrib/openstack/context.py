@@ -16,7 +16,7 @@ from charmhelpers.core.hookenv import (
     unit_get,
 )
 
-from charmhelpers.contrib.hahelpers.cluster_utils import (
+from charmhelpers.contrib.hahelpers.cluster import (
     determine_api_port,
     determine_haproxy_port,
     https,
@@ -24,7 +24,7 @@ from charmhelpers.contrib.hahelpers.cluster_utils import (
     peer_units,
 )
 
-from charmhelpers.contrib.hahelpers.apache_utils import (
+from charmhelpers.contrib.hahelpers.apache import (
     get_cert,
     get_ca_cert,
 )
@@ -42,7 +42,7 @@ def context_complete(ctxt):
         if v is None or v == '':
             _missing.append(k)
     if _missing:
-        print 'Missing required data: %s' % ' '.join(_missing)
+        log('Missing required data: %s' % ' '.join(_missing), level='INFO')
         return False
     return True
 
@@ -106,8 +106,8 @@ class IdentityServiceContext(OSContextGenerator):
                     'admin_password': relation_get('service_password', rid=rid,
                                                    unit=unit),
                     # XXX: Hard-coded http.
-                    'service_protocol':  'http',
-                    'auth_protocol':  'http',
+                    'service_protocol': 'http',
+                    'auth_protocol': 'http',
                 }
         if not context_complete(ctxt):
             return {}
@@ -202,6 +202,30 @@ class HAProxyContext(OSContextGenerator):
             with open('/etc/default/haproxy', 'w') as out:
                 out.write('ENABLED=1\n')
             return ctxt
+        log('HAProxy context is incomplete, this unit has no peers.')
+        return {}
+
+
+class ImageServiceContext(OSContextGenerator):
+    interfaces = ['image-servce']
+
+    def __call__(self):
+        '''
+        Obtains the glance API server from the image-service relation.  Useful
+        in nova and cinder (currently).
+        '''
+        log('Generating template context for image-service.')
+        rids = relation_ids('image-service')
+        if not rids:
+            return {}
+        for rid in rids:
+            for unit in related_units(rid):
+                api_server = relation_get('glance-api-server',
+                                          rid=rid, unit=unit)
+                if api_server:
+                    return {'glance_api_servers': api_server}
+        log('ImageService context is incomplete. '
+            'Missing required relation data.')
         return {}
 
 

@@ -2,75 +2,70 @@
 
 # Common python helper functions used for OpenStack charms.
 
+from collections import OrderedDict
+
 import apt_pkg as apt
 import subprocess
 import os
 import sys
 
-from distutils.version import StrictVersion
-
 from charmhelpers.core.hookenv import (
     config,
+    log as juju_log,
     charm_dir,
+)
+
+from charmhelpers.core.host import (
+    lsb_release,
+    apt_install,
 )
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
 CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 
-ubuntu_openstack_release = {
-    'oneiric': 'diablo',
-    'precise': 'essex',
-    'quantal': 'folsom',
-    'raring': 'grizzly',
-}
+UBUNTU_OPENSTACK_RELEASE = OrderedDict([
+    ('oneiric', 'diablo'),
+    ('precise', 'essex'),
+    ('quantal', 'folsom'),
+    ('raring', 'grizzly'),
+    ('saucy', 'havana'),
+])
 
 
-openstack_codenames = {
-    '2011.2': 'diablo',
-    '2012.1': 'essex',
-    '2012.2': 'folsom',
-    '2013.1': 'grizzly',
-    '2013.2': 'havana',
-}
+OPENSTACK_CODENAMES = OrderedDict([
+    ('2011.2', 'diablo'),
+    ('2012.1', 'essex'),
+    ('2012.2', 'folsom'),
+    ('2013.1', 'grizzly'),
+    ('2013.2', 'havana'),
+    ('2014.1', 'icehouse'),
+])
 
 # The ugly duckling
-swift_codenames = {
+SWIFT_CODENAMES = {
     '1.4.3': 'diablo',
     '1.4.8': 'essex',
     '1.7.4': 'folsom',
     '1.7.6': 'grizzly',
     '1.7.7': 'grizzly',
     '1.8.0': 'grizzly',
+    '1.9.0': 'havana',
+    '1.9.1': 'havana',
 }
 
 
-def juju_log(msg):
-    subprocess.check_call(['juju-log', msg])
-
-
 def error_out(msg):
-    juju_log("FATAL ERROR: %s" % msg)
+    juju_log("FATAL ERROR: %s" % msg, level='ERROR')
     sys.exit(1)
-
-
-def lsb_release():
-    '''Return /etc/lsb-release in a dict'''
-    lsb = open('/etc/lsb-release', 'r')
-    d = {}
-    for l in lsb:
-        k, v = l.split('=')
-        d[k.strip()] = v.strip()
-    return d
 
 
 def get_os_codename_install_source(src):
     '''Derive OpenStack release codename from a given installation source.'''
     ubuntu_rel = lsb_release()['DISTRIB_CODENAME']
-
     rel = ''
     if src == 'distro':
         try:
-            rel = ubuntu_openstack_release[ubuntu_rel]
+            rel = UBUNTU_OPENSTACK_RELEASE[ubuntu_rel]
         except KeyError:
             e = 'Could not derive openstack release for '\
                 'this Ubuntu release: %s' % ubuntu_rel
@@ -84,7 +79,7 @@ def get_os_codename_install_source(src):
 
     # Best guess match based on deb string provided
     if src.startswith('deb') or src.startswith('ppa'):
-        for k, v in openstack_codenames.iteritems():
+        for k, v in OPENSTACK_CODENAMES.iteritems():
             if v in src:
                 return v
 
@@ -97,7 +92,7 @@ def get_os_version_install_source(src):
 def get_os_codename_version(vers):
     '''Determine OpenStack codename from version number.'''
     try:
-        return openstack_codenames[vers]
+        return OPENSTACK_CODENAMES[vers]
     except KeyError:
         e = 'Could not determine OpenStack codename for version %s' % vers
         error_out(e)
@@ -105,7 +100,7 @@ def get_os_codename_version(vers):
 
 def get_os_version_codename(codename):
     '''Determine OpenStack version number from codename.'''
-    for k, v in openstack_codenames.iteritems():
+    for k, v in OPENSTACK_CODENAMES.iteritems():
         if v == codename:
             return k
     e = 'Could not derive OpenStack version for '\
@@ -113,31 +108,37 @@ def get_os_version_codename(codename):
     error_out(e)
 
 
-def get_os_codename_package(pkg, fatal=True):
+def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
     apt.init()
     cache = apt.Cache()
 
     try:
-        pkg = cache[pkg]
+        pkg = cache[package]
     except:
         if not fatal:
             return None
-        e = 'Could not determine version of installed package: %s' % pkg
+        # the package is unknown to the current apt cache.
+        e = 'Could not determine version of package with no installation '\
+            'candidate: %s' % package
         error_out(e)
 
-    if pkg.current_ver != None:
-        vers = apt.UpstreamVersion(pkg.current_ver.ver_str)
-    else:
-        return None
+    if not pkg.current_ver:
+        if not fatal:
+            return None
+        # package is known, but no version is currently installed.
+        e = 'Could not determine version of uninstalled package: %s' % package
+        error_out(e)
+
+    vers = apt.UpstreamVersion(pkg.current_ver.ver_str)
 
     try:
         if 'swift' in pkg.name:
             vers = vers[:5]
-            return swift_codenames[vers]
+            return SWIFT_CODENAMES[vers]
         else:
             vers = vers[:6]
-            return openstack_codenames[vers]
+            return OPENSTACK_CODENAMES[vers]
     except KeyError:
         e = 'Could not determine OpenStack codename for version %s' % vers
         error_out(e)
@@ -151,9 +152,9 @@ def get_os_version_package(pkg, fatal=True):
         return None
 
     if 'swift' in pkg:
-        vers_map = swift_codenames
+        vers_map = SWIFT_CODENAMES
     else:
-        vers_map = openstack_codenames
+        vers_map = OPENSTACK_CODENAMES
 
     for version, cname in vers_map.iteritems():
         if cname == codename:
@@ -214,7 +215,10 @@ def configure_installation_source(rel):
             'folsom/proposed': 'precise-proposed/folsom',
             'grizzly': 'precise-updates/grizzly',
             'grizzly/updates': 'precise-updates/grizzly',
-            'grizzly/proposed': 'precise-proposed/grizzly'
+            'grizzly/proposed': 'precise-proposed/grizzly',
+            'havana': 'precise-updates/havana',
+            'havana/updates': 'precise-updates/havana',
+            'havana/proposed': 'precise-proposed/havana',
         }
 
         try:
@@ -224,8 +228,7 @@ def configure_installation_source(rel):
             error_out(e)
 
         src = "deb %s %s main" % (CLOUD_ARCHIVE_URL, pocket)
-        # TODO: Replace key import with cloud archive keyring pkg.
-        import_key(CLOUD_ARCHIVE_KEY_ID)
+        apt_install('ubuntu-cloud-keyring', fatal=True)
 
         with open('/etc/apt/sources.list.d/cloud-archive.list', 'w') as f:
             f.write(src)
@@ -241,7 +244,6 @@ def save_script_rc(script_path="scripts/scriptrc", **env_vars):
     updated config information necessary to perform health checks or
     service changes.
     """
-    unit_name = os.getenv('JUJU_UNIT_NAME').replace('/', '-')
     juju_rc_path = "%s/%s" % (charm_dir(), script_path)
     if not os.path.exists(os.path.dirname(juju_rc_path)):
         os.mkdir(os.path.dirname(juju_rc_path))
@@ -267,4 +269,5 @@ def openstack_upgrade_available(package):
     src = config('openstack-origin')
     cur_vers = get_os_version_package(package)
     available_vers = get_os_version_install_source(src)
-    return StrictVersion(available_vers) > StrictVersion(cur_vers)
+    apt.init()
+    return apt.version_compare(available_vers, cur_vers) == 1
