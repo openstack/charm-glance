@@ -34,7 +34,7 @@ TO_PATCH = [
     'configure_installation_source',
     'get_os_codename_install_source',
     'get_os_codename_package',
-    'get_os_version_codename',
+    'openstack_upgrade_available',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'eligible_leader',
     'is_clustered',
@@ -363,15 +363,21 @@ class GlanceRelationTests(CharmTestCase):
         object_store_joined.assert_called_with()
         self.assertTrue(configure_https.called)
 
-    def test_config_changed(self):
-        self.test_config.set('openstack-origin', 'cloud:precise-grizzly')
-        self.get_os_codename_install_source.return_value = '10.0'
-        self.get_os_codename_package.return_value = '9.0'
+    @patch.object(relations, 'configure_https')
+    def test_config_changed_no_openstack_upgrade(self, configure_https):
+        self.openstack_upgrade_available.return_value = False
         relations.config_changed()
-        #self.juju_log.assert_called_with(
-        #    'glance: Upgrading OpenStack release: 9.0 -> 10.0'
-        #)
+        self.assertTrue(configure_https.called)
 
+    @patch.object(relations, 'configure_https')
+    def test_config_changed_with_openstack_upgrade(self, configure_https):
+        self.openstack_upgrade_available.return_value = True
+        relations.config_changed()
+        self.juju_log.assert_called_with(
+            'Upgrading OpenStack release'
+        )
+        self.assertTrue(self.do_openstack_upgrade.called)
+        self.assertTrue(configure_https.called)
 
     @patch.object(relations, 'CONFIGS')
     def test_cluster_changed(self, configs):

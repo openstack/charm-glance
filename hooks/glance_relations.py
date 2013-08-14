@@ -46,6 +46,7 @@ from charmhelpers.contrib.openstack.openstack_utils import (
     get_os_codename_package,
     get_os_codename_install_source,
     get_os_version_codename,
+    openstack_upgrade_available,
     save_script_rc,
     lsb_release, )
 
@@ -225,25 +226,16 @@ def keystone_changed():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map())
 def config_changed():
-    # Determine whether or not we should do an upgrade, based on whether or not
-    # the version offered in openstack-origin is greater than what is installed
-    install_src = config("openstack-origin")
-    available = get_os_codename_install_source(install_src)
-    installed = get_os_codename_package("glance-common")
-
-    if (available and
-       get_os_version_codename(available) >
-       get_os_version_codename(installed)):
-        juju_log('%s: Upgrading OpenStack release: %s -> %s' %
-                 (CHARM, installed, available))
+    if openstack_upgrade_available('glance-common'):
+        juju_log('Upgrading OpenStack release')
         do_openstack_upgrade(CONFIGS)
 
     configure_https()
 
-    env_vars = {'OPENSTACK_PORT_MCASTPORT': config("ha-mcastport"),
-                'OPENSTACK_SERVICE_API': "glance-api",
-                'OPENSTACK_SERVICE_REGISTRY': "glance-registry"}
-    save_script_rc(**env_vars)
+    #env_vars = {'OPENSTACK_PORT_MCASTPORT': config("ha-mcastport"),
+    #            'OPENSTACK_SERVICE_API': "glance-api",
+    #            'OPENSTACK_SERVICE_REGISTRY': "glance-registry"}
+    #save_script_rc(**env_vars)
 
 
 @hooks.hook('cluster-relation-changed')
