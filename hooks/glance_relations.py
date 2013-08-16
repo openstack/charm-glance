@@ -74,8 +74,6 @@ def install_hook():
     for service in SERVICES:
         service_stop(service)
 
-    configure_https()
-
 
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
