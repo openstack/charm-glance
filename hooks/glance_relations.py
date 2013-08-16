@@ -24,6 +24,7 @@ from charmhelpers.core.hookenv import (
     config,
     Hooks,
     log as juju_log,
+    open_port,
     relation_get,
     relation_set,
     relation_ids,
@@ -225,6 +226,7 @@ def config_changed():
         juju_log('Upgrading OpenStack release')
         do_openstack_upgrade(CONFIGS)
 
+    open_port(9292)
     configure_https()
 
     #env_vars = {'OPENSTACK_PORT_MCASTPORT': config("ha-mcastport"),

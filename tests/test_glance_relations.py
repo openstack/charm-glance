@@ -20,6 +20,7 @@ TO_PATCH = [
     'Hooks',
     'config',
     'juju_log',
+    'open_port',
     'relation_ids',
     'relation_set',
     'relation_get',
@@ -366,6 +367,7 @@ class GlanceRelationTests(CharmTestCase):
     def test_config_changed_no_openstack_upgrade(self, configure_https):
         self.openstack_upgrade_available.return_value = False
         relations.config_changed()
+        self.open_port.assert_called_with(9292)
         self.assertTrue(configure_https.called)
 
     @patch.object(relations, 'configure_https')
