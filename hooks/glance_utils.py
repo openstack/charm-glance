@@ -102,7 +102,7 @@ def register_configs():
     # Register config files with their respective contexts.
     # Regstration of some configs may not be required depending on
     # existing of certain relations.
-    release = get_os_codename_package('glance-common', fatal=False) or 'folsom'
+    release = get_os_codename_package('glance-common', fatal=False) or 'essex'
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
 
