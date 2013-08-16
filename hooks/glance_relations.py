@@ -39,6 +39,7 @@ from charmhelpers.core.host import (
     service_stop, )
 
 from charmhelpers.contrib.hahelpers.cluster import (
+    canonical_url,
     eligible_leader,
     is_clustered, )
 
@@ -109,23 +110,15 @@ def db_changed():
 
 @hooks.hook('image-service-relation-joined')
 def image_service_joined(relation_id=None):
-
     if not eligible_leader(CLUSTER_RES):
         return
 
-    scheme = "http"
-    if 'https' in CONFIGS.complete_contexts():
-        scheme = "https"
-
-    host = unit_get('private-address')
-    if is_clustered():
-        host = config("vip")
-
     relation_data = {
-        'glance_api_server': "%s://%s:9292" % (scheme, host), }
+        'glance-api-server': canonical_url(CONFIGS) + ":9292"
+    }
 
-    juju_log("%s: image-service_joined: To peer glance_api_server=%s" %
-             (CHARM, relation_data['glance_api_server']))
+    juju_log("%s: image-service_joined: To peer glance-api-server=%s" %
+             (CHARM, relation_data['glance-api-server']))
 
     relation_set(relation_id=relation_id, **relation_data)
 

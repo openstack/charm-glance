@@ -18,6 +18,7 @@ utils.restart_map = _map
 TO_PATCH = [
     # charmhelpers.core.hookenv
     'Hooks',
+    'canonical_url',
     'config',
     'juju_log',
     'open_port',
@@ -127,59 +128,30 @@ class GlanceRelationTests(CharmTestCase):
         )
         self.migrate_database.assert_called_with()
 
-    @patch.object(relations, 'CONFIGS')
-    def test_image_service_joined_clustered_with_https(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['https']
-        configs.write = MagicMock()
-        self.unit_get.return_value = 'glance.foohost.com'
-        self.is_clustered.return_value = True
-        self.test_config.set('vip', '10.10.10.10')
+    def test_image_service_joined_not_leader(self):
+        self.eligible_leader.return_value = False
         relations.image_service_joined()
-        self.assertTrue(self.eligible_leader.called)
-        self.unit_get.assert_called_with('private-address')
-        self.relation_set.assert_called_with(relation_id=None,
-                                             glance_api_server="https://10.10.10.10:9292")
+        self.assertFalse(self.relation_set.called)
 
-    @patch.object(relations, 'CONFIGS')
-    def test_image_service_joined_not_clustered_with_https(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['https']
-        configs.write = MagicMock()
-        self.unit_get.return_value = 'glance.foohost.com'
-        self.is_clustered.return_value = False
+    def test_image_service_joined_leader(self):
+        self.eligible_leader.return_value = True
+        self.canonical_url.return_value = 'http://glancehost'
         relations.image_service_joined()
-        self.assertTrue(self.eligible_leader.called)
-        self.unit_get.assert_called_with('private-address')
-        self.relation_set.assert_called_with(relation_id=None,
-                                             glance_api_server="https://glance.foohost.com:9292")
+        args = {
+            'glance-api-server': 'http://glancehost:9292',
+            'relation_id': None
+        }
+        self.relation_set.assert_called_with(**args)
 
-    @patch.object(relations, 'CONFIGS')
-    def test_image_service_joined_clustered_with_http(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['']
-        configs.write = MagicMock()
-        self.unit_get.return_value = 'glance.foohost.com'
-        self.is_clustered.return_value = True
-        self.test_config.set('vip', '10.10.10.10')
-        relations.image_service_joined()
-        self.assertTrue(self.eligible_leader.called)
-        self.unit_get.assert_called_with('private-address')
-        self.relation_set.assert_called_with(relation_id=None,
-                                             glance_api_server="http://10.10.10.10:9292")
-
-    @patch.object(relations, 'CONFIGS')
-    def test_image_service_joined_not_clustered_with_http(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = []
-        configs.write = MagicMock()
-        self.unit_get.return_value = 'glance.foohost.com'
-        self.is_clustered.return_value = False
-        relations.image_service_joined()
-        self.assertTrue(self.eligible_leader.called)
-        self.unit_get.assert_called_with('private-address')
-        self.relation_set.assert_called_with(relation_id=None,
-                                             glance_api_server="http://glance.foohost.com:9292")
+    def test_image_service_joined_specified_interface(self):
+        self.eligible_leader.return_value = True
+        self.canonical_url.return_value = 'http://glancehost'
+        relations.image_service_joined(relation_id='image-service:1')
+        args = {
+            'glance-api-server': 'http://glancehost:9292',
+            'relation_id': 'image-service:1',
+        }
+        self.relation_set.assert_called_with(**args)
 
     @patch.object(relations, 'CONFIGS')
     def test_object_store_joined_without_identity_service(self, configs):
