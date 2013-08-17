@@ -38,7 +38,7 @@ TO_PATCH = [
     'openstack_upgrade_available',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'eligible_leader',
-    'is_clustered',
+    'is_leader',
     # glance_utils
     'restart_map',
     'register_configs',
@@ -224,84 +224,38 @@ class GlanceRelationTests(CharmTestCase):
                            configs.write.call_args_list)
         self.ensure_ceph_pool.assert_called_with(service=self.service_name())
 
-    @patch.object(relations, 'CONFIGS')
-    def test_keystone_joined_not_clustered(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['']
-        configs.write = MagicMock()
-        self.unit_get.return_value = 'glance.foohost.com'
-        self.test_config.set('region', 'FirstRegion')
-        self.is_clustered.return_value = False
+    def test_keystone_joined_not_leader(self):
+        self.eligible_leader.return_value = False
         relations.keystone_joined()
-        self.unit_get.assert_called_with('private-address')
-        self.relation_set.assert_called_with(
-            relation_id=None,
-            service='glance',
-            region='FirstRegion',
-            public_url='http://glance.foohost.com:9292',
-            admin_url='http://glance.foohost.com:9292',
-            internal_url='http://glance.foohost.com:9292',
-        )
+        self.assertFalse(self.relation_set.called)
 
-    @patch.object(relations, 'CONFIGS')
-    def test_keystone_joined_clustered(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['']
-        configs.write = MagicMock()
-        self.unit_get.return_value = 'glance.foohost.com'
-        self.test_config.set('region', 'FirstRegion')
-        self.test_config.set('vip', '10.10.10.10')
-        self.is_clustered.return_value = True
+    def test_keystone_joined(self):
+        self.eligible_leader.return_value = True
+        self.canonical_url.return_value = 'http://glancehost'
         relations.keystone_joined()
-        self.unit_get.assert_called_with('private-address')
-        self.relation_set.assert_called_with(
-            relation_id=None,
-            service='glance',
-            region='FirstRegion',
-            public_url='http://10.10.10.10:9292',
-            admin_url='http://10.10.10.10:9292',
-            internal_url='http://10.10.10.10:9292',
-        )
+        ex = {
+            'region': 'RegionOne',
+            'public_url': 'http://glancehost:9292',
+            'admin_url': 'http://glancehost:9292',
+            'service': 'glance',
+            'internal_url': 'http://glancehost:9292',
+            'relation_id': None,
+        }
+        self.relation_set.assert_called_with(**ex)
 
-
-    @patch.object(relations, 'CONFIGS')
-    def test_keystone_joined_not_clustered_with_https(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['https']
-        configs.write = MagicMock()
-        self.unit_get.return_value = 'glance.foohost.com'
-        self.test_config.set('region', 'FirstRegion')
-        self.is_clustered.return_value = False
-        relations.keystone_joined()
-        self.unit_get.assert_called_with('private-address')
-        self.relation_set.assert_called_with(
-            relation_id=None,
-            service='glance',
-            region='FirstRegion',
-            public_url='https://glance.foohost.com:9292',
-            admin_url='https://glance.foohost.com:9292',
-            internal_url='https://glance.foohost.com:9292',
-        )
-
-    @patch.object(relations, 'CONFIGS')
-    def test_keystone_joined_clustered_with_https(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['https']
-        configs.write = MagicMock()
-        self.unit_get.return_value = 'glance.foohost.com'
-        self.test_config.set('region', 'FirstRegion')
-        self.test_config.set('vip', '10.10.10.10')
-        self.is_clustered.return_value = True
-        relations.keystone_joined()
-        self.unit_get.assert_called_with('private-address')
-        self.relation_set.assert_called_with(
-            relation_id=None,
-            service='glance',
-            region='FirstRegion',
-            public_url='https://10.10.10.10:9292',
-            admin_url='https://10.10.10.10:9292',
-            internal_url='https://10.10.10.10:9292',
-        )
+    def test_keystone_joined_with_relation_id(self):
+        self.eligible_leader.return_value = True
+        self.canonical_url.return_value = 'http://glancehost'
+        relations.keystone_joined(relation_id='identity-service:0')
+        ex = {
+            'region': 'RegionOne',
+            'public_url': 'http://glancehost:9292',
+            'admin_url': 'http://glancehost:9292',
+            'service': 'glance',
+            'internal_url': 'http://glancehost:9292',
+            'relation_id': 'identity-service:0',
+        }
+        self.relation_set.assert_called_with(**ex)
 
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'CONFIGS')
@@ -389,57 +343,10 @@ class GlanceRelationTests(CharmTestCase):
     def test_ha_relation_changed_not_clustered(self):
         self.relation_get.return_value = False
         relations.ha_relation_changed()
-        self.juju_log.assert_called_with('glance subordinate is not fully clustered.')
 
-    @patch.object(relations, 'CONFIGS')
-    def test_ha_relation_changed_with_https(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['https']
-        configs.write = MagicMock()
-        self.relation_get.return_value = True
-        self.test_config.set('vip', '10.10.10.10')
-        self.test_config.set('region', 'FirstRegion')
-        self.relation_ids.return_value = ['relation-made:0']
-        relations.ha_relation_changed()
-        self.juju_log.assert_called_with('glance: Cluster configured, notifying other services')
-        self.assertEquals([call('identity-service'), call('image-service')],
-                          self.relation_ids.call_args_list)
-        ex = [
-            call(service='glance',
-                 region='FirstRegion',
-                 public_url='https://10.10.10.10:9292',
-                 internal_url='https://10.10.10.10:9292',
-                 relation_id='relation-made:0',
-                 admin_url='https://10.10.10.10:9292'),
-            call(glance_api_server='https://10.10.10.10:9292',
-                 relation_id='relation-made:0')
-        ]
-        self.assertEquals(ex, self.relation_set.call_args_list)
-
-    @patch.object(relations, 'CONFIGS')
-    def test_ha_relation_changed_with_http(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['']
-        configs.write = MagicMock()
-        self.relation_get.return_value = True
-        self.test_config.set('vip', '10.10.10.10')
-        self.test_config.set('region', 'FirstRegion')
-        self.relation_ids.return_value = ['relation-made:0']
-        relations.ha_relation_changed()
-        self.juju_log.assert_called_with('glance: Cluster configured, notifying other services')
-        self.assertEquals([call('identity-service'), call('image-service')],
-                          self.relation_ids.call_args_list)
-        ex = [
-            call(service='glance',
-                 region='FirstRegion',
-                 public_url='http://10.10.10.10:9292',
-                 internal_url='http://10.10.10.10:9292',
-                 relation_id='relation-made:0',
-                 admin_url='http://10.10.10.10:9292'),
-            call(glance_api_server='http://10.10.10.10:9292',
-                 relation_id='relation-made:0')
-        ]
-        self.assertEquals(ex, self.relation_set.call_args_list)
+        self.juju_log.assert_called_with(
+            'ha_changed: hacluster subordinate is not fully clustered.'
+        )
 
     @patch.object(relations, 'keystone_joined')
     @patch.object(relations, 'CONFIGS')

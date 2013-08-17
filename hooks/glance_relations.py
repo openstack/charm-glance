@@ -41,7 +41,7 @@ from charmhelpers.core.host import (
 from charmhelpers.contrib.hahelpers.cluster import (
     canonical_url,
     eligible_leader,
-    is_clustered, )
+    is_leader, )
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
@@ -170,16 +170,7 @@ def keystone_joined(relation_id=None):
         juju_log('Deferring keystone_joined() to service leader.')
         return
 
-    scheme = "http"
-    if 'https' in CONFIGS.complete_contexts():
-        scheme = "https"
-
-    host = unit_get('private-address')
-    if is_clustered():
-        host = config("vip")
-
-    url = "%s://%s:9292" % (scheme, host)
-
+    url = canonical_url(CONFIGS) + ":9292"
     relation_data = {
         'service': 'glance',
         'region': config('region'),
@@ -276,29 +267,19 @@ def ha_relation_joined():
 
 @hooks.hook('ha-relation-changed')
 def ha_relation_changed():
-    if not relation_get('clustered'):
-        juju_log('glance subordinate is not fully clustered.')
+    clustered = relation_get('clustered')
+    if not clustered or clustered in [None, 'None', '']:
+        juju_log('ha_changed: hacluster subordinate is not fully clustered.')
         return
-    if eligible_leader(CLUSTER_RES):
-        host = config("vip")
-        scheme = "http"
-        if 'https' in CONFIGS.complete_contexts():
-            scheme = "https"
-        url = "%s://%s:9292" % (scheme, host)
-        juju_log('%s: Cluster configured, notifying other services' % CHARM)
+    if not is_leader(CLUSTER_RES):
+        juju_log('ha_changed: hacluster complete but we are not leader.')
+        return
 
-        for r_id in relation_ids('identity-service'):
-            relation_set(relation_id=r_id,
-                         service="glance",
-                         region=config("region"),
-                         public_url=url,
-                         admin_url=url,
-                         internal_url=url)
+    # reconfigure endpoint in keystone to point to clustered VIP.
+    [keystone_joined(rid) for rid in relation_ids('identity-service')]
 
-        for r_id in relation_ids('image-service'):
-            relation_data = {
-                'glance_api_server': url, }
-            relation_set(relation_id=r_id, **relation_data)
+    # notify glance client services of reconfigured URL.
+    [image_service_joined(rid) for rid in relation_ids('image-service')]
 
 
 def configure_https():
