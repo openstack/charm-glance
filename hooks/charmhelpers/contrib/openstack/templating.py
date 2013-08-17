@@ -11,10 +11,10 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.contrib.openstack.utils import OPENSTACK_CODENAMES
 
 try:
-    from jinja2 import FileSystemLoader, ChoiceLoader, Environment
+    from jinja2 import FileSystemLoader, ChoiceLoader, Environment, exceptions
 except ImportError:
     # python-jinja2 may not be installed yet, or we're running unittests.
-    FileSystemLoader = ChoiceLoader = Environment = None
+    FileSystemLoader = ChoiceLoader = Environment = exceptions = None
 
 
 class OSConfigException(Exception):
@@ -220,9 +220,24 @@ class OSConfigRenderer(object):
             log('Config not registered: %s' % config_file, level=ERROR)
             raise OSConfigException
         ctxt = self.templates[config_file].context()
+
         _tmpl = os.path.basename(config_file)
+        try:
+            template = self._get_template(_tmpl)
+        except exceptions.TemplateNotFound:
+            # if no template is found with basename, try looking for it
+            # using a munged full path, eg:
+            #   /etc/apache2/apache2.conf -> etc_apache2_apache2.conf
+            _tmpl = '_'.join(config_file.split('/')[1:])
+            try:
+                template = self._get_template(_tmpl)
+            except exceptions.TemplateNotFound as e:
+                log('Could not load template from %s by %s or %s.' %
+                    (self.templates_dir, os.path.basename(config_file), _tmpl),
+                    level=ERROR)
+                raise e
+
         log('Rendering from template: %s' % _tmpl, level=INFO)
-        template = self._get_template(_tmpl)
         return template.render(ctxt)
 
     def write(self, config_file):
@@ -232,8 +247,12 @@ class OSConfigRenderer(object):
         if config_file not in self.templates:
             log('Config not registered: %s' % config_file, level=ERROR)
             raise OSConfigException
+
+        _out = self.render(config_file)
+
         with open(config_file, 'wb') as out:
-            out.write(self.render(config_file))
+            out.write(_out)
+
         log('Wrote template %s.' % config_file, level=INFO)
 
     def write_all(self):

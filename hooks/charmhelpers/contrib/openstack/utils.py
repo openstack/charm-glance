@@ -163,6 +163,25 @@ def get_os_version_package(pkg, fatal=True):
     #error_out(e)
 
 
+os_rel = None
+
+
+def os_release(package, base='essex'):
+    '''
+    Returns OpenStack release codename from a cached global.
+    If the codename can not be determined from either an installed package or
+    the installation source, the earliest release supported by the charm should
+    be returned.
+    '''
+    global os_rel
+    if os_rel:
+        return os_rel
+    os_rel = (get_os_codename_package(package, fatal=False) or
+              get_os_codename_install_source(config('openstack-origin')) or
+              base)
+    return os_rel
+
+
 def import_key(keyid):
     cmd = "apt-key adv --keyserver keyserver.ubuntu.com " \
           "--recv-keys %s" % keyid
