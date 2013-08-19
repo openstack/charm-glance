@@ -294,6 +294,7 @@ class ApacheSSLContext(OSContextGenerator):
         if ca_cert:
             with open(CA_CERT_PATH, 'w') as ca_out:
                 ca_out.write(b64decode(ca_cert))
+            check_call(['update-ca-certificates'])
 
     def __call__(self):
         if isinstance(self.external_ports, basestring):
