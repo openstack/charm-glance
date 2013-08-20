@@ -282,6 +282,14 @@ def ha_relation_changed():
     [image_service_joined(rid) for rid in relation_ids('image-service')]
 
 
+@hooks.hook('ceph-relation-broken',
+            'identity-service-relation-broken',
+            'object-store-relation-broken',
+            'shared-db-relation-broken')
+def relation_broken():
+    CONFIGS.write_all()
+
+
 def configure_https():
     '''
     Enables SSL API Apache config if appropriate and kicks
