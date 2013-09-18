@@ -60,3 +60,14 @@ options:
   ssl_key:
     type: string
     description: SSL key to use with certificate specified as ssl_cert.
+  ceph-osd-replication-count:
+        default: 2
+        type: int
+        description: |
+            This value dictates the number of replicas ceph must make of any
+            object it stores within the images rbd pool. Of course, this only
+            applies if using Ceph as a backend store. Note that once the images
+            rbd pool has been created, changing this value will not have any
+            effect (although it can be changed in ceph by manually configuring
+            your ceph cluster).
+

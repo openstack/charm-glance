@@ -179,7 +179,18 @@ EOF
 
   # Create the images pool if it does not already exist
   if ! rados --id $SERVICE_NAME lspools | grep -q images; then
-    rados --id $SERVICE_NAME mkpool images
+      local num_osds=$(ceph --id $SERVICE_NAME osd ls| wc -l)
+      local cfg_key='ceph-osd-replication-count'
+      local rep_count="$(config-get $cfg_key)"
+      if [ -z "$rep_count" ]
+      then
+          rep_count=2
+          juju-log "config returned empty string for $cfg_key - using value of 2"
+      fi
+      local num_pgs=$(((num_osds*100)/rep_count))
+      ceph --id $SERVICE_NAME osd pool create images $num_pgs $num_pgs
+      ceph --id $SERVICE_NAME osd pool set images size $rep_count
+      # TODO: set appropriate crush ruleset
   fi
 
   # Configure glance for ceph storage options
