@@ -179,7 +179,7 @@ EOF
 
   # Create the images pool if it does not already exist
   if ! rados --id $SERVICE_NAME lspools | grep -q images; then
-      local num_osds=$(ceph --id $SERVICE_NAME osd ls| wc -l)
+      local num_osds=$(ceph --id $SERVICE_NAME osd ls| egrep "[^\s]"| wc -l)
       local cfg_key='ceph-osd-replication-count'
       local rep_count="$(config-get $cfg_key)"
       if [ -z "$rep_count" ]
