@@ -5,8 +5,7 @@ lint:
 	#@charm proof
 
 sync:
-	@charm-helper-sync -c charm-helpers-sync.yaml
+	@charm-helper-sync -c charm-helpers.yaml
 
 test:
-	#@nosetests -svd tests/
-	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage  tests
+	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage  unit_tests

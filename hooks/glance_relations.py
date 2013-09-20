@@ -34,9 +34,11 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     restart_on_change,
-    apt_install,
-    apt_update,
     service_stop, )
+
+from charmhelpers.fetch import (
+    apt_install,
+    apt_update,)
 
 from charmhelpers.contrib.hahelpers.cluster import (
     canonical_url,

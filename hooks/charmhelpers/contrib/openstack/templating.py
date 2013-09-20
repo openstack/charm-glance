@@ -1,6 +1,6 @@
 import os
 
-from charmhelpers.core.host import apt_install
+from charmhelpers.fetch import apt_install
 
 from charmhelpers.core.hookenv import (
     log,

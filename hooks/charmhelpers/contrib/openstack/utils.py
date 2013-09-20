@@ -1,12 +1,12 @@
 #!/usr/bin/python
 
 # Common python helper functions used for OpenStack charms.
-
 from collections import OrderedDict
 
 import apt_pkg as apt
 import subprocess
 import os
+import socket
 import sys
 
 from charmhelpers.core.hookenv import (
@@ -17,6 +17,9 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     lsb_release,
+)
+
+from charmhelpers.fetch import (
     apt_install,
 )
 
@@ -130,7 +133,7 @@ def get_os_codename_package(package, fatal=True):
         e = 'Could not determine version of uninstalled package: %s' % package
         error_out(e)
 
-    vers = apt.UpstreamVersion(pkg.current_ver.ver_str)
+    vers = apt.upstream_version(pkg.current_ver.ver_str)
 
     try:
         if 'swift' in pkg.name:
@@ -290,3 +293,69 @@ def openstack_upgrade_available(package):
     available_vers = get_os_version_install_source(src)
     apt.init()
     return apt.version_compare(available_vers, cur_vers) == 1
+
+
+def is_ip(address):
+    """
+    Returns True if address is a valid IP address.
+    """
+    try:
+        # Test to see if already an IPv4 address
+        socket.inet_aton(address)
+        return True
+    except socket.error:
+        return False
+
+
+def ns_query(address):
+    try:
+        import dns.resolver
+    except ImportError:
+        apt_install('python-dnspython')
+        import dns.resolver
+
+    if isinstance(address, dns.name.Name):
+        rtype = 'PTR'
+    elif isinstance(address, basestring):
+        rtype = 'A'
+
+    answers = dns.resolver.query(address, rtype)
+    if answers:
+        return str(answers[0])
+    return None
+
+
+def get_host_ip(hostname):
+    """
+    Resolves the IP for a given hostname, or returns
+    the input if it is already an IP.
+    """
+    if is_ip(hostname):
+        return hostname
+
+    return ns_query(hostname)
+
+
+def get_hostname(address):
+    """
+    Resolves hostname for given IP, or returns the input
+    if it is already a hostname.
+    """
+    if not is_ip(address):
+        return address
+
+    try:
+        import dns.reversename
+    except ImportError:
+        apt_install('python-dnspython')
+        import dns.reversename
+
+    rev = dns.reversename.from_address(address)
+    result = ns_query(rev)
+    if not result:
+        return None
+
+    # strip trailing .
+    if result.endswith('.'):
+        return result[:-1]
+    return result

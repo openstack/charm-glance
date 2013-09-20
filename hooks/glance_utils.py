@@ -7,7 +7,7 @@ import glance_contexts
 
 from collections import OrderedDict
 
-from charmhelpers.core.host import (
+from charmhelpers.fetch import (
     apt_install,
     apt_update, )
 

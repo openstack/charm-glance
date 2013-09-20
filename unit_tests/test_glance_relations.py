@@ -1,6 +1,6 @@
 from mock import call, patch, MagicMock
 
-from tests.test_utils import CharmTestCase
+from unit_tests.test_utils import CharmTestCase
 
 import hooks.glance_utils as utils
 
@@ -275,7 +275,7 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'object_store_joined')
     @patch.object(relations, 'CONFIGS')
-    def test_keystone_changed_no_object_store_relation(self, configs, object_store_joined, configure_https):
+    def test_keystone_changed_with_object_store_relation(self, configs, object_store_joined, configure_https):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['identity-service']
         configs.write = MagicMock()
