@@ -4,7 +4,6 @@ import sys
 
 from glance_utils import (
     do_openstack_upgrade,
-    ensure_ceph_keyring,
     ensure_ceph_pool,
     migrate_database,
     register_configs,
@@ -44,6 +43,8 @@ from charmhelpers.contrib.openstack.utils import (
     get_os_codename_package,
     openstack_upgrade_available,
     lsb_release, )
+
+from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
 
 from subprocess import (
     check_call, )

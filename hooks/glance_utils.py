@@ -14,9 +14,7 @@ from charmhelpers.fetch import (
 from charmhelpers.core.hookenv import (
     config,
     log as juju_log,
-    relation_get,
-    relation_ids,
-    related_units, )
+    relation_ids)
 
 from charmhelpers.contrib.openstack import (
     templating,
@@ -27,10 +25,8 @@ from charmhelpers.contrib.hahelpers.cluster import (
 )
 
 from charmhelpers.contrib.storage.linux.ceph import (
-    create_keyring as ceph_create_keyring,
     create_pool as ceph_create_pool,
-    _keyring_path as ceph_keyring_path,
-    pool_exists as ceph_pool_exists, )
+    pool_exists as ceph_pool_exists)
 
 from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
@@ -128,23 +124,6 @@ def migrate_database():
     '''Runs glance-manage to initialize a new database or migrate existing'''
     cmd = ['glance-manage', 'db_sync']
     subprocess.check_call(cmd)
-
-
-def ensure_ceph_keyring(service):
-    '''Ensures a ceph keyring exists.  Returns True if so, False otherwise'''
-    # TODO: This can be shared between cinder + glance, find a home for it.
-    key = None
-    for rid in relation_ids('ceph'):
-        for unit in related_units(rid):
-            key = relation_get('key', rid=rid, unit=unit)
-            if key:
-                break
-    if not key:
-        return False
-    ceph_create_keyring(service=service, key=key)
-    keyring = ceph_keyring_path(service)
-    subprocess.check_call(['chown', 'glance.glance', keyring])
-    return True
 
 
 def ensure_ceph_pool(service):
