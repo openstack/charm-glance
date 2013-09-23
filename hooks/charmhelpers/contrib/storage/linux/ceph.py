@@ -8,9 +8,9 @@
 #  Adam Gandelman <adamg@ubuntu.com>
 #
 
-import commands
 import os
 import shutil
+import json
 import time
 
 from subprocess import (
@@ -25,11 +25,8 @@ from charmhelpers.core.hookenv import (
     related_units,
     log,
     INFO,
+    WARNING,
     ERROR
-)
-
-from charmhelpers.fetch import (
-    apt_install,
 )
 
 from charmhelpers.core.host import (
@@ -37,48 +34,45 @@ from charmhelpers.core.host import (
     mounts,
     service_start,
     service_stop,
+    service_running,
     umount,
 )
 
-KEYRING = '/etc/ceph/ceph.client.%s.keyring'
-KEYFILE = '/etc/ceph/ceph.client.%s.key'
+from charmhelpers.fetch import (
+    apt_install,
+)
+
+KEYRING = '/etc/ceph/ceph.client.{}.keyring'
+KEYFILE = '/etc/ceph/ceph.client.{}.key'
 
 CEPH_CONF = """[global]
- auth supported = %(auth)s
- keyring = %(keyring)s
- mon host = %(mon_hosts)s
+ auth supported = {auth}
+ keyring = {keyring}
+ mon host = {mon_hosts}
 """
 
 
-def running(service):
-    # this local util can be dropped as soon the following branch lands
-    # in lp:charm-helpers
-    # https://code.launchpad.net/~gandelman-a/charm-helpers/service_running/
-    try:
-        output = check_output(['service', service, 'status'])
-    except CalledProcessError:
-        return False
-    else:
-        if ("start/running" in output or "is running" in output):
-            return True
-        else:
-            return False
-
-
 def install():
+    ''' Basic Ceph client installation '''
     ceph_dir = "/etc/ceph"
-    if not os.path.isdir(ceph_dir):
+    if not os.path.exists(ceph_dir):
         os.mkdir(ceph_dir)
     apt_install('ceph-common', fatal=True)
 
 
 def rbd_exists(service, pool, rbd_img):
-    (rc, out) = commands.getstatusoutput('rbd list --id %s --pool %s' %
-                                         (service, pool))
-    return rbd_img in out
+    ''' Check to see if a RADOS block device exists '''
+    try:
+        out = check_output(['rbd', 'list', '--id', service,
+                            '--pool', pool])
+    except CalledProcessError:
+        return False
+    else:
+        return rbd_img in out
 
 
 def create_rbd_image(service, pool, image, sizemb):
+    ''' Create a new RADOS block device '''
     cmd = [
         'rbd',
         'create',
@@ -94,56 +88,94 @@ def create_rbd_image(service, pool, image, sizemb):
 
 
 def pool_exists(service, name):
-    (rc, out) = commands.getstatusoutput("rados --id %s lspools" % service)
-    return name in out
+    ''' Check to see if a RADOS pool already exists '''
+    try:
+        out = check_output(['rados', '--id', service, 'lspools'])
+    except CalledProcessError:
+        return False
+    else:
+        return name in out
 
 
-def create_pool(service, name):
+def get_osds():
+    '''
+    Return a list of all Ceph Object Storage Daemons
+    currently in the cluster
+    '''
+    return json.loads(check_output(['ceph', 'osd', 'ls', '--format=json']))
+
+
+def create_pool(service, name, replicas=2):
+    ''' Create a new RADOS pool '''
+    if pool_exists(service, name):
+        log("Ceph pool {} already exists, skipping creation".format(name),
+            level=WARNING)
+        return
+    # Calculate the number of placement groups based
+    # on upstream recommended best practices.
+    pgnum = (len(get_osds()) * 100 / replicas)
     cmd = [
-        'rados',
-        '--id',
-        service,
-        'mkpool',
-        name
+        'ceph', '--id', service,
+        'osd', 'pool', 'create',
+        name, pgnum
+    ]
+    check_call(cmd)
+    cmd = [
+        'ceph', '--id', service,
+        'osd', 'set', name,
+        'size', replicas
     ]
     check_call(cmd)
 
 
-def keyfile_path(service):
-    return KEYFILE % service
+def delete_pool(service, name):
+    ''' Delete a RADOS pool from ceph '''
+    cmd = [
+        'ceph', '--id', service,
+        'osd', 'pool', 'delete',
+        name, '--yes-i-really-really-mean-it'
+    ]
+    check_call(cmd)
 
 
-def keyring_path(service):
-    return KEYRING % service
+def _keyfile_path(service):
+    return KEYFILE.format(service)
+
+
+def _keyring_path(service):
+    return KEYRING.format(service)
 
 
 def create_keyring(service, key):
-    keyring = keyring_path(service)
+    ''' Create a new Ceph keyring containing key'''
+    keyring = _keyring_path(service)
     if os.path.exists(keyring):
-        log('ceph: Keyring exists at %s.' % keyring, level=INFO)
+        log('ceph: Keyring exists at %s.' % keyring, level=WARNING)
+        return
     cmd = [
         'ceph-authtool',
         keyring,
         '--create-keyring',
-        '--name=client.%s' % service,
-        '--add-key=%s' % key
+        '--name=client.{}'.format(service),
+        '--add-key={}'.format(key)
     ]
     check_call(cmd)
     log('ceph: Created new ring at %s.' % keyring, level=INFO)
 
 
 def create_key_file(service, key):
-    # create a file containing the key
-    keyfile = keyfile_path(service)
+    ''' Create a file containing key '''
+    keyfile = _keyfile_path(service)
     if os.path.exists(keyfile):
-        log('ceph: Keyfile exists at %s.' % keyfile, level=INFO)
-    fd = open(keyfile, 'w')
-    fd.write(key)
-    fd.close()
+        log('ceph: Keyfile exists at %s.' % keyfile, level=WARNING)
+        return
+    with open(keyfile, 'w') as fd:
+        fd.write(key)
     log('ceph: Created new keyfile at %s.' % keyfile, level=INFO)
 
 
 def get_ceph_nodes():
+    ''' Query named relation 'ceph' to detemine current nodes '''
     hosts = []
     for r_id in relation_ids('ceph'):
         for unit in related_units(r_id):
@@ -152,39 +184,48 @@ def get_ceph_nodes():
 
 
 def configure(service, key, auth):
+    ''' Perform basic configuration of Ceph '''
     create_keyring(service, key)
     create_key_file(service, key)
     hosts = get_ceph_nodes()
-    mon_hosts = ",".join(map(str, hosts))
-    keyring = keyring_path(service)
     with open('/etc/ceph/ceph.conf', 'w') as ceph_conf:
-        ceph_conf.write(CEPH_CONF % locals())
-    modprobe_kernel_module('rbd')
+        ceph_conf.write(CEPH_CONF.format(auth=auth,
+                                         keyring=_keyring_path(service),
+                                         mon_hosts=",".join(map(str, hosts))))
+    modprobe('rbd')
 
 
-def image_mapped(image_name):
-    (rc, out) = commands.getstatusoutput('rbd showmapped')
-    return image_name in out
+def image_mapped(name):
+    ''' Determine whether a RADOS block device is mapped locally '''
+    try:
+        out = check_output(['rbd', 'showmapped'])
+    except CalledProcessError:
+        return False
+    else:
+        return name in out
 
 
 def map_block_storage(service, pool, image):
+    ''' Map a RADOS block device for local use '''
     cmd = [
         'rbd',
         'map',
-        '%s/%s' % (pool, image),
+        '{}/{}'.format(pool, image),
         '--user',
         service,
         '--secret',
-        keyfile_path(service),
+        _keyfile_path(service),
     ]
     check_call(cmd)
 
 
 def filesystem_mounted(fs):
-    return fs in [f for m, f in mounts()]
+    ''' Determine whether a filesytems is already mounted '''
+    return fs in [f for f, m in mounts()]
 
 
 def make_filesystem(blk_device, fstype='ext4', timeout=10):
+    ''' Make a new filesystem on the specified block device '''
     count = 0
     e_noent = os.errno.ENOENT
     while not os.path.exists(blk_device):
@@ -202,41 +243,38 @@ def make_filesystem(blk_device, fstype='ext4', timeout=10):
         check_call(['mkfs', '-t', fstype, blk_device])
 
 
-def place_data_on_ceph(service, blk_device, data_src_dst, fstype='ext4'):
+def place_data_on_block_device(blk_device, data_src_dst):
+    ''' Migrate data in data_src_dst to blk_device and then remount '''
     # mount block device into /mnt
     mount(blk_device, '/mnt')
-
     # copy data to /mnt
-    try:
-        copy_files(data_src_dst, '/mnt')
-    except:
-        pass
-
+    copy_files(data_src_dst, '/mnt')
     # umount block device
     umount('/mnt')
-
+    # Grab user/group ID's from original source
     _dir = os.stat(data_src_dst)
     uid = _dir.st_uid
     gid = _dir.st_gid
-
     # re-mount where the data should originally be
+    # TODO: persist is currently a NO-OP in core.host
     mount(blk_device, data_src_dst, persist=True)
-
     # ensure original ownership of new mount.
-    cmd = ['chown', '-R', '%s:%s' % (uid, gid), data_src_dst]
-    check_call(cmd)
+    os.chown(data_src_dst, uid, gid)
 
 
 # TODO: re-use
-def modprobe_kernel_module(module):
+def modprobe(module):
+    ''' Load a kernel module and configure for auto-load on reboot '''
     log('ceph: Loading kernel module', level=INFO)
     cmd = ['modprobe', module]
     check_call(cmd)
-    cmd = 'echo %s >> /etc/modules' % module
-    check_call(cmd, shell=True)
+    with open('/etc/modules', 'r+') as modules:
+        if module not in modules.read():
+            modules.write(module)
 
 
 def copy_files(src, dst, symlinks=False, ignore=None):
+    ''' Copy files from src to dst '''
     for item in os.listdir(src):
         s = os.path.join(src, item)
         d = os.path.join(dst, item)
@@ -249,27 +287,29 @@ def copy_files(src, dst, symlinks=False, ignore=None):
 def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
                         blk_device, fstype, system_services=[]):
     """
-    To be called from the current cluster leader.
+    NOTE: This function must only be called from a single service unit for
+          the same rbd_img otherwise data loss will occur.
+
     Ensures given pool and RBD image exists, is mapped to a block device,
     and the device is formatted and mounted at the given mount_point.
 
     If formatting a device for the first time, data existing at mount_point
-    will be migrated to the RBD device before being remounted.
+    will be migrated to the RBD device before being re-mounted.
 
     All services listed in system_services will be stopped prior to data
     migration and restarted when complete.
     """
     # Ensure pool, RBD image, RBD mappings are in place.
     if not pool_exists(service, pool):
-        log('ceph: Creating new pool %s.' % pool, level=INFO)
+        log('ceph: Creating new pool {}.'.format(pool))
         create_pool(service, pool)
 
     if not rbd_exists(service, pool, rbd_img):
-        log('ceph: Creating RBD image (%s).' % rbd_img, level=INFO)
+        log('ceph: Creating RBD image ({}).'.format(rbd_img))
         create_rbd_image(service, pool, rbd_img, sizemb)
 
     if not image_mapped(rbd_img):
-        log('ceph: Mapping RBD Image as a Block Device.', level=INFO)
+        log('ceph: Mapping RBD Image {} as a Block Device.'.format(rbd_img))
         map_block_storage(service, pool, rbd_img)
 
     # make file system
@@ -283,12 +323,14 @@ def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
         make_filesystem(blk_device, fstype)
 
         for svc in system_services:
-            if running(svc):
-                log('Stopping services %s prior to migrating data.' % svc,
-                    level=INFO)
+            if service_running(svc):
+                log('ceph: Stopping services {} prior to migrating data.'
+                    .format(svc))
                 service_stop(svc)
 
-        place_data_on_ceph(service, blk_device, mount_point, fstype)
+        place_data_on_block_device(blk_device, mount_point)
 
         for svc in system_services:
+            log('ceph: Starting service {} after migrating data.'
+                .format(svc))
             service_start(svc)

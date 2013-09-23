@@ -32,18 +32,12 @@ from charmhelpers.core.hookenv import (
     unit_get,
     UnregisteredHookError, )
 
-from charmhelpers.core.host import (
-    restart_on_change,
-    service_stop, )
+from charmhelpers.core.host import restart_on_change, service_stop
 
-from charmhelpers.fetch import (
-    apt_install,
-    apt_update,)
+from charmhelpers.fetch import apt_install, apt_update
 
 from charmhelpers.contrib.hahelpers.cluster import (
-    canonical_url,
-    eligible_leader,
-    is_leader, )
+    canonical_url, eligible_leader, is_leader)
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
