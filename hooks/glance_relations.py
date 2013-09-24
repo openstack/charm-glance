@@ -150,7 +150,9 @@ def ceph_changed():
         juju_log('ceph relation incomplete. Peer not ready?')
         return
 
-    if not ensure_ceph_keyring(service=service_name(),
+    service = service_name()
+
+    if not ensure_ceph_keyring(service=service,
                                user='glance', group='glance'):
         juju_log('Could not create ceph keyring: peer not ready?')
         return
@@ -159,7 +161,9 @@ def ceph_changed():
     CONFIGS.write(CEPH_CONF)
 
     if eligible_leader(CLUSTER_RES):
-        ensure_ceph_pool(service=service_name())
+        _config = config()
+        ensure_ceph_pool(service=service,
+                         replicas=_config['ceph-osd-replication-count'])
 
 
 @hooks.hook('identity-service-relation-joined')
