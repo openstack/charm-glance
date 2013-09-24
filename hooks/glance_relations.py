@@ -150,7 +150,8 @@ def ceph_changed():
         juju_log('ceph relation incomplete. Peer not ready?')
         return
 
-    if not ensure_ceph_keyring(service=service_name()):
+    if not ensure_ceph_keyring(service=service_name(),
+                               user='glance', group='glance'):
         juju_log('Could not create ceph keyring: peer not ready?')
         return
 
