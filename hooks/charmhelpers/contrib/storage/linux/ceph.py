@@ -97,12 +97,13 @@ def pool_exists(service, name):
         return name in out
 
 
-def get_osds():
+def get_osds(service):
     '''
     Return a list of all Ceph Object Storage Daemons
     currently in the cluster
     '''
-    return json.loads(check_output(['ceph', 'osd', 'ls', '--format=json']))
+    return json.loads(check_output(['ceph', '--id', service,
+                                    'osd', 'ls', '--format=json']))
 
 
 def create_pool(service, name, replicas=2):
@@ -113,17 +114,17 @@ def create_pool(service, name, replicas=2):
         return
     # Calculate the number of placement groups based
     # on upstream recommended best practices.
-    pgnum = (len(get_osds()) * 100 / replicas)
+    pgnum = (len(get_osds(service)) * 100 / replicas)
     cmd = [
         'ceph', '--id', service,
         'osd', 'pool', 'create',
-        name, pgnum
+        name, str(pgnum)
     ]
     check_call(cmd)
     cmd = [
         'ceph', '--id', service,
-        'osd', 'set', name,
-        'size', replicas
+        'osd', 'pool', 'set', name,
+        'size', str(replicas)
     ]
     check_call(cmd)
 
