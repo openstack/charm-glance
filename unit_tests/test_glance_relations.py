@@ -222,7 +222,8 @@ class GlanceRelationTests(CharmTestCase):
         self.assertEquals([call('/etc/glance/glance-api.conf'),
                            call('/etc/ceph/ceph.conf')],
                            configs.write.call_args_list)
-        self.ensure_ceph_pool.assert_called_with(service=self.service_name())
+        self.ensure_ceph_pool.assert_called_with(service=self.service_name(),
+                                                 replicas=2)
 
     def test_keystone_joined_not_leader(self):
         self.eligible_leader.return_value = False

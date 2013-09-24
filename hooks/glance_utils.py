@@ -126,11 +126,11 @@ def migrate_database():
     subprocess.check_call(cmd)
 
 
-def ensure_ceph_pool(service):
+def ensure_ceph_pool(service, replicas):
     '''Creates a ceph pool for service if one does not exist'''
     # TODO: Ditto about moving somewhere sharable.
     if not ceph_pool_exists(service=service, name=service):
-        ceph_create_pool(service=service, name=service)
+        ceph_create_pool(service=service, name=service, replicas=replicas)
 
 
 def do_openstack_upgrade(configs):
