@@ -51,6 +51,7 @@ GLANCE_API_PASTE_INI = "/etc/glance/glance-api-paste.ini"
 CEPH_CONF = "/etc/ceph/ceph.conf"
 HAPROXY_CONF = "/etc/haproxy/haproxy.cfg"
 HTTPS_APACHE_CONF = "/etc/apache2/sites-available/openstack_https_frontend"
+HTTPS_APACHE_24_CONF = "/etc/apache2/sites-available/openstack_https_frontend.conf"
 
 CONF_DIR = "/etc/glance"
 
@@ -90,6 +91,10 @@ CONFIG_FILES = OrderedDict([
     (HTTPS_APACHE_CONF, {
         'hook_contexts': [glance_contexts.ApacheSSLContext()],
         'services': ['apache2'],
+    }),
+    (HTTPS_APACHE_24_CONF, {
+        'hook_contexts': [glance_contexts.ApacheSSLContext()],
+        'services': ['apache2'],
     })
 ])
 
@@ -106,8 +111,7 @@ def register_configs():
              GLANCE_API_CONF,
              GLANCE_API_PASTE_INI,
              GLANCE_REGISTRY_PASTE_INI,
-             HAPROXY_CONF,
-             HTTPS_APACHE_CONF, ]
+             HAPROXY_CONF]
 
     if relation_ids('ceph'):
         if not os.path.isdir('/etc/ceph'):
@@ -116,6 +120,13 @@ def register_configs():
 
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['hook_contexts'])
+
+    if os.path.exists('/etc/apache2/conf-available'):
+        configs.register(HTTPS_APACHE_24_CONF,
+                         CONFIG_FILES[HTTPS_APACHE_24_CONF]['hook_contexts'])
+    else:
+        configs.register(HTTPS_APACHE_CONF,
+                         CONFIG_FILES[HTTPS_APACHE_CONF]['hook_contexts'])
 
     return configs
 
