@@ -1,8 +1,8 @@
 from mock import call, patch, MagicMock
 
-from unit_tests.test_utils import CharmTestCase
+from test_utils import CharmTestCase
 
-import hooks.glance_utils as utils
+import glance_utils as utils
 
 _reg = utils.register_configs
 _map = utils.restart_map
@@ -10,7 +10,7 @@ _map = utils.restart_map
 utils.register_configs = MagicMock()
 utils.restart_map = MagicMock()
 
-import hooks.glance_relations as relations
+import glance_relations as relations
 
 utils.register_configs = _reg
 utils.restart_map = _map
