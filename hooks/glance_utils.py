@@ -51,7 +51,8 @@ GLANCE_API_PASTE_INI = "/etc/glance/glance-api-paste.ini"
 CEPH_CONF = "/etc/ceph/ceph.conf"
 HAPROXY_CONF = "/etc/haproxy/haproxy.cfg"
 HTTPS_APACHE_CONF = "/etc/apache2/sites-available/openstack_https_frontend"
-HTTPS_APACHE_24_CONF = "/etc/apache2/sites-available/openstack_https_frontend.conf"
+HTTPS_APACHE_24_CONF = "/etc/apache2/sites-available/" \
+    "openstack_https_frontend.conf"
 
 CONF_DIR = "/etc/glance"
 
