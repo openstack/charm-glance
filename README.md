@@ -37,6 +37,7 @@ charms:
     juju deploy glance
     juju add-relation glance keystone
     juju add-relation glance mysql
+    juju add-relation glance nova-cloud-controller
     juju add-relation glance swift-proxy
 
 This configuration can be used to support Glance in HA/Scale-out deployments.
@@ -51,10 +52,34 @@ have already deployed Ceph using the ceph charm:
     juju deploy glance
     juju add-relation glance keystone
     juju add-relation glance mysql
+    juju add-relation glance nova-cloud-controller
     juju add-relation glance ceph
 
 This configuration can also be used to support Glance in HA/Scale-out
 deployments.
+
+Glance HA/Scale-out
+===================
+
+The Glance charm can also be used in a HA/scale-out configuration using
+the hacluster charm:
+
+    juju deploy -n 3 glance
+    juju deploy hacluster haglance
+    juju set glance vip=<virtual IP address to access glance over>
+    juju add-relation glance haglance
+    juju add-relation glance mysql
+    juju add-relation glance keystone
+    juju add-relation glance nova-cloud-controller
+    juju add-relation glance ceph|swift-proxy
+
+In this configuration, 3 service units host the Glance image service;
+API requests are load balanced across all 3 service units via the
+configured virtual IP address (which is also registered into Keystone
+as the endpoint for Glance).
+
+Note that Glance in this configuration must be used with either Ceph or
+Swift providing backing image storage.
 
 Contact Information
 -------------------
