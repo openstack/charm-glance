@@ -45,6 +45,7 @@ from charmhelpers.contrib.openstack.utils import (
     lsb_release, )
 
 from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
+from charmhelpers.payload.execd import execd_preinstall
 
 from subprocess import (
     check_call, )
@@ -59,7 +60,7 @@ CONFIGS = register_configs()
 @hooks.hook('install')
 def install_hook():
     juju_log('Installing glance packages')
-
+    execd_preinstall()
     src = config('openstack-origin')
     if (lsb_release()['DISTRIB_CODENAME'] == 'precise' and
        src == 'distro'):

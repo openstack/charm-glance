@@ -49,6 +49,7 @@ TO_PATCH = [
     # other
     'getstatusoutput',
     'check_call',
+    'execd_preinstall'
 ]
 
 
@@ -67,6 +68,7 @@ class GlanceRelationTests(CharmTestCase):
         self.apt_install.assert_called_with(['apache2', 'glance', 'python-mysqldb',
                                              'python-swift', 'python-keystone',
                                              'uuid', 'haproxy'])
+        self.execd_preinstall.assert_called()
 
     def test_db_joined(self):
         self.unit_get.return_value = 'glance.foohost.com'
