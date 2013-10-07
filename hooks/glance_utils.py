@@ -67,7 +67,7 @@ CONFIG_FILES = OrderedDict([
     (GLANCE_API_CONF, {
         'hook_contexts': [context.SharedDBContext(),
                           context.IdentityServiceContext(),
-                          glance_contexts.CephContext(),
+                          glance_contexts.CephGlanceContext(),
                           glance_contexts.ObjectStoreContext(),
                           glance_contexts.HAProxyContext()],
         'services': ['glance-api']

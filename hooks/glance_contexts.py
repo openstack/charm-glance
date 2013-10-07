@@ -14,8 +14,8 @@ from charmhelpers.contrib.hahelpers.cluster import (
 )
 
 
-class CephContext(OSContextGenerator):
-    interfaces = ['ceph']
+class CephGlanceContext(OSContextGenerator):
+    interfaces = ['ceph-glance']
 
     def __call__(self):
         """
