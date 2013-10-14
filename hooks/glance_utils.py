@@ -82,7 +82,7 @@ CONFIG_FILES = OrderedDict([
     }),
     (CEPH_CONF, {
         'hook_contexts': [context.CephContext()],
-        'services': []
+        'services': ['glance-api', 'glance-registry']
     }),
     (HAPROXY_CONF, {
         'hook_contexts': [context.HAProxyContext(),
