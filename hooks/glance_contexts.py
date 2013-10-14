@@ -1,5 +1,7 @@
 from charmhelpers.core.hookenv import (
     relation_ids,
+    related_units,
+    relation_get,
     service_name,
 )
 
@@ -14,6 +16,14 @@ from charmhelpers.contrib.hahelpers.cluster import (
 )
 
 
+def is_relation_made(relation, key='private-address'):
+    for r_id in relation_ids(relation):
+        for unit in related_units(r_id):
+            if relation_get(key, rid=r_id, unit=unit):
+                return True
+    return False
+
+
 class CephGlanceContext(OSContextGenerator):
     interfaces = ['ceph-glance']
 
@@ -22,7 +32,8 @@ class CephGlanceContext(OSContextGenerator):
         Used to generate template context to be added to glance-api.conf in
         the presence of a ceph relation.
         """
-        if not relation_ids('ceph'):
+        if not is_relation_made(relation="ceph",
+                                key="key"):
             return {}
         service = service_name()
         return {
