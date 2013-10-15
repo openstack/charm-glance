@@ -45,16 +45,17 @@ OPENSTACK_CODENAMES = OrderedDict([
 ])
 
 # The ugly duckling
-SWIFT_CODENAMES = {
-    '1.4.3': 'diablo',
-    '1.4.8': 'essex',
-    '1.7.4': 'folsom',
-    '1.7.6': 'grizzly',
-    '1.7.7': 'grizzly',
-    '1.8.0': 'grizzly',
-    '1.9.0': 'havana',
-    '1.9.1': 'havana',
-}
+SWIFT_CODENAMES = OrderedDict([
+    ('1.4.3', 'diablo'),
+    ('1.4.8', 'essex'),
+    ('1.7.4', 'folsom'),
+    ('1.8.0', 'grizzly'),
+    ('1.7.7', 'grizzly'),
+    ('1.7.6', 'grizzly'),
+    ('1.10.0', 'havana'),
+    ('1.9.1', 'havana'),
+    ('1.9.0', 'havana'),
+])
 
 
 def error_out(msg):
@@ -137,8 +138,11 @@ def get_os_codename_package(package, fatal=True):
 
     try:
         if 'swift' in pkg.name:
-            vers = vers[:5]
-            return SWIFT_CODENAMES[vers]
+            swift_vers = vers[:5]
+            if swift_vers not in SWIFT_CODENAMES:
+                # Deal with 1.10.0 upward
+                swift_vers = vers[:6]
+            return SWIFT_CODENAMES[swift_vers]
         else:
             vers = vers[:6]
             return OPENSTACK_CODENAMES[vers]

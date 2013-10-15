@@ -1,3 +1,4 @@
+import json
 import os
 
 from base64 import b64decode
@@ -21,6 +22,7 @@ from charmhelpers.core.hookenv import (
     related_units,
     unit_get,
     unit_private_ip,
+    ERROR,
     WARNING,
 )
 
@@ -370,7 +372,7 @@ class NeutronContext(object):
         return None
 
     def _ensure_packages(self):
-        ensure_packages(self.packages)
+        [ensure_packages(pkgs) for pkgs in self.packages]
 
     def _save_flag_file(self):
         if self.network_manager == 'quantum':
@@ -431,3 +433,90 @@ class OSConfigFlagContext(OSContextGenerator):
                 flags[k.strip()] = v
             ctxt = {'user_config_flags': flags}
             return ctxt
+
+
+class SubordinateConfigContext(OSContextGenerator):
+    """
+    Responsible for inspecting relations to subordinates that
+    may be exporting required config via a json blob.
+
+    The subordinate interface allows subordinates to export their
+    configuration requirements to the principle for multiple config
+    files and multiple serivces.  Ie, a subordinate that has interfaces
+    to both glance and nova may export to following yaml blob as json:
+
+        glance:
+            /etc/glance/glance-api.conf:
+                sections:
+                    DEFAULT:
+                        - [key1, value1]
+            /etc/glance/glance-registry.conf:
+                    MYSECTION:
+                        - [key2, value2]
+        nova:
+            /etc/nova/nova.conf:
+                sections:
+                    DEFAULT:
+                        - [key3, value3]
+
+
+    It is then up to the principle charms to subscribe this context to
+    the service+config file it is interestd in.  Configuration data will
+    be available in the template context, in glance's case, as:
+        ctxt = {
+            ... other context ...
+            'subordinate_config': {
+                'DEFAULT': {
+                    'key1': 'value1',
+                },
+                'MYSECTION': {
+                    'key2': 'value2',
+                },
+            }
+        }
+
+    """
+    def __init__(self, service, config_file, interface):
+        """
+        :param service     : Service name key to query in any subordinate
+                             data found
+        :param config_file : Service's config file to query sections
+        :param interface   : Subordinate interface to inspect
+        """
+        self.service = service
+        self.config_file = config_file
+        self.interface = interface
+
+    def __call__(self):
+        ctxt = {}
+        for rid in relation_ids(self.interface):
+            for unit in related_units(rid):
+                sub_config = relation_get('subordinate_configuration',
+                                          rid=rid, unit=unit)
+                if sub_config and sub_config != '':
+                    try:
+                        sub_config = json.loads(sub_config)
+                    except:
+                        log('Could not parse JSON from subordinate_config '
+                            'setting from %s' % rid, level=ERROR)
+                        continue
+
+                    if self.service not in sub_config:
+                        log('Found subordinate_config on %s but it contained'
+                            'nothing for %s service' % (rid, self.service))
+                        continue
+
+                    sub_config = sub_config[self.service]
+                    if self.config_file not in sub_config:
+                        log('Found subordinate_config on %s but it contained'
+                            'nothing for %s' % (rid, self.config_file))
+                        continue
+
+                    sub_config = sub_config[self.config_file]
+                    for k, v in sub_config.iteritems():
+                        ctxt[k] = v
+
+        if not ctxt:
+            ctxt['sections'] = {}
+
+        return ctxt
