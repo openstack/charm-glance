@@ -401,7 +401,7 @@ class GlanceRelationTests(CharmTestCase):
 
     def test_amqp_joined(self):
         relations.amqp_joined()
-        self.relation_set.assert_called_with(username='glance', vhost='glance')
+        self.relation_set.assert_called_with(username='glance', vhost='openstack')
 
     @patch.object(relations, 'CONFIGS')
     def test_amqp_changed_missing_relation_data(self, configs):
