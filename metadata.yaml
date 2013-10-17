@@ -14,6 +14,8 @@ provides:
 requires:
   shared-db:
     interface: mysql-shared
+  amqp:
+    interface: rabbitmq
   object-store:
     interface: swift-proxy
   identity-service:

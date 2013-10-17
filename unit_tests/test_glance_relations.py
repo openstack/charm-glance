@@ -399,3 +399,23 @@ class GlanceRelationTests(CharmTestCase):
         self.check_call.assert_called_with(cmd)
         image_service_joined.assert_called_with(relation_id='image-service:0')
 
+    def test_amqp_joined(self):
+        relations.amqp_joined()
+        self.relation_set.assert_called_with(username='glance', vhost='glance')
+
+    @patch.object(relations, 'CONFIGS')
+    def test_amqp_changed_missing_relation_data(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = []
+        relations.amqp_changed()
+        self.juju_log.assert_called()
+
+    @patch.object(relations, 'CONFIGS')
+    def test_amqp_changed_relation_data(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['amqp']
+        configs.write = MagicMock()
+        relations.amqp_changed()
+        self.assertEquals([call('/etc/glance/glance-api.conf')],
+                           configs.write.call_args_list)
+        self.juju_log.assert_called()

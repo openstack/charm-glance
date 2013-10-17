@@ -313,8 +313,22 @@ def configure_https():
         image_service_joined(relation_id=r_id)
 
 
+@hooks.hook('amqp-relation-joined')
+def amqp_joined():
+    conf = config()
+    relation_set(username=conf['rabbit-user'], vhost=conf['rabbit-vhost'])
+
+
+@hooks.hook('amqp-relation-changed')
+@restart_on_change(restart_map())
+def amqp_changed():
+    if 'amqp' not in CONFIGS.complete_contexts():
+        juju_log('amqp relation incomplete. Peer not ready?')
+        return
+    CONFIGS.write(GLANCE_API_CONF)
+
 if __name__ == '__main__':
     try:
         hooks.execute(sys.argv)
     except UnregisteredHookError as e:
-        juju_log('Unknown hook {} - skiping.'.format(e))
+        juju_log('Unknown hook {} - skipping.'.format(e))
