@@ -38,7 +38,6 @@ TO_PATCH = [
     'openstack_upgrade_available',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'eligible_leader',
-    'is_leader',
     # glance_utils
     'restart_map',
     'register_configs',
