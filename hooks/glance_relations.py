@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import os
 import sys
 
 from glance_utils import (
@@ -31,12 +30,15 @@ from charmhelpers.core.hookenv import (
     unit_get,
     UnregisteredHookError, )
 
-from charmhelpers.core.host import restart_on_change, service_stop
+from charmhelpers.core.host import (
+    restart_on_change,
+    service_stop,
+    mkdir, )
 
 from charmhelpers.fetch import apt_install, apt_update
 
 from charmhelpers.contrib.hahelpers.cluster import (
-    canonical_url, eligible_leader, is_leader)
+    canonical_url, eligible_leader)
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
@@ -48,9 +50,8 @@ from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
 from charmhelpers.payload.execd import execd_preinstall
 
 from subprocess import (
-    check_call, )
-
-from commands import getstatusoutput
+    check_call,
+    call, )
 
 hooks = Hooks()
 
@@ -97,7 +98,7 @@ def db_changed():
 
     if eligible_leader(CLUSTER_RES):
         if rel == "essex":
-            (status, output) = getstatusoutput('glance-manage db_version')
+            status = call(['glance-manage', 'db_version'])
             if status != 0:
                 juju_log('Setting version_control to 0')
                 check_call(["glance-manage", "version_control", "0"])
@@ -126,7 +127,7 @@ def image_service_joined(relation_id=None):
 def object_store_joined():
 
     if 'identity-service' not in CONFIGS.complete_contexts():
-        juju_log('Deferring swift stora configuration until '
+        juju_log('Deferring swift storage configuration until '
                  'an identity-service relation exists')
         return
 
@@ -139,8 +140,7 @@ def object_store_joined():
 
 @hooks.hook('ceph-relation-joined')
 def ceph_joined():
-    if not os.path.isdir('/etc/ceph'):
-        os.mkdir('/etc/ceph')
+    mkdir('/etc/ceph')
     apt_install(['ceph-common', 'python-ceph'])
 
 
@@ -274,7 +274,7 @@ def ha_relation_changed():
     if not clustered or clustered in [None, 'None', '']:
         juju_log('ha_changed: hacluster subordinate is not fully clustered.')
         return
-    if not is_leader(CLUSTER_RES):
+    if not eligible_leader(CLUSTER_RES):
         juju_log('ha_changed: hacluster complete but we are not leader.')
         return
 

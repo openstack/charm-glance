@@ -16,6 +16,8 @@ from charmhelpers.contrib.hahelpers.cluster import (
 )
 
 
+# TODO: switch to charmhelpers once landed
+# NOTE: zero units tests - done in charmhelpers
 def is_relation_made(relation, key='private-address'):
     for r_id in relation_ids(relation):
         for unit in related_units(r_id):
@@ -83,7 +85,4 @@ class ApacheSSLContext(SSLContext):
     service_namespace = 'glance'
 
     def __call__(self):
-        #from glance_utils import service_enabled
-        #if not service_enabled('glance-api'):
-        #    return {}
         return super(ApacheSSLContext, self).__call__()
