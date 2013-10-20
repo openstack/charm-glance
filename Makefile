@@ -2,6 +2,7 @@
 
 lint:
 	@flake8 --exclude hooks/charmhelpers hooks
+	@flake8 unit_tests
 	@charm proof
 
 sync:

@@ -38,7 +38,6 @@ TO_PATCH = [
     'openstack_upgrade_available',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'eligible_leader',
-    'is_leader',
     # glance_utils
     'restart_map',
     'register_configs',
@@ -47,9 +46,11 @@ TO_PATCH = [
     'ensure_ceph_keyring',
     'ensure_ceph_pool',
     # other
-    'getstatusoutput',
+    'call',
     'check_call',
-    'execd_preinstall'
+    'execd_preinstall',
+    'mkdir',
+    'lsb_release'
 ]
 
 
@@ -65,15 +66,27 @@ class GlanceRelationTests(CharmTestCase):
         relations.install_hook()
         self.configure_installation_source.assert_called_with(repo)
         self.assertTrue(self.apt_update.called)
-        self.apt_install.assert_called_with(['apache2', 'glance', 'python-mysqldb',
-                                             'python-swift', 'python-keystone',
+        self.apt_install.assert_called_with(['apache2', 'glance',
+                                             'python-mysqldb',
+                                             'python-swift',
+                                             'python-keystone',
                                              'uuid', 'haproxy'])
-        self.execd_preinstall.assert_called()
+        self.assertTrue(self.execd_preinstall.called)
+
+    def test_install_hook_precise_distro(self):
+        self.test_config.set('openstack-origin', 'distro')
+        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        self.service_stop.return_value = True
+        relations.install_hook()
+        self.configure_installation_source.assert_called_with(
+            "cloud:precise-folsom"
+        )
 
     def test_db_joined(self):
         self.unit_get.return_value = 'glance.foohost.com'
         relations.db_joined()
-        self.relation_set.assert_called_with(database='glance', username='glance',
+        self.relation_set.assert_called_with(database='glance',
+                                             username='glance',
                                              hostname='glance.foohost.com')
         self.unit_get.assert_called_with('private-address')
 
@@ -97,7 +110,7 @@ class GlanceRelationTests(CharmTestCase):
         self._shared_db_test(configs)
         self.assertEquals([call('/etc/glance/glance-registry.conf'),
                            call('/etc/glance/glance-api.conf')],
-                           configs.write.call_args_list)
+                          configs.write.call_args_list)
         self.juju_log.assert_called_with(
             'Cluster leader, performing db sync'
         )
@@ -106,10 +119,10 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_with_essex_not_setting_version_control(self, configs):
         self.get_os_codename_package.return_value = "essex"
-        self.getstatusoutput.return_value = (0, "version")
+        self.call.return_value = 0
         self._shared_db_test(configs)
         self.assertEquals([call('/etc/glance/glance-registry.conf')],
-                           configs.write.call_args_list)
+                          configs.write.call_args_list)
         self.juju_log.assert_called_with(
             'Cluster leader, performing db sync'
         )
@@ -118,10 +131,10 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_with_essex_setting_version_control(self, configs):
         self.get_os_codename_package.return_value = "essex"
-        self.getstatusoutput.return_value = (1, "version")
+        self.call.return_value = 1
         self._shared_db_test(configs)
         self.assertEquals([call('/etc/glance/glance-registry.conf')],
-                           configs.write.call_args_list)
+                          configs.write.call_args_list)
         self.check_call.assert_called_with(
             ["glance-manage", "version_control", "0"]
         )
@@ -162,12 +175,13 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         relations.object_store_joined()
         self.juju_log.assert_called_with(
-            'Deferring swift stora configuration until '
+            'Deferring swift storage configuration until '
             'an identity-service relation exists'
         )
 
     @patch.object(relations, 'CONFIGS')
-    def test_object_store_joined_with_identity_service_without_object_store(self, configs):
+    def test_object_store_joined_with_identity_service_without_object_store(
+            self, configs):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['identity-service']
         configs.write = MagicMock()
@@ -177,20 +191,19 @@ class GlanceRelationTests(CharmTestCase):
         )
 
     @patch.object(relations, 'CONFIGS')
-    def test_object_store_joined_with_identity_service_with_object_store(self, configs):
+    def test_object_store_joined_with_identity_service_with_object_store(
+            self, configs):
         configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['identity-service', 'object-store']
+        configs.complete_contexts.return_value = ['identity-service',
+                                                  'object-store']
         configs.write = MagicMock()
         relations.object_store_joined()
         self.assertEquals([call('/etc/glance/glance-api.conf')],
-                           configs.write.call_args_list)
+                          configs.write.call_args_list)
 
-    @patch('os.mkdir')
-    @patch('os.path.isdir')
-    def test_ceph_joined(self, isdir, mkdir):
-        isdir.return_value = False
+    def test_ceph_joined(self):
         relations.ceph_joined()
-        mkdir.assert_called_with('/etc/ceph')
+        self.mkdir.assert_called_with('/etc/ceph')
         self.apt_install.assert_called_with(['ceph-common', 'python-ceph'])
 
     @patch.object(relations, 'CONFIGS')
@@ -223,7 +236,7 @@ class GlanceRelationTests(CharmTestCase):
         relations.ceph_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
                            call('/etc/ceph/ceph.conf')],
-                           configs.write.call_args_list)
+                          configs.write.call_args_list)
         self.ensure_ceph_pool.assert_called_with(service=self.service_name(),
                                                  replicas=2)
 
@@ -260,35 +273,44 @@ class GlanceRelationTests(CharmTestCase):
         }
         self.relation_set.assert_called_with(**ex)
 
+    @patch.object(relations, 'CONFIGS')
+    def test_keystone_changes_incomplete(self, configs):
+        configs.complete_contexts.return_value = []
+        relations.keystone_changed()
+        self.assertTrue(self.juju_log.called)
+        self.assertFalse(configs.write.called)
+
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'CONFIGS')
-    def test_keystone_changed_no_object_store_relation(self, configs, configure_https):
+    def test_keystone_changed_no_object_store_relation(self, configs,
+                                                       configure_https):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['identity-service']
         configs.write = MagicMock()
-        self.relation_ids.return_value = False
+        self.relation_ids.return_value = []
         relations.keystone_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
                            call('/etc/glance/glance-registry.conf'),
                            call('/etc/glance/glance-api-paste.ini'),
                            call('/etc/glance/glance-registry-paste.ini')],
-                           configs.write.call_args_list)
+                          configs.write.call_args_list)
         self.assertTrue(configure_https.called)
 
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'object_store_joined')
     @patch.object(relations, 'CONFIGS')
-    def test_keystone_changed_with_object_store_relation(self, configs, object_store_joined, configure_https):
+    def test_keystone_changed_with_object_store_relation(
+            self, configs, object_store_joined, configure_https):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['identity-service']
         configs.write = MagicMock()
-        self.relation_ids.return_value = True
+        self.relation_ids.return_value = ['object-store:0']
         relations.keystone_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
                            call('/etc/glance/glance-registry.conf'),
                            call('/etc/glance/glance-api-paste.ini'),
                            call('/etc/glance/glance-registry-paste.ini')],
-                           configs.write.call_args_list)
+                          configs.write.call_args_list)
         object_store_joined.assert_called_with()
         self.assertTrue(configure_https.called)
 
@@ -317,7 +339,7 @@ class GlanceRelationTests(CharmTestCase):
         relations.cluster_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
                            call('/etc/haproxy/haproxy.cfg')],
-                           configs.write.call_args_list)
+                          configs.write.call_args_list)
 
     @patch.object(relations, 'cluster_changed')
     def test_upgrade_charm(self, cluster_changed):
@@ -337,8 +359,10 @@ class GlanceRelationTests(CharmTestCase):
             'init_services': {'res_glance_haproxy': 'haproxy'},
             'resources': {'res_glance_vip': 'ocf:heartbeat:IPaddr2',
                           'res_glance_haproxy': 'lsb:haproxy'},
-            'resource_params': {'res_glance_vip': 'params ip="10.10.10.10" cidr_netmask="24" nic="em1"',
-                                'res_glance_haproxy': 'op monitor interval="5s"'},
+            'resource_params': {
+                'res_glance_vip': 'params ip="10.10.10.10"'
+                                  ' cidr_netmask="24" nic="em1"',
+                'res_glance_haproxy': 'op monitor interval="5s"'},
             'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
         }
         self.relation_set.assert_called_with(**args)
@@ -346,14 +370,30 @@ class GlanceRelationTests(CharmTestCase):
     def test_ha_relation_changed_not_clustered(self):
         self.relation_get.return_value = False
         relations.ha_relation_changed()
+        self.assertTrue(self.juju_log.called)
 
-        self.juju_log.assert_called_with(
-            'ha_changed: hacluster subordinate is not fully clustered.'
-        )
+    @patch.object(relations, 'keystone_joined')
+    def test_ha_relation_changed_not_leader(self, joined):
+        self.relation_get.return_value = True
+        self.eligible_leader.return_value = False
+        relations.ha_relation_changed()
+        self.assertTrue(self.juju_log.called)
+        self.assertFalse(joined.called)
+
+    @patch.object(relations, 'image_service_joined')
+    @patch.object(relations, 'keystone_joined')
+    def test_ha_relation_changed_leader(self, ks_joined, image_joined):
+        self.relation_get.return_value = True
+        self.eligible_leader.return_value = True
+        self.relation_ids.side_effect = [['identity:0'], ['image:1']]
+        relations.ha_relation_changed()
+        ks_joined.assert_called_with('identity:0')
+        image_joined.assert_called_with('image:1')
 
     @patch.object(relations, 'keystone_joined')
     @patch.object(relations, 'CONFIGS')
-    def test_configure_https_enable_with_identity_service(self, configs, keystone_joined):
+    def test_configure_https_enable_with_identity_service(
+            self, configs, keystone_joined):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['https']
         configs.write = MagicMock()
@@ -365,7 +405,8 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'keystone_joined')
     @patch.object(relations, 'CONFIGS')
-    def test_configure_https_disable_with_keystone_joined(self, configs, keystone_joined):
+    def test_configure_https_disable_with_keystone_joined(
+            self, configs, keystone_joined):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['']
         configs.write = MagicMock()
@@ -377,7 +418,8 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'image_service_joined')
     @patch.object(relations, 'CONFIGS')
-    def test_configure_https_enable_with_image_service(self, configs, image_service_joined):
+    def test_configure_https_enable_with_image_service(
+            self, configs, image_service_joined):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['https']
         configs.write = MagicMock()
@@ -389,7 +431,8 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'image_service_joined')
     @patch.object(relations, 'CONFIGS')
-    def test_configure_https_disable_with_image_service(self, configs, image_service_joined):
+    def test_configure_https_disable_with_image_service(
+            self, configs, image_service_joined):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['']
         configs.write = MagicMock()
@@ -399,3 +442,7 @@ class GlanceRelationTests(CharmTestCase):
         self.check_call.assert_called_with(cmd)
         image_service_joined.assert_called_with(relation_id='image-service:0')
 
+    @patch.object(relations, 'CONFIGS')
+    def test_relation_broken(self, configs):
+        relations.relation_broken()
+        self.assertTrue(configs.write_all.called)
