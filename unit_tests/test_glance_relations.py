@@ -71,7 +71,7 @@ class GlanceRelationTests(CharmTestCase):
                                              'python-swift',
                                              'python-keystone',
                                              'uuid', 'haproxy'])
-        self.execd_preinstall.assert_called()
+        self.assertTrue(self.execd_preinstall.called)
 
     def test_install_hook_precise_distro(self):
         self.test_config.set('openstack-origin', 'distro')
@@ -277,7 +277,7 @@ class GlanceRelationTests(CharmTestCase):
     def test_keystone_changes_incomplete(self, configs):
         configs.complete_contexts.return_value = []
         relations.keystone_changed()
-        self.juju_log.assert_called()
+        self.assertTrue(self.juju_log.called)
         self.assertFalse(configs.write.called)
 
     @patch.object(relations, 'configure_https')
@@ -370,14 +370,14 @@ class GlanceRelationTests(CharmTestCase):
     def test_ha_relation_changed_not_clustered(self):
         self.relation_get.return_value = False
         relations.ha_relation_changed()
-        self.juju_log.assert_called()
+        self.assertTrue(self.juju_log.called)
 
     @patch.object(relations, 'keystone_joined')
     def test_ha_relation_changed_not_leader(self, joined):
         self.relation_get.return_value = True
         self.eligible_leader.return_value = False
         relations.ha_relation_changed()
-        self.juju_log.assert_called()
+        self.assertTrue(self.juju_log.called)
         self.assertFalse(joined.called)
 
     @patch.object(relations, 'image_service_joined')
@@ -445,4 +445,4 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'CONFIGS')
     def test_relation_broken(self, configs):
         relations.relation_broken()
-        configs.write_all.assert_called()
+        self.assertTrue(configs.write_all.called)
