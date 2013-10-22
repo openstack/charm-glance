@@ -13,8 +13,10 @@ from charmhelpers.fetch import (
 
 from charmhelpers.core.hookenv import (
     config,
-    log as juju_log,
+    log,
     relation_ids)
+
+from charmhelpers.core.host import mkdir
 
 from charmhelpers.contrib.openstack import (
     templating,
@@ -83,7 +85,7 @@ CONFIG_FILES = OrderedDict([
     }),
     (CEPH_CONF, {
         'hook_contexts': [context.CephContext()],
-        'services': []
+        'services': ['glance-api', 'glance-registry']
     }),
     (HAPROXY_CONF, {
         'hook_contexts': [context.HAProxyContext(),
@@ -116,8 +118,7 @@ def register_configs():
              HAPROXY_CONF]
 
     if relation_ids('ceph'):
-        if not os.path.isdir('/etc/ceph'):
-            os.mkdir('/etc/ceph')
+        mkdir('/etc/ceph')
         confs.append(CEPH_CONF)
 
     for conf in confs:
@@ -158,7 +159,7 @@ def do_openstack_upgrade(configs):
     new_src = config('openstack-origin')
     new_os_rel = get_os_codename_install_source(new_src)
 
-    juju_log('Performing OpenStack upgrade to %s.' % (new_os_rel))
+    log('Performing OpenStack upgrade to %s.' % (new_os_rel))
 
     configure_installation_source(new_src)
     dpkg_opts = [
