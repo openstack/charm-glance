@@ -26,7 +26,7 @@ class CephGlanceContext(OSContextGenerator):
         the presence of a ceph relation.
         """
         if not is_relation_made(relation="ceph",
-                                key="key"):
+                                keys="key"):
             return {}
         service = service_name()
         return {
