@@ -102,8 +102,12 @@ def get_osds(service):
     Return a list of all Ceph Object Storage Daemons
     currently in the cluster
     '''
-    return json.loads(check_output(['ceph', '--id', service,
-                                    'osd', 'ls', '--format=json']))
+    version = ceph_version()
+    if version and version >= '0.56':
+        return json.loads(check_output(['ceph', '--id', service,
+                                        'osd', 'ls', '--format=json']))
+    else:
+        return None
 
 
 def create_pool(service, name, replicas=2):
@@ -114,7 +118,13 @@ def create_pool(service, name, replicas=2):
         return
     # Calculate the number of placement groups based
     # on upstream recommended best practices.
-    pgnum = (len(get_osds(service)) * 100 / replicas)
+    osds = get_osds(service)
+    if osds:
+        pgnum = (len(osds) * 100 / replicas)
+    else:
+        # NOTE(james-page): Default to 200 for older ceph versions
+        # which don't support OSD query from cli
+        pgnum = 200
     cmd = [
         'ceph', '--id', service,
         'osd', 'pool', 'create',
@@ -357,3 +367,17 @@ def ensure_ceph_keyring(service, user=None, group=None):
     if user and group:
         check_call(['chown', '%s.%s' % (user, group), keyring])
     return True
+
+
+def ceph_version():
+    ''' Retrieve the local version of ceph '''
+    if os.path.exists('/usr/bin/ceph'):
+        cmd = ['ceph', '-v']
+        output = check_output(cmd)
+        output = output.split()
+        if len(output) > 3:
+            return output[2]
+        else:
+            return None
+    else:
+        return None

@@ -1,4 +1,5 @@
 from charmhelpers.core.hookenv import (
+    is_relation_made,
     relation_ids,
     related_units,
     relation_get,
@@ -14,16 +15,6 @@ from charmhelpers.contrib.hahelpers.cluster import (
     determine_api_port,
     determine_haproxy_port,
 )
-
-
-# TODO: switch to charmhelpers once landed
-# NOTE: zero units tests - done in charmhelpers
-def is_relation_made(relation, key='private-address'):
-    for r_id in relation_ids(relation):
-        for unit in related_units(r_id):
-            if relation_get(key, rid=r_id, unit=unit):
-                return True
-    return False
 
 
 class CephGlanceContext(OSContextGenerator):

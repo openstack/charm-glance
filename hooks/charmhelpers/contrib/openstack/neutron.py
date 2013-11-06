@@ -34,13 +34,23 @@ def quantum_plugins():
             'services': ['quantum-plugin-openvswitch-agent'],
             'packages': [[headers_package(), 'openvswitch-datapath-dkms'],
                          ['quantum-plugin-openvswitch-agent']],
+            'server_packages': ['quantum-server',
+                                'quantum-plugin-openvswitch'],
+            'server_services': ['quantum-server']
         },
         'nvp': {
             'config': '/etc/quantum/plugins/nicira/nvp.ini',
             'driver': 'quantum.plugins.nicira.nicira_nvp_plugin.'
                       'QuantumPlugin.NvpPluginV2',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron')],
             'services': [],
             'packages': [],
+            'server_packages': ['quantum-server',
+                                'quantum-plugin-nicira'],
+            'server_services': ['quantum-server']
         }
     }
 
@@ -60,13 +70,23 @@ def neutron_plugins():
             'services': ['neutron-plugin-openvswitch-agent'],
             'packages': [[headers_package(), 'openvswitch-datapath-dkms'],
                          ['quantum-plugin-openvswitch-agent']],
+            'server_packages': ['neutron-server',
+                                'neutron-plugin-openvswitch'],
+            'server_services': ['neutron-server']
         },
         'nvp': {
             'config': '/etc/neutron/plugins/nicira/nvp.ini',
             'driver': 'neutron.plugins.nicira.nicira_nvp_plugin.'
                       'NeutronPlugin.NvpPluginV2',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron')],
             'services': [],
             'packages': [],
+            'server_packages': ['neutron-server',
+                                'neutron-plugin-nicira'],
+            'server_services': ['neutron-server']
         }
     }
 

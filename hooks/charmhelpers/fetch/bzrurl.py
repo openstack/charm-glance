@@ -12,6 +12,7 @@ except ImportError:
     apt_install("python-bzrlib")
     from bzrlib.branch import Branch
 
+
 class BzrUrlFetchHandler(BaseFetchHandler):
     """Handler for bazaar branches via generic and lp URLs"""
     def can_handle(self, source):
@@ -46,4 +47,3 @@ class BzrUrlFetchHandler(BaseFetchHandler):
         except OSError as e:
             raise UnhandledSource(e.strerror)
         return dest_dir
-
