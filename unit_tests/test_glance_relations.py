@@ -370,7 +370,78 @@ class GlanceRelationTests(CharmTestCase):
     def test_ha_relation_changed_not_clustered(self):
         self.relation_get.return_value = False
         relations.ha_relation_changed()
-        self.assertTrue(self.juju_log.called)
+        self.juju_log.assert_called_with(
+            'ha_changed: hacluster subordinate is not fully clustered.'
+        )
+
+    @patch.object(relations, 'keystone_joined')
+    @patch.object(relations, 'CONFIGS')
+    def test_configure_https_enable_with_identity_service(self, configs, keystone_joined):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['https']
+        configs.write = MagicMock()
+        self.relation_ids.return_value = ['identity-service:0']
+        relations.configure_https()
+        cmd = ['a2ensite', 'openstack_https_frontend']
+        self.check_call.assert_called_with(cmd)
+        keystone_joined.assert_called_with(relation_id='identity-service:0')
+
+    @patch.object(relations, 'keystone_joined')
+    @patch.object(relations, 'CONFIGS')
+    def test_configure_https_disable_with_keystone_joined(self, configs, keystone_joined):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['']
+        configs.write = MagicMock()
+        self.relation_ids.return_value = ['identity-service:0']
+        relations.configure_https()
+        cmd = ['a2dissite', 'openstack_https_frontend']
+        self.check_call.assert_called_with(cmd)
+        keystone_joined.assert_called_with(relation_id='identity-service:0')
+
+    @patch.object(relations, 'image_service_joined')
+    @patch.object(relations, 'CONFIGS')
+    def test_configure_https_enable_with_image_service(self, configs, image_service_joined):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['https']
+        configs.write = MagicMock()
+        self.relation_ids.return_value = ['image-service:0']
+        relations.configure_https()
+        cmd = ['a2ensite', 'openstack_https_frontend']
+        self.check_call.assert_called_with(cmd)
+        image_service_joined.assert_called_with(relation_id='image-service:0')
+
+    @patch.object(relations, 'image_service_joined')
+    @patch.object(relations, 'CONFIGS')
+    def test_configure_https_disable_with_image_service(self, configs, image_service_joined):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['']
+        configs.write = MagicMock()
+        self.relation_ids.return_value = ['image-service:0']
+        relations.configure_https()
+        cmd = ['a2dissite', 'openstack_https_frontend']
+        self.check_call.assert_called_with(cmd)
+        image_service_joined.assert_called_with(relation_id='image-service:0')
+
+    def test_amqp_joined(self):
+        relations.amqp_joined()
+        self.relation_set.assert_called_with(username='glance', vhost='openstack')
+
+    @patch.object(relations, 'CONFIGS')
+    def test_amqp_changed_missing_relation_data(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = []
+        relations.amqp_changed()
+        self.juju_log.assert_called()
+
+    @patch.object(relations, 'CONFIGS')
+    def test_amqp_changed_relation_data(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['amqp']
+        configs.write = MagicMock()
+        relations.amqp_changed()
+        self.assertEquals([call('/etc/glance/glance-api.conf')],
+                           configs.write.call_args_list)
+        self.assertFalse(self.juju_log.called)
 
     @patch.object(relations, 'keystone_joined')
     def test_ha_relation_changed_not_leader(self, joined):
