@@ -26,6 +26,7 @@ TO_PATCH = [
 
 
 class TestGlanceUtils(CharmTestCase):
+
     def setUp(self):
         super(TestGlanceUtils, self).setUp(utils, TO_PATCH)
         self.config.side_effect = self.test_config.get_all

@@ -1,8 +1,6 @@
 from charmhelpers.core.hookenv import (
     is_relation_made,
     relation_ids,
-    related_units,
-    relation_get,
     service_name,
 )
 

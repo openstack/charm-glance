@@ -32,7 +32,7 @@ TO_PATCH = [
     'apt_update',
     'restart_on_change',
     'service_stop',
-    #charmhelpers.contrib.openstack.utils
+    # charmhelpers.contrib.openstack.utils
     'configure_installation_source',
     'get_os_codename_package',
     'openstack_upgrade_available',
@@ -55,6 +55,7 @@ TO_PATCH = [
 
 
 class GlanceRelationTests(CharmTestCase):
+
     def setUp(self):
         super(GlanceRelationTests, self).setUp(relations, TO_PATCH)
         self.config.side_effect = self.test_config.get
@@ -376,93 +377,6 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'keystone_joined')
     @patch.object(relations, 'CONFIGS')
-    def test_configure_https_enable_with_identity_service(self, configs, keystone_joined):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['https']
-        configs.write = MagicMock()
-        self.relation_ids.return_value = ['identity-service:0']
-        relations.configure_https()
-        cmd = ['a2ensite', 'openstack_https_frontend']
-        self.check_call.assert_called_with(cmd)
-        keystone_joined.assert_called_with(relation_id='identity-service:0')
-
-    @patch.object(relations, 'keystone_joined')
-    @patch.object(relations, 'CONFIGS')
-    def test_configure_https_disable_with_keystone_joined(self, configs, keystone_joined):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['']
-        configs.write = MagicMock()
-        self.relation_ids.return_value = ['identity-service:0']
-        relations.configure_https()
-        cmd = ['a2dissite', 'openstack_https_frontend']
-        self.check_call.assert_called_with(cmd)
-        keystone_joined.assert_called_with(relation_id='identity-service:0')
-
-    @patch.object(relations, 'image_service_joined')
-    @patch.object(relations, 'CONFIGS')
-    def test_configure_https_enable_with_image_service(self, configs, image_service_joined):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['https']
-        configs.write = MagicMock()
-        self.relation_ids.return_value = ['image-service:0']
-        relations.configure_https()
-        cmd = ['a2ensite', 'openstack_https_frontend']
-        self.check_call.assert_called_with(cmd)
-        image_service_joined.assert_called_with(relation_id='image-service:0')
-
-    @patch.object(relations, 'image_service_joined')
-    @patch.object(relations, 'CONFIGS')
-    def test_configure_https_disable_with_image_service(self, configs, image_service_joined):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['']
-        configs.write = MagicMock()
-        self.relation_ids.return_value = ['image-service:0']
-        relations.configure_https()
-        cmd = ['a2dissite', 'openstack_https_frontend']
-        self.check_call.assert_called_with(cmd)
-        image_service_joined.assert_called_with(relation_id='image-service:0')
-
-    def test_amqp_joined(self):
-        relations.amqp_joined()
-        self.relation_set.assert_called_with(username='glance', vhost='openstack')
-
-    @patch.object(relations, 'CONFIGS')
-    def test_amqp_changed_missing_relation_data(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = []
-        relations.amqp_changed()
-        self.juju_log.assert_called()
-
-    @patch.object(relations, 'CONFIGS')
-    def test_amqp_changed_relation_data(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['amqp']
-        configs.write = MagicMock()
-        relations.amqp_changed()
-        self.assertEquals([call('/etc/glance/glance-api.conf')],
-                           configs.write.call_args_list)
-        self.assertFalse(self.juju_log.called)
-
-    @patch.object(relations, 'keystone_joined')
-    def test_ha_relation_changed_not_leader(self, joined):
-        self.relation_get.return_value = True
-        self.eligible_leader.return_value = False
-        relations.ha_relation_changed()
-        self.assertTrue(self.juju_log.called)
-        self.assertFalse(joined.called)
-
-    @patch.object(relations, 'image_service_joined')
-    @patch.object(relations, 'keystone_joined')
-    def test_ha_relation_changed_leader(self, ks_joined, image_joined):
-        self.relation_get.return_value = True
-        self.eligible_leader.return_value = True
-        self.relation_ids.side_effect = [['identity:0'], ['image:1']]
-        relations.ha_relation_changed()
-        ks_joined.assert_called_with('identity:0')
-        image_joined.assert_called_with('image:1')
-
-    @patch.object(relations, 'keystone_joined')
-    @patch.object(relations, 'CONFIGS')
     def test_configure_https_enable_with_identity_service(
             self, configs, keystone_joined):
         configs.complete_contexts = MagicMock()
@@ -512,6 +426,47 @@ class GlanceRelationTests(CharmTestCase):
         cmd = ['a2dissite', 'openstack_https_frontend']
         self.check_call.assert_called_with(cmd)
         image_service_joined.assert_called_with(relation_id='image-service:0')
+
+    def test_amqp_joined(self):
+        relations.amqp_joined()
+        self.relation_set.assert_called_with(
+            username='glance',
+            vhost='openstack')
+
+    @patch.object(relations, 'CONFIGS')
+    def test_amqp_changed_missing_relation_data(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = []
+        relations.amqp_changed()
+        self.juju_log.assert_called()
+
+    @patch.object(relations, 'CONFIGS')
+    def test_amqp_changed_relation_data(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['amqp']
+        configs.write = MagicMock()
+        relations.amqp_changed()
+        self.assertEquals([call('/etc/glance/glance-api.conf')],
+                          configs.write.call_args_list)
+        self.assertFalse(self.juju_log.called)
+
+    @patch.object(relations, 'keystone_joined')
+    def test_ha_relation_changed_not_leader(self, joined):
+        self.relation_get.return_value = True
+        self.eligible_leader.return_value = False
+        relations.ha_relation_changed()
+        self.assertTrue(self.juju_log.called)
+        self.assertFalse(joined.called)
+
+    @patch.object(relations, 'image_service_joined')
+    @patch.object(relations, 'keystone_joined')
+    def test_ha_relation_changed_leader(self, ks_joined, image_joined):
+        self.relation_get.return_value = True
+        self.eligible_leader.return_value = True
+        self.relation_ids.side_effect = [['identity:0'], ['image:1']]
+        relations.ha_relation_changed()
+        ks_joined.assert_called_with('identity:0')
+        image_joined.assert_called_with('image:1')
 
     @patch.object(relations, 'CONFIGS')
     def test_relation_broken(self, configs):
