@@ -15,6 +15,7 @@ TO_PATCH = [
 
 
 class TestGlanceContexts(CharmTestCase):
+
     def setUp(self):
         super(TestGlanceContexts, self).setUp(contexts, TO_PATCH)
 
