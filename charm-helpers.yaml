@@ -1,4 +1,4 @@
-branch: lp:charm-helpers
+branch: lp:~james-page/charm-helpers/icehouse
 destination: hooks/charmhelpers
 include:
     - core

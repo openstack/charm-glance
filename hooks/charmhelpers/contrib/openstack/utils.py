@@ -41,6 +41,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('quantal', 'folsom'),
     ('raring', 'grizzly'),
     ('saucy', 'havana'),
+    ('trusty', 'icehouse')
 ])
 
 
@@ -260,6 +261,9 @@ def configure_installation_source(rel):
             'havana': 'precise-updates/havana',
             'havana/updates': 'precise-updates/havana',
             'havana/proposed': 'precise-proposed/havana',
+            'icehouse': 'precise-updates/icehouse',
+            'icehouse/updates': 'precise-updates/icehouse',
+            'icehouse/proposed': 'precise-proposed/icehouse',
         }
 
         try:
