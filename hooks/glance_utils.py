@@ -14,7 +14,8 @@ from charmhelpers.fetch import (
 from charmhelpers.core.hookenv import (
     config,
     log,
-    relation_ids)
+    relation_ids,
+    service_name)
 
 from charmhelpers.core.host import mkdir
 
@@ -30,10 +31,11 @@ from charmhelpers.contrib.storage.linux.ceph import (
     create_pool as ceph_create_pool,
     pool_exists as ceph_pool_exists)
 
+from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
     get_os_codename_package,
-    configure_installation_source, )
+    configure_installation_source)
 
 CLUSTER_RES = "res_glance_vip"
 
@@ -52,14 +54,6 @@ GLANCE_API_CONF = "/etc/glance/glance-api.conf"
 GLANCE_API_PASTE_INI = "/etc/glance/glance-api-paste.ini"
 CEPH_CONF = "/etc/ceph/ceph.conf"
 CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
-CEPH_SECRET = '/etc/ceph/secret.xml'
-
-CEPH_RESOURCES = {
-    CEPH_SECRET: {
-        'contexts': [GlanceCephContext()],
-        'services': [],
-    }
-}
 
 HAPROXY_CONF = "/etc/haproxy/haproxy.cfg"
 HTTPS_APACHE_CONF = "/etc/apache2/sites-available/openstack_https_frontend"
@@ -143,11 +137,7 @@ def register_configs():
             open(ceph_config_file(), 'w').close()
         install_alternative(os.path.basename(CEPH_CONF),
                             CEPH_CONF, ceph_config_file())
-        CEPH_RESOURCES[ceph_config_file()] = {
-            'contexts': [GlanceCephContext()],
-            'services': [],
-        }
-        confs.append(ceph_config_file())
+        confs.append(CEPH_CONF)
 
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['hook_contexts'])
@@ -163,23 +153,26 @@ def register_configs():
 
 
 def migrate_database():
-    '''Runs glance-manage to initialize a new database or migrate existing'''
+    '''Runs glance-manage to initialize a new database
+    or migrate existing
+    '''
     cmd = ['glance-manage', 'db_sync']
     subprocess.check_call(cmd)
 
 
 def ensure_ceph_pool(service, replicas):
-    '''Creates a ceph pool for service if one does not exist'''
-    # TODO: Ditto about moving somewhere sharable.
+    '''Creates a ceph pool for service
+    if one does not exist
+    '''
+    # TODO(Ditto about moving somewhere sharable.)
     if not ceph_pool_exists(service=service, name=service):
         ceph_create_pool(service=service, name=service, replicas=replicas)
 
 
 def do_openstack_upgrade(configs):
-    """
-    Perform an uprade of cinder.  Takes care of upgrading packages, rewriting
-    configs + database migration and potentially any other post-upgrade
-    actions.
+    """Perform an uprade of cinder.  Takes care of upgrading
+    packages, rewriting configs + database migration and potentially
+    any other post-upgrade actions.
 
     :param configs: The charms main OSConfigRenderer object.
 
@@ -206,8 +199,7 @@ def do_openstack_upgrade(configs):
 
 
 def restart_map():
-    '''
-    Determine the correct resource map to be passed to
+    '''Determine the correct resource map to be passed to
     charmhelpers.core.restart_on_change() based on the services configured.
 
     :returns: dict: A dictionary mapping config file to lists of services

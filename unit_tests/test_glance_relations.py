@@ -45,12 +45,13 @@ TO_PATCH = [
     'migrate_database',
     'ensure_ceph_keyring',
     'ensure_ceph_pool',
+    'ceph_config_file',
     # other
     'call',
     'check_call',
     'execd_preinstall',
-    'mkdir',
-    'lsb_release'
+    'lsb_release',
+    'mkdir'
 ]
 
 
@@ -204,7 +205,6 @@ class GlanceRelationTests(CharmTestCase):
 
     def test_ceph_joined(self):
         relations.ceph_joined()
-        self.mkdir.assert_called_with('/etc/ceph')
         self.apt_install.assert_called_with(['ceph-common', 'python-ceph'])
 
     @patch.object(relations, 'CONFIGS')
@@ -236,12 +236,13 @@ class GlanceRelationTests(CharmTestCase):
         self.ensure_ceph_keyring.return_value = True
         relations.ceph_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
-                           call('/etc/ceph/ceph.conf')],
+                           call(self.ceph_config_file())],
                           configs.write.call_args_list)
         self.ensure_ceph_pool.assert_called_with(service=self.service_name(),
                                                  replicas=2)
 
     def test_keystone_joined_not_leader(self):
+        self.ceph_config_file.return_value = '/var/lib/charm/glance/ceph.conf'
         self.eligible_leader.return_value = False
         relations.keystone_joined()
         self.assertFalse(self.relation_set.called)

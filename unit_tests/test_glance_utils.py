@@ -21,7 +21,9 @@ TO_PATCH = [
     'templating',
     'apt_update',
     'apt_install',
-    'mkdir'
+    'mkdir',
+    'service_name',
+    'install_alternative'
 ]
 
 
@@ -33,7 +35,7 @@ class TestGlanceUtils(CharmTestCase):
 
     @patch('subprocess.check_call')
     def test_migrate_database(self, check_call):
-        '''It migrates database with cinder-manage'''
+        "It migrates database with cinder-manage"
         utils.migrate_database()
         check_call.assert_called_with(['glance-manage', 'db_sync'])
 
@@ -89,9 +91,10 @@ class TestGlanceUtils(CharmTestCase):
 
     @patch('os.path.exists')
     def test_register_configs_ceph(self, exists):
-        exists.return_value = False
+        exists.return_value = True
         self.get_os_codename_package.return_value = 'grizzly'
         self.relation_ids.return_value = ['ceph:0']
+        self.service_name.return_value = 'glance'
         configs = utils.register_configs()
         calls = []
         for conf in [utils.GLANCE_REGISTRY_CONF,
@@ -99,7 +102,6 @@ class TestGlanceUtils(CharmTestCase):
                      utils.GLANCE_API_PASTE_INI,
                      utils.GLANCE_REGISTRY_PASTE_INI,
                      utils.HAPROXY_CONF,
-                     utils.HTTPS_APACHE_CONF,
                      utils.CEPH_CONF]:
             calls.append(
                 call(conf,

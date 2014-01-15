@@ -19,8 +19,7 @@ class CephGlanceContext(OSContextGenerator):
     interfaces = ['ceph-glance']
 
     def __call__(self):
-        """
-        Used to generate template context to be added to glance-api.conf in
+        """Used to generate template context to be added to glance-api.conf in
         the presence of a ceph relation.
         """
         if not is_relation_made(relation="ceph",
@@ -38,7 +37,7 @@ class ObjectStoreContext(OSContextGenerator):
     interfaces = ['object-store']
 
     def __call__(self):
-        """
+        """Object store config.
         Used to generate template context to be added to glance-api.conf in
         the presence of a 'object-store' relation.
         """
@@ -53,8 +52,7 @@ class HAProxyContext(OSContextGenerator):
     interfaces = ['cluster']
 
     def __call__(self):
-        '''
-        Extends the main charmhelpers HAProxyContext with a port mapping
+        '''Extends the main charmhelpers HAProxyContext with a port mapping
         specific to this charm.
         Also used to extend glance-api.conf context with correct bind_port
         '''
