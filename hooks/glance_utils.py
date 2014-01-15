@@ -51,6 +51,16 @@ GLANCE_REGISTRY_PASTE_INI = "/etc/glance/glance-registry-paste.ini"
 GLANCE_API_CONF = "/etc/glance/glance-api.conf"
 GLANCE_API_PASTE_INI = "/etc/glance/glance-api-paste.ini"
 CEPH_CONF = "/etc/ceph/ceph.conf"
+CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
+CEPH_SECRET = '/etc/ceph/secret.xml'
+
+CEPH_RESOURCES = {
+    CEPH_SECRET: {
+        'contexts': [GlanceCephContext()],
+        'services': [],
+    }
+}
+
 HAPROXY_CONF = "/etc/haproxy/haproxy.cfg"
 HTTPS_APACHE_CONF = "/etc/apache2/sites-available/openstack_https_frontend"
 HTTPS_APACHE_24_CONF = "/etc/apache2/sites-available/" \
@@ -103,6 +113,10 @@ CONFIG_FILES = OrderedDict([
 ])
 
 
+def ceph_config_file():
+    return CHARM_CEPH_CONF.format(service_name())
+
+
 def register_configs():
     # Register config files with their respective contexts.
     # Regstration of some configs may not be required depending on
@@ -118,8 +132,22 @@ def register_configs():
              HAPROXY_CONF]
 
     if relation_ids('ceph'):
-        mkdir('/etc/ceph')
-        confs.append(CEPH_CONF)
+        mkdir(os.path.dirname(ceph_config_file()))
+        mkdir(os.path.dirname(CEPH_CONF))
+
+        # Install ceph config as an alternative for co-location with
+        # ceph and ceph-osd charms - glance ceph.conf will be
+        # lower priority that both of these but thats OK
+        if not os.path.exists(ceph_config_file()):
+            # touch file for pre-templated generation
+            open(ceph_config_file(), 'w').close()
+        install_alternative(os.path.basename(CEPH_CONF),
+                            CEPH_CONF, ceph_config_file())
+        CEPH_RESOURCES[ceph_config_file()] = {
+            'contexts': [GlanceCephContext()],
+            'services': [],
+        }
+        confs.append(ceph_config_file())
 
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['hook_contexts'])

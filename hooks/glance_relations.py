@@ -16,7 +16,7 @@ from glance_utils import (
     GLANCE_API_CONF,
     GLANCE_API_PASTE_INI,
     HAPROXY_CONF,
-    CEPH_CONF, )
+    ceph_config_file, CEPH_SECRET)
 
 from charmhelpers.core.hookenv import (
     config,
@@ -140,7 +140,6 @@ def object_store_joined():
 
 @hooks.hook('ceph-relation-joined')
 def ceph_joined():
-    mkdir('/etc/ceph')
     apt_install(['ceph-common', 'python-ceph'])
 
 
@@ -159,7 +158,8 @@ def ceph_changed():
         return
 
     CONFIGS.write(GLANCE_API_CONF)
-    CONFIGS.write(CEPH_CONF)
+    CONFIGS.write(CEPH_SECRET)
+    CONFIGS.write(ceph_config_file())
 
     if eligible_leader(CLUSTER_RES):
         _config = config()
