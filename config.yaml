@@ -36,6 +36,12 @@ options:
       rbd pool has been created, changing this value will not have any
       effect (although it can be changed in ceph by manually configuring
       your ceph cluster).
+  use-syslog:
+    type: boolean
+    default: False
+    description: |
+      By default, all services will log into their corresponding log files.
+      Setting this to True will force all services to log to the syslog.
   # HA configuration settings
   vip:
     type: string

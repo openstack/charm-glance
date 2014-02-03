@@ -2,6 +2,7 @@ from charmhelpers.core.hookenv import (
     is_relation_made,
     relation_ids,
     service_name,
+    config
 )
 
 from charmhelpers.contrib.openstack.context import (
@@ -75,3 +76,11 @@ class ApacheSSLContext(SSLContext):
 
     def __call__(self):
         return super(ApacheSSLContext, self).__call__()
+
+
+class GlanceContext(OSContextGenerator):
+    def __call__(self):
+        ctxt = {
+            'use_syslog': config('use-syslog')
+        }
+        return ctxt
