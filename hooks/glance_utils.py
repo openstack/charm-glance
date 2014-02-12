@@ -64,6 +64,9 @@ CONF_DIR = "/etc/glance"
 
 TEMPLATES = 'templates/'
 
+def ceph_config_file():
+    return CHARM_CEPH_CONF.format(service_name())
+
 CONFIG_FILES = OrderedDict([
     (GLANCE_REGISTRY_CONF, {
         'hook_contexts': [context.SharedDBContext(),
@@ -87,7 +90,7 @@ CONFIG_FILES = OrderedDict([
         'hook_contexts': [context.IdentityServiceContext()],
         'services': ['glance-registry']
     }),
-    (CEPH_CONF, {
+    (ceph_config_file(), {
         'hook_contexts': [context.CephContext()],
         'services': ['glance-api', 'glance-registry']
     }),
@@ -105,11 +108,6 @@ CONFIG_FILES = OrderedDict([
         'services': ['apache2'],
     })
 ])
-
-
-def ceph_config_file():
-    return CHARM_CEPH_CONF.format(service_name())
-
 
 def register_configs():
     # Register config files with their respective contexts.
@@ -137,7 +135,7 @@ def register_configs():
             open(ceph_config_file(), 'w').close()
         install_alternative(os.path.basename(CEPH_CONF),
                             CEPH_CONF, ceph_config_file())
-        confs.append(CEPH_CONF)
+        confs.append(ceph_config_file())
 
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['hook_contexts'])

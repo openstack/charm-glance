@@ -1,7 +1,9 @@
 from mock import call, patch, MagicMock
+import os
 
 from test_utils import CharmTestCase
 
+os.environ['JUJU_UNIT_NAME'] = 'glance'
 import glance_utils as utils
 
 _reg = utils.register_configs

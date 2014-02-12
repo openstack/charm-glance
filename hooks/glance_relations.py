@@ -22,6 +22,7 @@ from charmhelpers.core.hookenv import (
     config,
     Hooks,
     log as juju_log,
+    mkdir,
     open_port,
     relation_get,
     relation_set,
@@ -32,8 +33,7 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     restart_on_change,
-    service_stop,
-    mkdir
+    service_stop
 )
 
 from charmhelpers.fetch import apt_install, apt_update

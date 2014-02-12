@@ -1,7 +1,9 @@
 from mock import patch, call, MagicMock
 
 from collections import OrderedDict
+import os
 
+os.environ['JUJU_UNIT_NAME'] = 'glance'
 import glance_utils as utils
 
 from test_utils import (
@@ -102,7 +104,7 @@ class TestGlanceUtils(CharmTestCase):
                      utils.GLANCE_API_PASTE_INI,
                      utils.GLANCE_REGISTRY_PASTE_INI,
                      utils.HAPROXY_CONF,
-                     utils.CEPH_CONF]:
+                     utils.ceph_config_file()]:
             calls.append(
                 call(conf,
                      utils.CONFIG_FILES[conf]['hook_contexts'])
@@ -111,12 +113,14 @@ class TestGlanceUtils(CharmTestCase):
         self.mkdir.assert_called_with('/etc/ceph')
 
     def test_restart_map(self):
+        self.service_name.return_value = 'glance'
+
         ex_map = OrderedDict([
             (utils.GLANCE_REGISTRY_CONF, ['glance-registry']),
             (utils.GLANCE_API_CONF, ['glance-api']),
             (utils.GLANCE_API_PASTE_INI, ['glance-api']),
             (utils.GLANCE_REGISTRY_PASTE_INI, ['glance-registry']),
-            (utils.CEPH_CONF, ['glance-api', 'glance-registry']),
+            (utils.ceph_config_file(), ['glance-api', 'glance-registry']),
             (utils.HAPROXY_CONF, ['haproxy']),
             (utils.HTTPS_APACHE_CONF, ['apache2']),
             (utils.HTTPS_APACHE_24_CONF, ['apache2'])
