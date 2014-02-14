@@ -23,7 +23,6 @@ from charmhelpers.core.hookenv import (
     unit_get,
     unit_private_ip,
     ERROR,
-    WARNING,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -66,6 +65,43 @@ def context_complete(ctxt):
         log('Missing required data: %s' % ' '.join(_missing), level='INFO')
         return False
     return True
+
+
+def config_flags_parser(config_flags):
+    if config_flags.find('==') >= 0:
+        log("config_flags is not in expected format (key=value)",
+            level=ERROR)
+        raise OSContextError
+    # strip the following from each value.
+    post_strippers = ' ,'
+    # we strip any leading/trailing '=' or ' ' from the string then
+    # split on '='.
+    split = config_flags.strip(' =').split('=')
+    limit = len(split)
+    flags = {}
+    for i in xrange(0, limit - 1):
+        current = split[i]
+        next = split[i + 1]
+        vindex = next.rfind(',')
+        if (i == limit - 2) or (vindex < 0):
+            value = next
+        else:
+            value = next[:vindex]
+
+        if i == 0:
+            key = current
+        else:
+            # if this not the first entry, expect an embedded key.
+            index = current.rfind(',')
+            if index < 0:
+                log("invalid config value(s) at index %s" % (i),
+                    level=ERROR)
+                raise OSContextError
+            key = current[index + 1:]
+
+        # Add to collection.
+        flags[key.strip(post_strippers)] = value.rstrip(post_strippers)
+    return flags
 
 
 class OSContextGenerator(object):
@@ -182,10 +218,12 @@ class AMQPContext(OSContextGenerator):
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
-            ctxt['rabbitmq_hosts'] = []
-            for unit in related_units(rid):
-                ctxt['rabbitmq_hosts'].append(relation_get('private-address',
-                                                           rid=rid, unit=unit))
+            if 'clustered' not in ctxt and len(related_units(rid)) > 1:
+                rabbitmq_hosts = []
+                for unit in related_units(rid):
+                    rabbitmq_hosts.append(relation_get('private-address',
+                                                       rid=rid, unit=unit))
+                ctxt['rabbitmq_hosts'] = ','.join(rabbitmq_hosts)
         if not context_complete(ctxt):
             return {}
         else:
@@ -286,6 +324,7 @@ class ImageServiceContext(OSContextGenerator):
 
 
 class ApacheSSLContext(OSContextGenerator):
+
     """
     Generates a context for an apache vhost configuration that configures
     HTTPS reverse proxying for one or many endpoints.  Generated context
@@ -428,33 +467,37 @@ class NeutronContext(object):
         elif self.plugin == 'nvp':
             ctxt.update(self.nvp_ctxt())
 
+        alchemy_flags = config('neutron-alchemy-flags')
+        if alchemy_flags:
+            flags = config_flags_parser(alchemy_flags)
+            ctxt['neutron_alchemy_flags'] = flags
+
         self._save_flag_file()
         return ctxt
 
 
 class OSConfigFlagContext(OSContextGenerator):
-        '''
-        Responsible adding user-defined config-flags in charm config to a
-        to a template context.
-        '''
+
+        """
+        Responsible for adding user-defined config-flags in charm config to a
+        template context.
+
+        NOTE: the value of config-flags may be a comma-separated list of
+              key=value pairs and some Openstack config files support
+              comma-separated lists as values.
+        """
+
         def __call__(self):
             config_flags = config('config-flags')
-            if not config_flags or config_flags in ['None', '']:
+            if not config_flags:
                 return {}
-            config_flags = config_flags.split(',')
-            flags = {}
-            for flag in config_flags:
-                if '=' not in flag:
-                    log('Improperly formatted config-flag, expected k=v '
-                        'got %s' % flag, level=WARNING)
-                    continue
-                k, v = flag.split('=')
-                flags[k.strip()] = v
-            ctxt = {'user_config_flags': flags}
-            return ctxt
+
+            flags = config_flags_parser(config_flags)
+            return {'user_config_flags': flags}
 
 
 class SubordinateConfigContext(OSContextGenerator):
+
     """
     Responsible for inspecting relations to subordinates that
     may be exporting required config via a json blob.
@@ -495,6 +538,7 @@ class SubordinateConfigContext(OSContextGenerator):
         }
 
     """
+
     def __init__(self, service, config_file, interface):
         """
         :param service     : Service name key to query in any subordinate
@@ -538,4 +582,12 @@ class SubordinateConfigContext(OSContextGenerator):
         if not ctxt:
             ctxt['sections'] = {}
 
+        return ctxt
+
+
+class SyslogContext(OSContextGenerator):
+    def __call__(self):
+        ctxt = {
+            'use_syslog': config('use-syslog')
+        }
         return ctxt
