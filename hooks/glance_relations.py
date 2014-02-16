@@ -225,6 +225,7 @@ def config_changed():
 @hooks.hook('cluster-relation-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def cluster_changed():
+    configure_https()
     CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write(HAPROXY_CONF)
 

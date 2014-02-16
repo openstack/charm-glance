@@ -10,8 +10,8 @@ from charmhelpers.contrib.openstack.context import (
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
+    determine_apache_port,
     determine_api_port,
-    determine_haproxy_port,
 )
 
 
@@ -58,11 +58,12 @@ class HAProxyContext(OSContextGenerator):
         specific to this charm.
         Also used to extend glance-api.conf context with correct bind_port
         '''
-        haproxy_port = determine_haproxy_port(9292)
+        haproxy_port = 9292
+        apache_port = determine_apache_port(9292)
         api_port = determine_api_port(9292)
 
         ctxt = {
-            'service_ports': {'glance_api': [haproxy_port, api_port]},
+            'service_ports': {'glance_api': [haproxy_port, apache_port]},
             'bind_port': api_port,
         }
         return ctxt
