@@ -27,8 +27,8 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
+    determine_apache_port,
     determine_api_port,
-    determine_haproxy_port,
     https,
     is_clustered,
     peer_units,
@@ -341,11 +341,9 @@ class ApacheSSLContext(OSContextGenerator):
             'private_address': unit_get('private-address'),
             'endpoints': []
         }
-        for ext_port in self.external_ports:
-            if peer_units() or is_clustered():
-                int_port = determine_haproxy_port(ext_port)
-            else:
-                int_port = determine_api_port(ext_port)
+        for api_port in self.external_ports:
+            ext_port = determine_apache_port(api_port)
+            int_port = determine_api_port(api_port)
             portmap = (int(ext_port), int(int_port))
             ctxt['endpoints'].append(portmap)
         return ctxt

@@ -126,6 +126,13 @@ def determine_api_port(public_port):
     return public_port - (i * 10)
 
 
+def determine_apache_port(public_port):
+    i = 0
+    if len(peer_units()) > 0 or is_clustered():
+        i += 1
+    return public_port - (i * 10)
+
+
 def determine_haproxy_port(public_port):
     '''
     Description: Determine correct proxy listening port based on public IP +
