@@ -207,7 +207,7 @@ def keystone_changed():
 
 
 @hooks.hook('config-changed')
-@restart_on_change(restart_map())
+@restart_on_change(restart_map(), stopstart=True)
 def config_changed():
     if openstack_upgrade_available('glance-common'):
         juju_log('Upgrading OpenStack release')
@@ -223,7 +223,7 @@ def config_changed():
 
 
 @hooks.hook('cluster-relation-changed')
-@restart_on_change(restart_map())
+@restart_on_change(restart_map(), stopstart=True)
 def cluster_changed():
     CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write(HAPROXY_CONF)
