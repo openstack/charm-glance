@@ -245,3 +245,47 @@ def pwgen(length=None):
     random_chars = [
         random.choice(alphanumeric_chars) for _ in range(length)]
     return(''.join(random_chars))
+
+
+def list_nics(nic_type):
+    '''Return a list of nics of given type(s)'''
+    if isinstance(nic_type, basestring):
+        int_types = [nic_type]
+    else:
+        int_types = nic_type
+    interfaces = []
+    for int_type in int_types:
+        cmd = ['ip', 'addr', 'show', 'label', int_type + '*']
+        ip_output = subprocess.check_output(cmd).split('\n')
+        ip_output = (line for line in ip_output if line)
+        for line in ip_output:
+            if line.split()[1].startswith(int_type):
+                interfaces.append(line.split()[1].replace(":", ""))
+    return interfaces
+
+
+def set_nic_mtu(nic, mtu):
+    '''Set MTU on a network interface'''
+    cmd = ['ip', 'link', 'set', nic, 'mtu', mtu]
+    subprocess.check_call(cmd)
+
+
+def get_nic_mtu(nic):
+    cmd = ['ip', 'addr', 'show', nic]
+    ip_output = subprocess.check_output(cmd).split('\n')
+    mtu = ""
+    for line in ip_output:
+        words = line.split()
+        if 'mtu' in words:
+            mtu = words[words.index("mtu") + 1]
+    return mtu
+
+
+def get_nic_hwaddr(nic):
+    cmd = ['ip', '-o', '-0', 'addr', 'show', nic]
+    ip_output = subprocess.check_output(cmd)
+    hwaddr = ""
+    words = ip_output.split()
+    if 'link/ether' in words:
+        hwaddr = words[words.index('link/ether') + 1]
+    return hwaddr
