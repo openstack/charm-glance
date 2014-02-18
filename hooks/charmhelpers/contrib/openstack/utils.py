@@ -415,7 +415,7 @@ def get_host_ip(hostname):
     return ns_query(hostname)
 
 
-def get_hostname(address):
+def get_hostname(address, fqdn=True):
     """
     Resolves hostname for given IP, or returns the input
     if it is already a hostname.
@@ -434,7 +434,11 @@ def get_hostname(address):
     if not result:
         return None
 
-    # strip trailing .
-    if result.endswith('.'):
-        return result[:-1]
-    return result
+    if fqdn:
+        # strip trailing .
+        if result.endswith('.'):
+            return result[:-1]
+        else:
+            return result
+    else:
+        return result.split('.')[0]

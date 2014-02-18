@@ -70,7 +70,8 @@ def ceph_config_file():
 CONFIG_FILES = OrderedDict([
     (GLANCE_REGISTRY_CONF, {
         'hook_contexts': [context.SharedDBContext(),
-                          context.IdentityServiceContext()],
+                          context.IdentityServiceContext(),
+                          context.SyslogContext()],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
@@ -79,7 +80,8 @@ CONFIG_FILES = OrderedDict([
                           context.IdentityServiceContext(),
                           glance_contexts.CephGlanceContext(),
                           glance_contexts.ObjectStoreContext(),
-                          glance_contexts.HAProxyContext()],
+                          glance_contexts.HAProxyContext(),
+                          context.SyslogContext()],
         'services': ['glance-api']
     }),
     (GLANCE_API_PASTE_INI, {
