@@ -63,7 +63,7 @@ TEMPLATES = 'templates/'
 
 CONFIG_FILES = OrderedDict([
     (GLANCE_REGISTRY_CONF, {
-        'hook_contexts': [context.SharedDBContext(),
+        'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
                           context.IdentityServiceContext()],
         'services': ['glance-registry']
     }),

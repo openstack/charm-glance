@@ -160,6 +160,7 @@ class SharedDBContext(OSContextGenerator):
                         ctxt['database_ssl_ca'] = ca_path
                     elif 'ssl_ca' in rdata:
                         log("Charm not setup for ssl support but ssl ca found")
+                        return ctxt
                     if 'ssl_cert' in rdata:
                         cert_path = os.path.join(
                             self.ssl_dir, 'db-client.cert')
