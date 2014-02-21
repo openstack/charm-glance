@@ -1,5 +1,6 @@
 import json
 import os
+import time
 
 from base64 import b64decode
 
@@ -23,7 +24,6 @@ from charmhelpers.core.hookenv import (
     unit_get,
     unit_private_ip,
     ERROR,
-    WARNING,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -68,6 +68,43 @@ def context_complete(ctxt):
     return True
 
 
+def config_flags_parser(config_flags):
+    if config_flags.find('==') >= 0:
+        log("config_flags is not in expected format (key=value)",
+            level=ERROR)
+        raise OSContextError
+    # strip the following from each value.
+    post_strippers = ' ,'
+    # we strip any leading/trailing '=' or ' ' from the string then
+    # split on '='.
+    split = config_flags.strip(' =').split('=')
+    limit = len(split)
+    flags = {}
+    for i in xrange(0, limit - 1):
+        current = split[i]
+        next = split[i + 1]
+        vindex = next.rfind(',')
+        if (i == limit - 2) or (vindex < 0):
+            value = next
+        else:
+            value = next[:vindex]
+
+        if i == 0:
+            key = current
+        else:
+            # if this not the first entry, expect an embedded key.
+            index = current.rfind(',')
+            if index < 0:
+                log("invalid config value(s) at index %s" % (i),
+                    level=ERROR)
+                raise OSContextError
+            key = current[index + 1:]
+
+        # Add to collection.
+        flags[key.strip(post_strippers)] = value.rstrip(post_strippers)
+    return flags
+
+
 class OSContextGenerator(object):
     interfaces = []
 
@@ -78,7 +115,8 @@ class OSContextGenerator(object):
 class SharedDBContext(OSContextGenerator):
     interfaces = ['shared-db']
 
-    def __init__(self, database=None, user=None, relation_prefix=None):
+    def __init__(self,
+                 database=None, user=None, relation_prefix=None, ssl_dir=None):
         '''
         Allows inspecting relation for settings prefixed with relation_prefix.
         This is useful for parsing access for multiple databases returned via
@@ -87,6 +125,7 @@ class SharedDBContext(OSContextGenerator):
         self.relation_prefix = relation_prefix
         self.database = database
         self.user = user
+        self.ssl_dir = ssl_dir
 
     def __call__(self):
         self.database = self.database or config('database')
@@ -104,15 +143,37 @@ class SharedDBContext(OSContextGenerator):
 
         for rid in relation_ids('shared-db'):
             for unit in related_units(rid):
-                passwd = relation_get(password_setting, rid=rid, unit=unit)
+                rdata = relation_get(rid=rid, unit=unit)
                 ctxt = {
-                    'database_host': relation_get('db_host', rid=rid,
-                                                  unit=unit),
+                    'database_host': rdata.get('db_host'),
                     'database': self.database,
                     'database_user': self.user,
-                    'database_password': passwd,
+                    'database_password': rdata.get(password_setting)
                 }
                 if context_complete(ctxt):
+                    ctxt.update({'database_ssl_ca': '', 'database_ssl_key': '',
+                                 'database_ssl_cert': ''})
+                    if 'ssl_ca' in rdata and self.ssl_dir:
+                        ca_path = os.path.join(self.ssl_dir, 'db-client.ca')
+                        with open(ca_path, 'w') as fh:
+                            fh.write(b64decode(rdata['ssl_ca']))
+                        ctxt['database_ssl_ca'] = ca_path
+                    elif 'ssl_ca' in rdata:
+                        log("Charm not setup for ssl support but ssl ca found")
+                    if 'ssl_cert' in rdata:
+                        cert_path = os.path.join(
+                            self.ssl_dir, 'db-client.cert')
+                        if not os.path.exists(cert_path):
+                            log("Waiting 1m for ssl client cert validity")
+                            time.sleep(60)
+                        with open(cert_path, 'w') as fh:
+                            fh.write(b64decode(rdata['ssl_cert']))
+                        ctxt['database_ssl_cert'] = cert_path
+
+                        key_path = os.path.join(self.ssl_dir, 'db-client.key')
+                        with open(key_path, 'w') as fh:
+                            fh.write(b64decode(rdata['ssl_key']))
+                        ctxt['database_ssl_key'] = key_path
                     return ctxt
         return {}
 
@@ -182,10 +243,12 @@ class AMQPContext(OSContextGenerator):
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
-            ctxt['rabbitmq_hosts'] = []
-            for unit in related_units(rid):
-                ctxt['rabbitmq_hosts'].append(relation_get('private-address',
-                                                           rid=rid, unit=unit))
+            if 'clustered' not in ctxt and len(related_units(rid)) > 1:
+                rabbitmq_hosts = []
+                for unit in related_units(rid):
+                    rabbitmq_hosts.append(relation_get('private-address',
+                                                       rid=rid, unit=unit))
+                ctxt['rabbitmq_hosts'] = ','.join(rabbitmq_hosts)
         if not context_complete(ctxt):
             return {}
         else:
@@ -286,6 +349,7 @@ class ImageServiceContext(OSContextGenerator):
 
 
 class ApacheSSLContext(OSContextGenerator):
+
     """
     Generates a context for an apache vhost configuration that configures
     HTTPS reverse proxying for one or many endpoints.  Generated context
@@ -428,33 +492,37 @@ class NeutronContext(object):
         elif self.plugin == 'nvp':
             ctxt.update(self.nvp_ctxt())
 
+        alchemy_flags = config('neutron-alchemy-flags')
+        if alchemy_flags:
+            flags = config_flags_parser(alchemy_flags)
+            ctxt['neutron_alchemy_flags'] = flags
+
         self._save_flag_file()
         return ctxt
 
 
 class OSConfigFlagContext(OSContextGenerator):
-        '''
-        Responsible adding user-defined config-flags in charm config to a
-        to a template context.
-        '''
+
+        """
+        Responsible for adding user-defined config-flags in charm config to a
+        template context.
+
+        NOTE: the value of config-flags may be a comma-separated list of
+              key=value pairs and some Openstack config files support
+              comma-separated lists as values.
+        """
+
         def __call__(self):
             config_flags = config('config-flags')
-            if not config_flags or config_flags in ['None', '']:
+            if not config_flags:
                 return {}
-            config_flags = config_flags.split(',')
-            flags = {}
-            for flag in config_flags:
-                if '=' not in flag:
-                    log('Improperly formatted config-flag, expected k=v '
-                        'got %s' % flag, level=WARNING)
-                    continue
-                k, v = flag.split('=')
-                flags[k.strip()] = v
-            ctxt = {'user_config_flags': flags}
-            return ctxt
+
+            flags = config_flags_parser(config_flags)
+            return {'user_config_flags': flags}
 
 
 class SubordinateConfigContext(OSContextGenerator):
+
     """
     Responsible for inspecting relations to subordinates that
     may be exporting required config via a json blob.
@@ -495,6 +563,7 @@ class SubordinateConfigContext(OSContextGenerator):
         }
 
     """
+
     def __init__(self, service, config_file, interface):
         """
         :param service     : Service name key to query in any subordinate
@@ -538,4 +607,12 @@ class SubordinateConfigContext(OSContextGenerator):
         if not ctxt:
             ctxt['sections'] = {}
 
+        return ctxt
+
+
+class SyslogContext(OSContextGenerator):
+    def __call__(self):
+        ctxt = {
+            'use_syslog': config('use-syslog')
+        }
         return ctxt
