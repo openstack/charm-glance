@@ -69,7 +69,7 @@ CONFIG_FILES = OrderedDict([
     }),
     (GLANCE_API_CONF, {
         'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
-                          context.AMQPContext(),
+                          context.AMQPContext(ssl_dir=GLANCE_CONF_DIR),
                           context.IdentityServiceContext(),
                           glance_contexts.CephGlanceContext(),
                           glance_contexts.ObjectStoreContext(),

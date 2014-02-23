@@ -213,6 +213,9 @@ class IdentityServiceContext(OSContextGenerator):
 class AMQPContext(OSContextGenerator):
     interfaces = ['amqp']
 
+    def __init__(self, ssl_dir=None):
+        self.ssl_dir = ssl_dir
+
     def __call__(self):
         log('Generating template context for amqp')
         conf = config()
@@ -223,7 +226,6 @@ class AMQPContext(OSContextGenerator):
             log('Could not generate shared_db context. '
                 'Missing required charm config options: %s.' % e)
             raise OSContextError
-
         ctxt = {}
         for rid in relation_ids('amqp'):
             for unit in related_units(rid):
@@ -240,7 +242,24 @@ class AMQPContext(OSContextGenerator):
                                                       unit=unit),
                     'rabbitmq_virtual_host': vhost,
                 })
+                ssl_port = relation_get('ssl_port', rid=rid, unit=unit)
+                if ssl_port:
+                    ctxt['rabbit_ssl_port'] = ssl_port
+                ssl_ca = relation_get('ssl_ca', rid=rid, unit=unit)
+                if ssl_ca:
+                    ctxt['rabbit_ssl_ca'] = ssl_ca
+
                 if context_complete(ctxt):
+                    if 'rabbit_ssl_ca' in ctxt:
+                        if not self.ssl_dir:
+                            log(("Charm not setup for ssl support "
+                                 "but ssl ca found"))
+                            break
+                        ca_path = os.path.join(
+                            self.ssl_dir, 'rabbit-client-ca.pem')
+                        with open(ca_path, 'w') as fh:
+                            fh.write(b64decode(ctxt['rabbit_ssl_ca']))
+                            ctxt['rabbit_ssl_ca'] = ca_path
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
@@ -253,6 +272,8 @@ class AMQPContext(OSContextGenerator):
         if not context_complete(ctxt):
             return {}
         else:
+            ctxt.setdefault('rabbit_ssl_port', '')
+            ctxt.setdefault('rabbit_ssl_ca', '')
             return ctxt
 
 
