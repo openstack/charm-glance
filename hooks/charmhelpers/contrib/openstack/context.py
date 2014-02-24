@@ -151,32 +151,36 @@ class SharedDBContext(OSContextGenerator):
                     'database_password': rdata.get(password_setting)
                 }
                 if context_complete(ctxt):
-                    ctxt.update({'database_ssl_ca': '', 'database_ssl_key': '',
-                                 'database_ssl_cert': ''})
-                    if 'ssl_ca' in rdata and self.ssl_dir:
-                        ca_path = os.path.join(self.ssl_dir, 'db-client.ca')
-                        with open(ca_path, 'w') as fh:
-                            fh.write(b64decode(rdata['ssl_ca']))
-                        ctxt['database_ssl_ca'] = ca_path
-                    elif 'ssl_ca' in rdata:
-                        log("Charm not setup for ssl support but ssl ca found")
-                        return ctxt
-                    if 'ssl_cert' in rdata:
-                        cert_path = os.path.join(
-                            self.ssl_dir, 'db-client.cert')
-                        if not os.path.exists(cert_path):
-                            log("Waiting 1m for ssl client cert validity")
-                            time.sleep(60)
-                        with open(cert_path, 'w') as fh:
-                            fh.write(b64decode(rdata['ssl_cert']))
-                        ctxt['database_ssl_cert'] = cert_path
-
-                        key_path = os.path.join(self.ssl_dir, 'db-client.key')
-                        with open(key_path, 'w') as fh:
-                            fh.write(b64decode(rdata['ssl_key']))
-                        ctxt['database_ssl_key'] = key_path
+                    db_ssl(rdata, ctxt, self.ssl_dir)
                     return ctxt
         return {}
+
+
+def db_ssl(rdata, ctxt, ssl_dir, log):
+    ctxt.update({'database_ssl_ca': '', 'database_ssl_key': '',
+                 'database_ssl_cert': ''})
+    if 'ssl_ca' in rdata and ssl_dir:
+        ca_path = os.path.join(ssl_dir, 'db-client.ca')
+        with open(ca_path, 'w') as fh:
+            fh.write(b64decode(rdata['ssl_ca']))
+        ctxt['database_ssl_ca'] = ca_path
+    elif 'ssl_ca' in rdata:
+        log("Charm not setup for ssl support but ssl ca found")
+        return ctxt
+    if 'ssl_cert' in rdata:
+        cert_path = os.path.join(
+            ssl_dir, 'db-client.cert')
+        if not os.path.exists(cert_path):
+            log("Waiting 1m for ssl client cert validity")
+            time.sleep(60)
+        with open(cert_path, 'w') as fh:
+            fh.write(b64decode(rdata['ssl_cert']))
+        ctxt['database_ssl_cert'] = cert_path
+        key_path = os.path.join(ssl_dir, 'db-client.key')
+        with open(key_path, 'w') as fh:
+            fh.write(b64decode(rdata['ssl_key']))
+        ctxt['database_ssl_key'] = key_path
+    return ctxt
 
 
 class IdentityServiceContext(OSContextGenerator):
