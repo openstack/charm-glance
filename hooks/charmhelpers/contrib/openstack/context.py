@@ -27,11 +27,9 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
+    determine_apache_port,
     determine_api_port,
-    determine_haproxy_port,
     https,
-    is_clustered,
-    peer_units,
 )
 
 from charmhelpers.contrib.hahelpers.apache import (
@@ -157,8 +155,6 @@ class SharedDBContext(OSContextGenerator):
 
 
 def db_ssl(rdata, ctxt, ssl_dir):
-    ctxt.update({'database_ssl_ca': '', 'database_ssl_key': '',
-                 'database_ssl_cert': ''})
     if 'ssl_ca' in rdata and ssl_dir:
         ca_path = os.path.join(ssl_dir, 'db-client.ca')
         with open(ca_path, 'w') as fh:
@@ -267,7 +263,12 @@ class AMQPContext(OSContextGenerator):
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
-            if 'clustered' not in ctxt and len(related_units(rid)) > 1:
+            if ('clustered' not in ctxt or relation_get('ha-vip-only') == 'True') and \
+               len(related_units(rid)) > 1:
+                if relation_get('ha_queues'):
+                    ctxt['rabbitmq_ha_queues'] = relation_get('ha_queues')
+                else:
+                    ctxt['rabbitmq_ha_queues'] = False
                 rabbitmq_hosts = []
                 for unit in related_units(rid):
                     rabbitmq_hosts.append(relation_get('private-address',
@@ -276,8 +277,6 @@ class AMQPContext(OSContextGenerator):
         if not context_complete(ctxt):
             return {}
         else:
-            ctxt.setdefault('rabbit_ssl_port', '')
-            ctxt.setdefault('rabbit_ssl_ca', '')
             return ctxt
 
 
@@ -298,11 +297,13 @@ class CephContext(OSContextGenerator):
                                               unit=unit))
                 auth = relation_get('auth', rid=rid, unit=unit)
                 key = relation_get('key', rid=rid, unit=unit)
+                use_syslog = str(config('use-syslog')).lower()
 
         ctxt = {
             'mon_hosts': ' '.join(mon_hosts),
             'auth': auth,
             'key': key,
+            'use_syslog': use_syslog
         }
 
         if not os.path.isdir('/etc/ceph'):
@@ -431,11 +432,9 @@ class ApacheSSLContext(OSContextGenerator):
             'private_address': unit_get('private-address'),
             'endpoints': []
         }
-        for ext_port in self.external_ports:
-            if peer_units() or is_clustered():
-                int_port = determine_haproxy_port(ext_port)
-            else:
-                int_port = determine_api_port(ext_port)
+        for api_port in self.external_ports:
+            ext_port = determine_apache_port(api_port)
+            int_port = determine_api_port(api_port)
             portmap = (int(ext_port), int(int_port))
             ctxt['endpoints'].append(portmap)
         return ctxt
@@ -637,6 +636,7 @@ class SubordinateConfigContext(OSContextGenerator):
 
 
 class SyslogContext(OSContextGenerator):
+
     def __call__(self):
         ctxt = {
             'use_syslog': config('use-syslog')
