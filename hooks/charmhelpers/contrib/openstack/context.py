@@ -156,7 +156,7 @@ class SharedDBContext(OSContextGenerator):
         return {}
 
 
-def db_ssl(rdata, ctxt, ssl_dir, log):
+def db_ssl(rdata, ctxt, ssl_dir):
     ctxt.update({'database_ssl_ca': '', 'database_ssl_key': '',
                  'database_ssl_cert': ''})
     if 'ssl_ca' in rdata and ssl_dir:
