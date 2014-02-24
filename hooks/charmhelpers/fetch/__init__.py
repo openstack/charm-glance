@@ -136,7 +136,7 @@ def apt_hold(packages, fatal=False):
 
 def add_source(source, key=None):
     if (source.startswith('ppa:') or
-        source.startswith('http:') or
+        source.startswith('http') or
         source.startswith('deb ') or
             source.startswith('cloud-archive:')):
         subprocess.check_call(['add-apt-repository', '--yes', source])
@@ -156,7 +156,9 @@ def add_source(source, key=None):
         with open('/etc/apt/sources.list.d/proposed.list', 'w') as apt:
             apt.write(PROPOSED_POCKET.format(release))
     if key:
-        subprocess.check_call(['apt-key', 'import', key])
+        subprocess.check_call(['apt-key', 'adv', '--keyserver',
+                               'keyserver.ubuntu.com', '--recv',
+                               key])
 
 
 class SourceConfigError(Exception):
