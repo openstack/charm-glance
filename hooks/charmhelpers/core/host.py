@@ -194,7 +194,7 @@ def file_hash(path):
         return None
 
 
-def restart_on_change(restart_map, stopstart=False):
+def restart_on_change(restart_map):
     """Restart services based on configuration files changing
 
     This function is used a decorator, for example
@@ -219,14 +219,8 @@ def restart_on_change(restart_map, stopstart=False):
             for path in restart_map:
                 if checksums[path] != file_hash(path):
                     restarts += restart_map[path]
-            services_list = list(OrderedDict.fromkeys(restarts))
-            if not stopstart:
-                for service_name in services_list:
-                    service('restart', service_name)
-            else:
-                for action in ['stop', 'start']:
-                    for service_name in services_list:
-                        service(action, service_name)
+            for service_name in list(OrderedDict.fromkeys(restarts)):
+                service('restart', service_name)
         return wrapped_f
     return wrap
 

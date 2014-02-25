@@ -126,17 +126,17 @@ def determine_api_port(public_port):
     return public_port - (i * 10)
 
 
-def determine_apache_port(public_port):
+def determine_haproxy_port(public_port):
     '''
-    Description: Determine correct apache listening port based on public IP +
-    state of the cluster.
+    Description: Determine correct proxy listening port based on public IP +
+    existence of HTTPS reverse proxy.
 
     public_port: int: standard public port for given service
 
     returns: int: the correct listening port for the HAProxy service
     '''
     i = 0
-    if len(peer_units()) > 0 or is_clustered():
+    if https():
         i += 1
     return public_port - (i * 10)
 
