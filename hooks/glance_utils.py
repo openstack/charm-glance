@@ -62,14 +62,13 @@ TEMPLATES = 'templates/'
 
 CONFIG_FILES = OrderedDict([
     (GLANCE_REGISTRY_CONF, {
-        'hook_contexts': [context.SharedDBContext(),
-                          context.IdentityServiceContext(),
-                          context.SyslogContext()],
+        'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
+                          context.IdentityServiceContext()],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
-        'hook_contexts': [context.SharedDBContext(),
-                          context.AMQPContext(),
+        'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
+                          context.AMQPContext(ssl_dir=GLANCE_CONF_DIR),
                           context.IdentityServiceContext(),
                           glance_contexts.CephGlanceContext(),
                           glance_contexts.ObjectStoreContext(),
