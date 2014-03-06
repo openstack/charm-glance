@@ -21,7 +21,9 @@ TO_PATCH = [
     'templating',
     'apt_update',
     'apt_upgrade',
-    'mkdir'
+    'mkdir',
+    'service_start',
+    'service_stop'
 ]
 
 

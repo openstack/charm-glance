@@ -16,7 +16,11 @@ from charmhelpers.core.hookenv import (
     log,
     relation_ids)
 
-from charmhelpers.core.host import mkdir
+from charmhelpers.core.host import (
+    mkdir,
+    service_stop,
+    service_start
+)
 
 from charmhelpers.contrib.openstack import (
     templating,
@@ -175,8 +179,10 @@ def do_openstack_upgrade(configs):
     configs.set_release(openstack_release=new_os_rel)
     configs.write_all()
 
+    [service_stop(s) for s in services()]
     if eligible_leader(CLUSTER_RES):
         migrate_database()
+    [service_start(s) for s in services()]
 
 
 def restart_map():
@@ -195,3 +201,11 @@ def restart_map():
         if svcs:
             _map.append((f, svcs))
     return OrderedDict(_map)
+
+
+def services():
+    ''' Returns a list of services associate with this charm '''
+    _services = []
+    for v in restart_map().values():
+        _services = _services + v
+    return list(set(_services))
