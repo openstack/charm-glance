@@ -20,7 +20,7 @@ TO_PATCH = [
     'eligible_leader',
     'templating',
     'apt_update',
-    'apt_install',
+    'apt_upgrade',
     'mkdir'
 ]
 
