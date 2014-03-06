@@ -97,14 +97,17 @@ def apt_install(packages, options=None, fatal=False):
         subprocess.call(cmd, env=env)
 
 
-def apt_upgrade(options=None, fatal=False):
-    """Install one or more packages"""
+def apt_upgrade(options=None, fatal=False, dist=False):
+    """Upgrade all packages"""
     if options is None:
         options = ['--option=Dpkg::Options::=--force-confold']
 
     cmd = ['apt-get', '--assume-yes']
     cmd.extend(options)
-    cmd.append('upgrade')
+    if dist:
+        cmd.append('dist-upgrade')
+    else:
+        cmd.append('upgrade')
     log("Upgrading with options: {}".format(options))
 
     env = os.environ.copy()
