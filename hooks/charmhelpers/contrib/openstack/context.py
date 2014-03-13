@@ -493,7 +493,41 @@ class OSConfigFlagContext(OSContextGenerator):
             if not config_flags:
                 return {}
 
-            flags = config_flags_parser(config_flags)
+            if config_flags.find('==') >= 0:
+                log("config_flags is not in expected format (key=value)",
+                    level=ERROR)
+                raise OSContextError
+
+            # strip the following from each value.
+            post_strippers = ' ,'
+            # we strip any leading/trailing '=' or ' ' from the string then
+            # split on '='.
+            split = config_flags.strip(' =').split('=')
+            limit = len(split)
+            flags = {}
+            for i in xrange(0, limit - 1):
+                current = split[i]
+                next = split[i + 1]
+                vindex = next.rfind(',')
+                if (i == limit - 2) or (vindex < 0):
+                    value = next
+                else:
+                    value = next[:vindex]
+
+                if i == 0:
+                    key = current
+                else:
+                    # if this not the first entry, expect an embedded key.
+                    index = current.rfind(',')
+                    if index < 0:
+                        log("invalid config value(s) at index %s" % (i),
+                            level=ERROR)
+                        raise OSContextError
+                    key = current[index + 1:]
+
+                # Add to collection.
+                flags[key.strip(post_strippers)] = value.rstrip(post_strippers)
+
             return {'user_config_flags': flags}
 
 

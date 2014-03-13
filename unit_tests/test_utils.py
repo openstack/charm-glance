@@ -1,6 +1,6 @@
 import logging
-import unittest
 import os
+import unittest
 import yaml
 
 from contextlib import contextmanager
@@ -8,9 +8,8 @@ from mock import patch, MagicMock
 
 
 def load_config():
-    '''
-    Walk backwords from __file__ looking for config.yaml, load and return the
-    'options' section'
+    '''Walk backwords from __file__ looking for config.yaml,
+    load and return the 'options' section'
     '''
     config = None
     f = __file__
@@ -30,8 +29,7 @@ def load_config():
 
 
 def get_default_config():
-    '''
-    Load default charm config from config.yaml return as a dict.
+    '''Load default charm config from config.yaml return as a dict.
     If no default is set in config.yaml, its value is None.
     '''
     default_config = {}
@@ -107,8 +105,8 @@ class TestRelation(object):
 def patch_open():
     '''Patch open() to allow mocking both open() itself and the file that is
     yielded.
-
-    Yields the mock for "open" and "file", respectively.'''
+    Yields the mock for "open" and "file", respectively.
+    '''
     mock_open = MagicMock(spec=open)
     mock_file = MagicMock(spec=file)
 

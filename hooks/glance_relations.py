@@ -16,7 +16,7 @@ from glance_utils import (
     GLANCE_API_CONF,
     GLANCE_API_PASTE_INI,
     HAPROXY_CONF,
-    CEPH_CONF, )
+    ceph_config_file)
 
 from charmhelpers.core.hookenv import (
     config,
@@ -33,7 +33,8 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.core.host import (
     restart_on_change,
     service_stop,
-    mkdir, )
+    mkdir
+)
 
 from charmhelpers.fetch import apt_install, apt_update
 
@@ -140,7 +141,6 @@ def object_store_joined():
 
 @hooks.hook('ceph-relation-joined')
 def ceph_joined():
-    mkdir('/etc/ceph')
     apt_install(['ceph-common', 'python-ceph'])
 
 
@@ -159,7 +159,7 @@ def ceph_changed():
         return
 
     CONFIGS.write(GLANCE_API_CONF)
-    CONFIGS.write(CEPH_CONF)
+    CONFIGS.write(ceph_config_file())
 
     if eligible_leader(CLUSTER_RES):
         _config = config()
@@ -295,8 +295,7 @@ def relation_broken():
 
 
 def configure_https():
-    '''
-    Enables SSL API Apache config if appropriate and kicks
+    '''Enables SSL API Apache config if appropriate and kicks
     identity-service and image-service with any required
     updates
     '''

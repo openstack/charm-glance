@@ -1,5 +1,5 @@
-from mock import patch
 import glance_contexts as contexts
+from mock import patch
 
 from test_utils import (
     CharmTestCase
