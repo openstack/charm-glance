@@ -21,9 +21,15 @@ TO_PATCH = [
     'templating',
     'apt_update',
     'apt_upgrade',
+    'apt_install',
     'mkdir',
     'service_start',
     'service_stop'
+]
+
+DPKG_OPTS = [
+    '--option', 'Dpkg::Options::=--force-confnew',
+    '--option', 'Dpkg::Options::=--force-confdef',
 ]
 
 
@@ -132,6 +138,9 @@ class TestGlanceUtils(CharmTestCase):
         configs = MagicMock()
         utils.do_openstack_upgrade(configs)
         self.assertTrue(configs.write_all.called)
+        self.apt_install.assert_called_with(utils.PACKAGES, fatal=True)
+        self.apt_upgrade.assert_called_with(options=DPKG_OPTS,
+                                            fatal=True, dist=True)
         configs.set_release.assert_called_with(openstack_release='havana')
         self.assertTrue(migrate.called)
 
@@ -144,5 +153,8 @@ class TestGlanceUtils(CharmTestCase):
         configs = MagicMock()
         utils.do_openstack_upgrade(configs)
         self.assertTrue(configs.write_all.called)
+        self.apt_install.assert_called_with(utils.PACKAGES, fatal=True)
+        self.apt_upgrade.assert_called_with(options=DPKG_OPTS,
+                                            fatal=True, dist=True)
         configs.set_release.assert_called_with(openstack_release='havana')
         self.assertFalse(migrate.called)

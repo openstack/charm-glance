@@ -9,7 +9,8 @@ from collections import OrderedDict
 
 from charmhelpers.fetch import (
     apt_upgrade,
-    apt_update, )
+    apt_update,
+    apt_install, )
 
 from charmhelpers.core.hookenv import (
     config,
@@ -174,6 +175,7 @@ def do_openstack_upgrade(configs):
     ]
     apt_update()
     apt_upgrade(options=dpkg_opts, fatal=True, dist=True)
+    apt_install(PACKAGES, fatal=True)
 
     # set CONFIGS to load templates from new release and regenerate config
     configs.set_release(openstack_release=new_os_rel)
