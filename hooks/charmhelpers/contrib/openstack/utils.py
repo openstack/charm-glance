@@ -420,19 +420,19 @@ def get_hostname(address, fqdn=True):
     Resolves hostname for given IP, or returns the input
     if it is already a hostname.
     """
-    if not is_ip(address):
-        return address
+    if is_ip(address):
+        try:
+            import dns.reversename
+        except ImportError:
+            apt_install('python-dnspython')
+            import dns.reversename
 
-    try:
-        import dns.reversename
-    except ImportError:
-        apt_install('python-dnspython')
-        import dns.reversename
-
-    rev = dns.reversename.from_address(address)
-    result = ns_query(rev)
-    if not result:
-        return None
+        rev = dns.reversename.from_address(address)
+        result = ns_query(rev)
+        if not result:
+            return None
+    else:
+        result = address
 
     if fqdn:
         # strip trailing .

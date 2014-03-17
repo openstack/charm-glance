@@ -49,6 +49,9 @@ CEPH_CONF = """[global]
  auth supported = {auth}
  keyring = {keyring}
  mon host = {mon_hosts}
+ log to syslog = {use_syslog}
+ err to syslog = {use_syslog}
+ clog to syslog = {use_syslog}
 """
 
 
@@ -194,7 +197,7 @@ def get_ceph_nodes():
     return hosts
 
 
-def configure(service, key, auth):
+def configure(service, key, auth, use_syslog):
     ''' Perform basic configuration of Ceph '''
     create_keyring(service, key)
     create_key_file(service, key)
@@ -202,7 +205,8 @@ def configure(service, key, auth):
     with open('/etc/ceph/ceph.conf', 'w') as ceph_conf:
         ceph_conf.write(CEPH_CONF.format(auth=auth,
                                          keyring=_keyring_path(service),
-                                         mon_hosts=",".join(map(str, hosts))))
+                                         mon_hosts=",".join(map(str, hosts)),
+                                         use_syslog=use_syslog))
     modprobe('rbd')
 
 
