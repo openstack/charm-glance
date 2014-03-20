@@ -158,6 +158,10 @@ def apt_hold(packages, fatal=False):
 
 
 def add_source(source, key=None):
+    if source is None:
+        log('Source is not present. Skipping')
+        return
+
     if (source.startswith('ppa:') or
         source.startswith('http') or
         source.startswith('deb ') or

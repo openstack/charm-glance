@@ -20,7 +20,7 @@ def headers_package():
 
 def kernel_version():
     """ Retrieve the current major kernel version as a tuple e.g. (3, 13) """
-    kver = check_output(['uname' , '-r']).strip()
+    kver = check_output(['uname', '-r']).strip()
     kver = kver.split('.')
     return (int(kver[0]), int(kver[1]))
 
