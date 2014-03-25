@@ -18,6 +18,22 @@ def headers_package():
     return 'linux-headers-%s' % kver
 
 
+def kernel_version():
+    """ Retrieve the current major kernel version as a tuple e.g. (3, 13) """
+    kver = check_output(['uname', '-r']).strip()
+    kver = kver.split('.')
+    return (int(kver[0]), int(kver[1]))
+
+
+def determine_dkms_package():
+    """ Determine which DKMS package should be used based on kernel version """
+    # NOTE: 3.13 kernels have support for GRE and VXLAN native
+    if kernel_version() >= (3, 13):
+        return []
+    else:
+        return ['openvswitch-datapath-dkms']
+
+
 # legacy
 def quantum_plugins():
     from charmhelpers.contrib.openstack import context
@@ -32,7 +48,7 @@ def quantum_plugins():
                                         database=config('neutron-database'),
                                         relation_prefix='neutron')],
             'services': ['quantum-plugin-openvswitch-agent'],
-            'packages': [[headers_package(), 'openvswitch-datapath-dkms'],
+            'packages': [[headers_package()] + determine_dkms_package(),
                          ['quantum-plugin-openvswitch-agent']],
             'server_packages': ['quantum-server',
                                 'quantum-plugin-openvswitch'],
@@ -57,7 +73,8 @@ def quantum_plugins():
 
 def neutron_plugins():
     from charmhelpers.contrib.openstack import context
-    return {
+    release = os_release('nova-common')
+    plugins = {
         'ovs': {
             'config': '/etc/neutron/plugins/openvswitch/'
                       'ovs_neutron_plugin.ini',
@@ -68,8 +85,8 @@ def neutron_plugins():
                                         database=config('neutron-database'),
                                         relation_prefix='neutron')],
             'services': ['neutron-plugin-openvswitch-agent'],
-            'packages': [[headers_package(), 'openvswitch-datapath-dkms'],
-                         ['quantum-plugin-openvswitch-agent']],
+            'packages': [[headers_package()] + determine_dkms_package(),
+                         ['neutron-plugin-openvswitch-agent']],
             'server_packages': ['neutron-server',
                                 'neutron-plugin-openvswitch'],
             'server_services': ['neutron-server']
@@ -89,6 +106,13 @@ def neutron_plugins():
             'server_services': ['neutron-server']
         }
     }
+    # NOTE: patch in ml2 plugin for icehouse onwards
+    if release >= 'icehouse':
+        plugins['ovs']['config'] = '/etc/neutron/plugins/ml2/ml2_conf.ini'
+        plugins['ovs']['driver'] = 'neutron.plugins.ml2.plugin.Ml2Plugin'
+        plugins['ovs']['server_packages'] = ['neutron-server',
+                                             'neutron-plugin-ml2']
+    return plugins
 
 
 def neutron_plugin_attribute(plugin, attr, net_manager=None):

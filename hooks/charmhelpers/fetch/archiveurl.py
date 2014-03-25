@@ -1,5 +1,7 @@
 import os
 import urllib2
+import urlparse
+
 from charmhelpers.fetch import (
     BaseFetchHandler,
     UnhandledSource
@@ -24,6 +26,19 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
     def download(self, source, dest):
         # propogate all exceptions
         # URLError, OSError, etc
+        proto, netloc, path, params, query, fragment = urlparse.urlparse(source)
+        if proto in ('http', 'https'):
+            auth, barehost = urllib2.splituser(netloc)
+            if auth is not None:
+                source = urlparse.urlunparse((proto, barehost, path, params, query, fragment))
+                username, password = urllib2.splitpasswd(auth)
+                passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+                # Realm is set to None in add_password to force the username and password
+                # to be used whatever the realm
+                passman.add_password(None, source, username, password)
+                authhandler = urllib2.HTTPBasicAuthHandler(passman)
+                opener = urllib2.build_opener(authhandler)
+                urllib2.install_opener(opener)
         response = urllib2.urlopen(source)
         try:
             with open(dest, 'w') as dest_file:
