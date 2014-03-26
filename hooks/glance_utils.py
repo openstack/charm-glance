@@ -46,7 +46,7 @@ CLUSTER_RES = "res_glance_vip"
 
 PACKAGES = [
     "apache2", "glance", "python-mysqldb", "python-swift",
-    "python-keystone", "uuid", "haproxy", ]
+    "python-psycopg2", "python-keystone", "uuid", "haproxy", ]
 
 SERVICES = [
     "glance-api", "glance-registry", ]
@@ -75,12 +75,14 @@ def ceph_config_file():
 CONFIG_FILES = OrderedDict([
     (GLANCE_REGISTRY_CONF, {
         'hook_contexts': [context.SharedDBContext(),
+                          context.PostgresqlDBContext(),
                           context.IdentityServiceContext(),
                           context.SyslogContext()],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
         'hook_contexts': [context.SharedDBContext(),
+                          context.PostgresqlDBContext(),
                           context.AMQPContext(),
                           context.IdentityServiceContext(),
                           glance_contexts.CephGlanceContext(),

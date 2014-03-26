@@ -146,6 +146,36 @@ class SharedDBContext(OSContextGenerator):
                     'database': self.database,
                     'database_user': self.user,
                     'database_password': passwd,
+                    'database_type': 'mysql',
+                }
+                if context_complete(ctxt):
+                    return ctxt
+        return {}
+
+
+class PostgresqlDBContext(OSContextGenerator):
+    interfaces = ['pgsql-db']
+
+    def __init__(self, database=None):
+        self.database = database
+
+    def __call__(self):
+        self.database = self.database or config('database')
+        if self.database is None:
+            log('Could not generate postgresql_db context. '
+                'Missing required charm config options. '
+                '(database name)')
+            raise OSContextError
+        ctxt = {}
+
+        for rid in relation_ids(self.interfaces[0]):
+            for unit in related_units(rid):
+                ctxt = {
+                    'database_host': relation_get('host', rid=rid, unit=unit),
+                    'database': self.database,
+                    'database_user': relation_get('user', rid=rid, unit=unit),
+                    'database_password': relation_get('password', rid=rid, unit=unit),
+                    'database_type': 'postgresql',
                 }
                 if context_complete(ctxt):
                     return ctxt
@@ -199,7 +229,6 @@ class AMQPContext(OSContextGenerator):
 
         ctxt = {}
         for rid in relation_ids('amqp'):
-            ha_vip_only = False
             for unit in related_units(rid):
                 if relation_get('clustered', rid=rid, unit=unit):
                     ctxt['clustered'] = True
@@ -214,18 +243,16 @@ class AMQPContext(OSContextGenerator):
                                                       unit=unit),
                     'rabbitmq_virtual_host': vhost,
                 })
-                if relation_get('ha_queues', rid=rid, unit=unit) is not None:
-                    ctxt['rabbitmq_ha_queues'] = True
-
-                ha_vip_only = relation_get('ha-vip-only',
-                                           rid=rid, unit=unit) is not None
-
                 if context_complete(ctxt):
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
-            if ('clustered' not in ctxt or ha_vip_only) \
-                    and len(related_units(rid)) > 1:
+            if ('clustered' not in ctxt or relation_get('ha-vip-only') == 'True') and \
+               len(related_units(rid)) > 1:
+                if relation_get('ha_queues'):
+                    ctxt['rabbitmq_ha_queues'] = relation_get('ha_queues')
+                else:
+                    ctxt['rabbitmq_ha_queues'] = False
                 rabbitmq_hosts = []
                 for unit in related_units(rid):
                     rabbitmq_hosts.append(relation_get('private-address',
