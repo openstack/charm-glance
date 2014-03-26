@@ -33,9 +33,9 @@ from charmhelpers.core.hookenv import (
     UnregisteredHookError, )
 
 from charmhelpers.core.host import (
+    mkdir,
     restart_on_change,
-    service_stop,
-    mkdir
+    service_stop
 )
 
 from charmhelpers.fetch import apt_install, apt_update
