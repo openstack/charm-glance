@@ -270,8 +270,6 @@ class AMQPContext(OSContextGenerator):
                                                       unit=unit),
                     'rabbitmq_virtual_host': vhost,
                 })
-<<<<<<< TREE
-=======
 
                 ssl_port = relation_get('ssl_port', rid=rid, unit=unit)
                 if ssl_port:
