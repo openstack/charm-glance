@@ -53,10 +53,11 @@ SERVICES = [
 
 CHARM = "glance"
 
-GLANCE_REGISTRY_CONF = "/etc/glance/glance-registry.conf"
-GLANCE_REGISTRY_PASTE_INI = "/etc/glance/glance-registry-paste.ini"
-GLANCE_API_CONF = "/etc/glance/glance-api.conf"
-GLANCE_API_PASTE_INI = "/etc/glance/glance-api-paste.ini"
+GLANCE_CONF_DIR = "/etc/glance"
+GLANCE_REGISTRY_CONF = "%s/glance-registry.conf" % GLANCE_CONF_DIR
+GLANCE_REGISTRY_PASTE_INI = "%s/glance-registry-paste.ini" % GLANCE_CONF_DIR
+GLANCE_API_CONF = "%s/glance-api.conf" % GLANCE_CONF_DIR
+GLANCE_API_PASTE_INI = "%s/glance-api-paste.ini" % GLANCE_CONF_DIR
 CEPH_CONF = "/etc/ceph/ceph.conf"
 CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
 
@@ -74,14 +75,14 @@ def ceph_config_file():
 
 CONFIG_FILES = OrderedDict([
     (GLANCE_REGISTRY_CONF, {
-        'hook_contexts': [context.SharedDBContext(),
+        'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
                           context.PostgresqlDBContext(),
                           context.IdentityServiceContext(),
                           context.SyslogContext()],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
-        'hook_contexts': [context.SharedDBContext(),
+        'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
                           context.PostgresqlDBContext(),
                           context.AMQPContext(),
                           context.IdentityServiceContext(),

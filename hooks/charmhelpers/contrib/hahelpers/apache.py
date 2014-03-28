@@ -39,14 +39,15 @@ def get_cert():
 
 
 def get_ca_cert():
-    ca_cert = None
-    log("Inspecting identity-service relations for CA SSL certificate.",
-        level=INFO)
-    for r_id in relation_ids('identity-service'):
-        for unit in relation_list(r_id):
-            if not ca_cert:
-                ca_cert = relation_get('ca_cert',
-                                       rid=r_id, unit=unit)
+    ca_cert = config_get('ssl_ca')
+    if ca_cert is None:
+        log("Inspecting identity-service relations for CA SSL certificate.",
+            level=INFO)
+        for r_id in relation_ids('identity-service'):
+            for unit in relation_list(r_id):
+                if ca_cert is None:
+                    ca_cert = relation_get('ca_cert',
+                                           rid=r_id, unit=unit)
     return ca_cert
 
 
