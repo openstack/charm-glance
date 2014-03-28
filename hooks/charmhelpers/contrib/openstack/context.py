@@ -147,10 +147,10 @@ class SharedDBContext(OSContextGenerator):
                     'database_host': rdata.get('db_host'),
                     'database': self.database,
                     'database_user': self.user,
-                    'database_password': passwd,
-                    'database_type': 'mysql',
+                    'database_password': rdata.get(password_setting)
                 }
                 if context_complete(ctxt):
+                    db_ssl(rdata, ctxt, self.ssl_dir)
                     return ctxt
         return {}
 
@@ -180,7 +180,6 @@ class PostgresqlDBContext(OSContextGenerator):
                     'database_type': 'postgresql',
                 }
                 if context_complete(ctxt):
-                    db_ssl(rdata, ctxt, self.ssl_dir)
                     return ctxt
         return {}
 
@@ -256,6 +255,7 @@ class AMQPContext(OSContextGenerator):
             raise OSContextError
         ctxt = {}
         for rid in relation_ids('amqp'):
+            ha_vip_only = False
             for unit in related_units(rid):
                 if relation_get('clustered', rid=rid, unit=unit):
                     ctxt['clustered'] = True
@@ -284,7 +284,6 @@ class AMQPContext(OSContextGenerator):
                 ha_vip_only = relation_get('ha-vip-only',
                                            rid=rid, unit=unit) is not None
 
->>>>>>> MERGE-SOURCE
                 if context_complete(ctxt):
                     if 'rabbit_ssl_ca' in ctxt:
                         if not self.ssl_dir:
@@ -299,12 +298,8 @@ class AMQPContext(OSContextGenerator):
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
-            if ('clustered' not in ctxt or relation_get('ha-vip-only') == 'True') and \
-               len(related_units(rid)) > 1:
-                if relation_get('ha_queues'):
-                    ctxt['rabbitmq_ha_queues'] = relation_get('ha_queues')
-                else:
-                    ctxt['rabbitmq_ha_queues'] = False
+            if ('clustered' not in ctxt or ha_vip_only) \
+                    and len(related_units(rid)) > 1:
                 rabbitmq_hosts = []
                 for unit in related_units(rid):
                     rabbitmq_hosts.append(relation_get('private-address',
