@@ -147,7 +147,8 @@ class SharedDBContext(OSContextGenerator):
                     'database_host': rdata.get('db_host'),
                     'database': self.database,
                     'database_user': self.user,
-                    'database_password': rdata.get(password_setting)
+                    'database_password': rdata.get(password_setting),
+                    'database_type': 'mysql'
                 }
                 if context_complete(ctxt):
                     db_ssl(rdata, ctxt, self.ssl_dir)
