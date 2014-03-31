@@ -54,6 +54,7 @@ TO_PATCH = [
     'check_call',
     'execd_preinstall',
     'lsb_release',
+    'filter_installed_packages'
 ]
 
 
@@ -69,13 +70,13 @@ class GlanceRelationTests(CharmTestCase):
         self.service_stop.return_value = True
         relations.install_hook()
         self.configure_installation_source.assert_called_with(repo)
-        self.assertTrue(self.apt_update.called)
+        self.apt_update.assert_called_with(fatal=True)
         self.apt_install.assert_called_with(['apache2', 'glance',
                                              'python-mysqldb',
                                              'python-swift',
                                              'python-psycopg2',
                                              'python-keystone',
-                                             'uuid', 'haproxy'])
+                                             'uuid', 'haproxy'], fatal=True)
         self.assertTrue(self.execd_preinstall.called)
 
     def test_install_hook_precise_distro(self):
@@ -426,10 +427,12 @@ class GlanceRelationTests(CharmTestCase):
                            call('/etc/haproxy/haproxy.cfg')],
                           configs.write.call_args_list)
 
-    @patch.object(relations, 'cluster_changed')
-    def test_upgrade_charm(self, cluster_changed):
+    @patch.object(relations, 'CONFIGS')
+    def test_upgrade_charm(self, configs):
+        self.filter_installed_packages.return_value = ['test']
         relations.upgrade_charm()
-        cluster_changed.assert_called_with()
+        self.apt_install.assert_called_with(['test'], fatal=True)
+        self.assertTrue(configs.write_all.called)
 
     def test_ha_relation_joined(self):
         self.test_config.set('ha-bindiface', 'em0')

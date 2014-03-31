@@ -37,7 +37,7 @@ from charmhelpers.core.host import (
     service_stop
 )
 
-from charmhelpers.fetch import apt_install, apt_update
+from charmhelpers.fetch import apt_install, apt_update, filter_installed_packages
 
 from charmhelpers.contrib.hahelpers.cluster import (
     canonical_url, eligible_leader)
@@ -71,8 +71,8 @@ def install_hook():
 
     configure_installation_source(src)
 
-    apt_update()
-    apt_install(PACKAGES)
+    apt_update(fatal=True)
+    apt_install(PACKAGES, fatal=True)
 
     for service in SERVICES:
         service_stop(service)
@@ -276,8 +276,11 @@ def cluster_changed():
 
 
 @hooks.hook('upgrade-charm')
+@restart_on_change(restart_map(), stopstart=True)
 def upgrade_charm():
-    cluster_changed()
+    apt_install(filter_installed_packages(PACKAGES), fatal=True)
+    configure_https()
+    CONFIGS.write_all()
 
 
 @hooks.hook('ha-relation-joined')
