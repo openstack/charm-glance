@@ -65,3 +65,5 @@ class TestGlanceContexts(CharmTestCase):
                                            'namespace': 'glance'})
                 self.assertTrue(mock_https.called)
                 mock_unit_get.assert_called_with('private-address')
+                self.assertTrue(mock_enable_modules.called)
+                self.assertTrue(mock_configure_cert.called)

@@ -46,7 +46,7 @@ CLUSTER_RES = "res_glance_vip"
 
 PACKAGES = [
     "apache2", "glance", "python-mysqldb", "python-swift",
-    "python-keystone", "uuid", "haproxy", ]
+    "python-psycopg2", "python-keystone", "uuid", "haproxy", ]
 
 SERVICES = [
     "glance-api", "glance-registry", ]
@@ -70,12 +70,14 @@ CONF_DIR = "/etc/glance"
 
 TEMPLATES = 'templates/'
 
+
 def ceph_config_file():
     return CHARM_CEPH_CONF.format(service_name())
 
 CONFIG_FILES = OrderedDict([
     (GLANCE_REGISTRY_CONF, {
         'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
+                          context.PostgresqlDBContext(),
                           context.IdentityServiceContext(),
                           context.SyslogContext()],
         'services': ['glance-registry']
@@ -83,6 +85,7 @@ CONFIG_FILES = OrderedDict([
     (GLANCE_API_CONF, {
         'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
                           context.AMQPContext(ssl_dir=GLANCE_CONF_DIR),
+                          context.PostgresqlDBContext(),
                           context.IdentityServiceContext(),
                           glance_contexts.CephGlanceContext(),
                           glance_contexts.ObjectStoreContext(),
@@ -116,6 +119,7 @@ CONFIG_FILES = OrderedDict([
         'services': ['apache2'],
     })
 ])
+
 
 def register_configs():
     # Register config files with their respective contexts.
