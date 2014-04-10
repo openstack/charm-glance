@@ -234,6 +234,10 @@ class IdentityServiceContext(OSContextGenerator):
                     rdata.get('auth_protocol') or 'http',
                 }
                 if context_complete(ctxt):
+                    # NOTE(jamespage) this is required for >= icehouse
+                    # so a missing value just indicates keystone needs
+                    # upgrading
+                    ctxt['admin_tenant_id'] = rdata.get('service_tenant_id')
                     return ctxt
         return {}
 
