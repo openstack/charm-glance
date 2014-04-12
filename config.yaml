@@ -41,6 +41,14 @@ options:
     default: False
     description: |
       If set to True, supporting services will log to syslog.
+  debug:
+    default: False
+    type: boolean
+    description: Enable debug logging
+  verbose:
+    default: False
+    type: boolean
+    description: Enable verbose logging
   # HA configuration settings
   vip:
     type: string

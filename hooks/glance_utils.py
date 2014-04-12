@@ -79,7 +79,8 @@ CONFIG_FILES = OrderedDict([
         'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
                           context.PostgresqlDBContext(),
                           context.IdentityServiceContext(),
-                          context.SyslogContext()],
+                          context.SyslogContext(),
+                          context.OSConfigFlagContext()],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
@@ -90,7 +91,8 @@ CONFIG_FILES = OrderedDict([
                           glance_contexts.CephGlanceContext(),
                           glance_contexts.ObjectStoreContext(),
                           glance_contexts.HAProxyContext(),
-                          context.SyslogContext()],
+                          context.SyslogContext(),
+                          context.OSConfigFlagContext()],
         'services': ['glance-api']
     }),
     (GLANCE_API_PASTE_INI, {
