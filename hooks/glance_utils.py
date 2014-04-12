@@ -80,7 +80,7 @@ CONFIG_FILES = OrderedDict([
                           context.PostgresqlDBContext(),
                           context.IdentityServiceContext(),
                           context.SyslogContext(),
-                          context.OSConfigFlagContext()],
+                          glance_contexts.LoggingConfigContext()],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
@@ -92,7 +92,7 @@ CONFIG_FILES = OrderedDict([
                           glance_contexts.ObjectStoreContext(),
                           glance_contexts.HAProxyContext(),
                           context.SyslogContext(),
-                          context.OSConfigFlagContext()],
+                          glance_contexts.LoggingConfigContext()],
         'services': ['glance-api']
     }),
     (GLANCE_API_PASTE_INI, {

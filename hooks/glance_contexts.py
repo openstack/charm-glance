@@ -1,7 +1,8 @@
 from charmhelpers.core.hookenv import (
     is_relation_made,
     relation_ids,
-    service_name
+    service_name,
+    config
 )
 
 from charmhelpers.contrib.openstack.context import (
@@ -74,3 +75,8 @@ class ApacheSSLContext(SSLContext):
 
     def __call__(self):
         return super(ApacheSSLContext, self).__call__()
+
+
+class LoggingConfigContext(OSContextGenerator):
+    def __call__(self):
+        return {'debug': config('debug'), 'verbose': config('verbose')}
