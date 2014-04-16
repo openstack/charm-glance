@@ -23,6 +23,7 @@ TO_PATCH = [
     'canonical_url',
     'config',
     'juju_log',
+    'is_relation_made',
     'open_port',
     'relation_ids',
     'relation_set',
@@ -53,7 +54,7 @@ TO_PATCH = [
     'check_call',
     'execd_preinstall',
     'lsb_release',
-    'mkdir'
+    'filter_installed_packages'
 ]
 
 
@@ -69,12 +70,13 @@ class GlanceRelationTests(CharmTestCase):
         self.service_stop.return_value = True
         relations.install_hook()
         self.configure_installation_source.assert_called_with(repo)
-        self.assertTrue(self.apt_update.called)
+        self.apt_update.assert_called_with(fatal=True)
         self.apt_install.assert_called_with(['apache2', 'glance',
                                              'python-mysqldb',
                                              'python-swift',
+                                             'python-psycopg2',
                                              'python-keystone',
-                                             'uuid', 'haproxy'])
+                                             'uuid', 'haproxy'], fatal=True)
         self.assertTrue(self.execd_preinstall.called)
 
     def test_install_hook_precise_distro(self):
@@ -88,11 +90,36 @@ class GlanceRelationTests(CharmTestCase):
 
     def test_db_joined(self):
         self.unit_get.return_value = 'glance.foohost.com'
+        self.is_relation_made.return_value = False
         relations.db_joined()
         self.relation_set.assert_called_with(database='glance',
                                              username='glance',
                                              hostname='glance.foohost.com')
         self.unit_get.assert_called_with('private-address')
+
+    def test_postgresql_db_joined(self):
+        self.unit_get.return_value = 'glance.foohost.com'
+        self.is_relation_made.return_value = False
+        relations.pgsql_db_joined()
+        self.relation_set.assert_called_with(database='glance'),
+
+    def test_db_joined_with_postgresql(self):
+        self.is_relation_made.return_value = True
+
+        with self.assertRaises(Exception) as context:
+            relations.db_joined()
+        self.assertEqual(context.exception.message,
+                         'Attempting to associate a mysql database when there '
+                         'is already associated a postgresql one')
+
+    def test_postgresql_joined_with_db(self):
+        self.is_relation_made.return_value = True
+
+        with self.assertRaises(Exception) as context:
+            relations.pgsql_db_joined()
+        self.assertEqual(context.exception.message,
+                         'Attempting to associate a postgresql database when'
+                         ' there is already associated a mysql one')
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_missing_relation_data(self, configs):
@@ -103,15 +130,41 @@ class GlanceRelationTests(CharmTestCase):
             'shared-db relation incomplete. Peer not ready?'
         )
 
+    @patch.object(relations, 'CONFIGS')
+    def test_postgresql_db_changed_missing_relation_data(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = []
+        relations.pgsql_db_changed()
+        self.juju_log.assert_called_with(
+            'pgsql-db relation incomplete. Peer not ready?'
+        )
+
     def _shared_db_test(self, configs):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['shared-db']
         configs.write = MagicMock()
         relations.db_changed()
 
+    def _postgresql_db_test(self, configs):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['pgsql-db']
+        configs.write = MagicMock()
+        relations.pgsql_db_changed()
+
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_no_essex(self, configs):
         self._shared_db_test(configs)
+        self.assertEquals([call('/etc/glance/glance-registry.conf'),
+                           call('/etc/glance/glance-api.conf')],
+                          configs.write.call_args_list)
+        self.juju_log.assert_called_with(
+            'Cluster leader, performing db sync'
+        )
+        self.migrate_database.assert_called_with()
+
+    @patch.object(relations, 'CONFIGS')
+    def test_postgresql_db_changed_no_essex(self, configs):
+        self._postgresql_db_test(configs)
         self.assertEquals([call('/etc/glance/glance-registry.conf'),
                            call('/etc/glance/glance-api.conf')],
                           configs.write.call_args_list)
@@ -133,10 +186,39 @@ class GlanceRelationTests(CharmTestCase):
         self.migrate_database.assert_called_with()
 
     @patch.object(relations, 'CONFIGS')
+    def test_postgresql_db_changed_with_essex_not_setting_version_control(
+            self, configs):
+        self.get_os_codename_package.return_value = "essex"
+        self.call.return_value = 0
+        self._postgresql_db_test(configs)
+        self.assertEquals([call('/etc/glance/glance-registry.conf')],
+                          configs.write.call_args_list)
+        self.juju_log.assert_called_with(
+            'Cluster leader, performing db sync'
+        )
+        self.migrate_database.assert_called_with()
+
+    @patch.object(relations, 'CONFIGS')
     def test_db_changed_with_essex_setting_version_control(self, configs):
         self.get_os_codename_package.return_value = "essex"
         self.call.return_value = 1
         self._shared_db_test(configs)
+        self.assertEquals([call('/etc/glance/glance-registry.conf')],
+                          configs.write.call_args_list)
+        self.check_call.assert_called_with(
+            ["glance-manage", "version_control", "0"]
+        )
+        self.juju_log.assert_called_with(
+            'Cluster leader, performing db sync'
+        )
+        self.migrate_database.assert_called_with()
+
+    @patch.object(relations, 'CONFIGS')
+    def test_postgresql_db_changed_with_essex_setting_version_control(
+            self, configs):
+        self.get_os_codename_package.return_value = "essex"
+        self.call.return_value = 1
+        self._postgresql_db_test(configs)
         self.assertEquals([call('/etc/glance/glance-registry.conf')],
                           configs.write.call_args_list)
         self.check_call.assert_called_with(
@@ -345,10 +427,12 @@ class GlanceRelationTests(CharmTestCase):
                            call('/etc/haproxy/haproxy.cfg')],
                           configs.write.call_args_list)
 
-    @patch.object(relations, 'cluster_changed')
-    def test_upgrade_charm(self, cluster_changed):
+    @patch.object(relations, 'CONFIGS')
+    def test_upgrade_charm(self, configs):
+        self.filter_installed_packages.return_value = ['test']
         relations.upgrade_charm()
-        cluster_changed.assert_called_with()
+        self.apt_install.assert_called_with(['test'], fatal=True)
+        self.assertTrue(configs.write_all.called)
 
     def test_ha_relation_joined(self):
         self.test_config.set('ha-bindiface', 'em0')

@@ -8,8 +8,9 @@ import glance_contexts
 from collections import OrderedDict
 
 from charmhelpers.fetch import (
-    apt_install,
-    apt_update, )
+    apt_upgrade,
+    apt_update,
+    apt_install, )
 
 from charmhelpers.core.hookenv import (
     config,
@@ -17,7 +18,11 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     service_name)
 
-from charmhelpers.core.host import mkdir
+from charmhelpers.core.host import (
+    mkdir,
+    service_stop,
+    service_start
+)
 
 from charmhelpers.contrib.openstack import (
     templating,
@@ -41,17 +46,18 @@ CLUSTER_RES = "res_glance_vip"
 
 PACKAGES = [
     "apache2", "glance", "python-mysqldb", "python-swift",
-    "python-keystone", "uuid", "haproxy", ]
+    "python-psycopg2", "python-keystone", "uuid", "haproxy", ]
 
 SERVICES = [
     "glance-api", "glance-registry", ]
 
 CHARM = "glance"
 
-GLANCE_REGISTRY_CONF = "/etc/glance/glance-registry.conf"
-GLANCE_REGISTRY_PASTE_INI = "/etc/glance/glance-registry-paste.ini"
-GLANCE_API_CONF = "/etc/glance/glance-api.conf"
-GLANCE_API_PASTE_INI = "/etc/glance/glance-api-paste.ini"
+GLANCE_CONF_DIR = "/etc/glance"
+GLANCE_REGISTRY_CONF = "%s/glance-registry.conf" % GLANCE_CONF_DIR
+GLANCE_REGISTRY_PASTE_INI = "%s/glance-registry-paste.ini" % GLANCE_CONF_DIR
+GLANCE_API_CONF = "%s/glance-api.conf" % GLANCE_CONF_DIR
+GLANCE_API_PASTE_INI = "%s/glance-api-paste.ini" % GLANCE_CONF_DIR
 CEPH_CONF = "/etc/ceph/ceph.conf"
 CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
 
@@ -64,24 +70,29 @@ CONF_DIR = "/etc/glance"
 
 TEMPLATES = 'templates/'
 
+
 def ceph_config_file():
     return CHARM_CEPH_CONF.format(service_name())
 
 CONFIG_FILES = OrderedDict([
     (GLANCE_REGISTRY_CONF, {
-        'hook_contexts': [context.SharedDBContext(),
+        'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
+                          context.PostgresqlDBContext(),
                           context.IdentityServiceContext(),
-                          context.SyslogContext()],
+                          context.SyslogContext(),
+                          glance_contexts.LoggingConfigContext()],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
-        'hook_contexts': [context.SharedDBContext(),
-                          context.AMQPContext(),
+        'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
+                          context.AMQPContext(ssl_dir=GLANCE_CONF_DIR),
+                          context.PostgresqlDBContext(),
                           context.IdentityServiceContext(),
                           glance_contexts.CephGlanceContext(),
                           glance_contexts.ObjectStoreContext(),
                           glance_contexts.HAProxyContext(),
-                          context.SyslogContext()],
+                          context.SyslogContext(),
+                          glance_contexts.LoggingConfigContext()],
         'services': ['glance-api']
     }),
     (GLANCE_API_PASTE_INI, {
@@ -110,6 +121,7 @@ CONFIG_FILES = OrderedDict([
         'services': ['apache2'],
     })
 ])
+
 
 def register_configs():
     # Register config files with their respective contexts.
@@ -188,14 +200,17 @@ def do_openstack_upgrade(configs):
         '--option', 'Dpkg::Options::=--force-confdef',
     ]
     apt_update()
-    apt_install(packages=PACKAGES, options=dpkg_opts, fatal=True)
+    apt_upgrade(options=dpkg_opts, fatal=True, dist=True)
+    apt_install(PACKAGES, fatal=True)
 
     # set CONFIGS to load templates from new release and regenerate config
     configs.set_release(openstack_release=new_os_rel)
     configs.write_all()
 
+    [service_stop(s) for s in services()]
     if eligible_leader(CLUSTER_RES):
         migrate_database()
+    [service_start(s) for s in services()]
 
 
 def restart_map():
@@ -213,3 +228,11 @@ def restart_map():
         if svcs:
             _map.append((f, svcs))
     return OrderedDict(_map)
+
+
+def services():
+    ''' Returns a list of services associate with this charm '''
+    _services = []
+    for v in restart_map().values():
+        _services = _services + v
+    return list(set(_services))

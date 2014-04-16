@@ -1,5 +1,6 @@
 import json
 import os
+import time
 
 from base64 import b64decode
 
@@ -113,7 +114,8 @@ class OSContextGenerator(object):
 class SharedDBContext(OSContextGenerator):
     interfaces = ['shared-db']
 
-    def __init__(self, database=None, user=None, relation_prefix=None):
+    def __init__(self,
+                 database=None, user=None, relation_prefix=None, ssl_dir=None):
         '''
         Allows inspecting relation for settings prefixed with relation_prefix.
         This is useful for parsing access for multiple databases returned via
@@ -122,6 +124,7 @@ class SharedDBContext(OSContextGenerator):
         self.relation_prefix = relation_prefix
         self.database = database
         self.user = user
+        self.ssl_dir = ssl_dir
 
     def __call__(self):
         self.database = self.database or config('database')
@@ -139,17 +142,72 @@ class SharedDBContext(OSContextGenerator):
 
         for rid in relation_ids('shared-db'):
             for unit in related_units(rid):
-                passwd = relation_get(password_setting, rid=rid, unit=unit)
+                rdata = relation_get(rid=rid, unit=unit)
                 ctxt = {
-                    'database_host': relation_get('db_host', rid=rid,
-                                                  unit=unit),
+                    'database_host': rdata.get('db_host'),
                     'database': self.database,
                     'database_user': self.user,
-                    'database_password': passwd,
+                    'database_password': rdata.get(password_setting),
+                    'database_type': 'mysql'
+                }
+                if context_complete(ctxt):
+                    db_ssl(rdata, ctxt, self.ssl_dir)
+                    return ctxt
+        return {}
+
+
+class PostgresqlDBContext(OSContextGenerator):
+    interfaces = ['pgsql-db']
+
+    def __init__(self, database=None):
+        self.database = database
+
+    def __call__(self):
+        self.database = self.database or config('database')
+        if self.database is None:
+            log('Could not generate postgresql_db context. '
+                'Missing required charm config options. '
+                '(database name)')
+            raise OSContextError
+        ctxt = {}
+
+        for rid in relation_ids(self.interfaces[0]):
+            for unit in related_units(rid):
+                ctxt = {
+                    'database_host': relation_get('host', rid=rid, unit=unit),
+                    'database': self.database,
+                    'database_user': relation_get('user', rid=rid, unit=unit),
+                    'database_password': relation_get('password', rid=rid, unit=unit),
+                    'database_type': 'postgresql',
                 }
                 if context_complete(ctxt):
                     return ctxt
         return {}
+
+
+def db_ssl(rdata, ctxt, ssl_dir):
+    if 'ssl_ca' in rdata and ssl_dir:
+        ca_path = os.path.join(ssl_dir, 'db-client.ca')
+        with open(ca_path, 'w') as fh:
+            fh.write(b64decode(rdata['ssl_ca']))
+        ctxt['database_ssl_ca'] = ca_path
+    elif 'ssl_ca' in rdata:
+        log("Charm not setup for ssl support but ssl ca found")
+        return ctxt
+    if 'ssl_cert' in rdata:
+        cert_path = os.path.join(
+            ssl_dir, 'db-client.cert')
+        if not os.path.exists(cert_path):
+            log("Waiting 1m for ssl client cert validity")
+            time.sleep(60)
+        with open(cert_path, 'w') as fh:
+            fh.write(b64decode(rdata['ssl_cert']))
+        ctxt['database_ssl_cert'] = cert_path
+        key_path = os.path.join(ssl_dir, 'db-client.key')
+        with open(key_path, 'w') as fh:
+            fh.write(b64decode(rdata['ssl_key']))
+        ctxt['database_ssl_key'] = key_path
+    return ctxt
 
 
 class IdentityServiceContext(OSContextGenerator):
@@ -161,30 +219,34 @@ class IdentityServiceContext(OSContextGenerator):
 
         for rid in relation_ids('identity-service'):
             for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
                 ctxt = {
-                    'service_port': relation_get('service_port', rid=rid,
-                                                 unit=unit),
-                    'service_host': relation_get('service_host', rid=rid,
-                                                 unit=unit),
-                    'auth_host': relation_get('auth_host', rid=rid, unit=unit),
-                    'auth_port': relation_get('auth_port', rid=rid, unit=unit),
-                    'admin_tenant_name': relation_get('service_tenant',
-                                                      rid=rid, unit=unit),
-                    'admin_user': relation_get('service_username', rid=rid,
-                                               unit=unit),
-                    'admin_password': relation_get('service_password', rid=rid,
-                                                   unit=unit),
-                    # XXX: Hard-coded http.
-                    'service_protocol': 'http',
-                    'auth_protocol': 'http',
+                    'service_port': rdata.get('service_port'),
+                    'service_host': rdata.get('service_host'),
+                    'auth_host': rdata.get('auth_host'),
+                    'auth_port': rdata.get('auth_port'),
+                    'admin_tenant_name': rdata.get('service_tenant'),
+                    'admin_user': rdata.get('service_username'),
+                    'admin_password': rdata.get('service_password'),
+                    'service_protocol':
+                    rdata.get('service_protocol') or 'http',
+                    'auth_protocol':
+                    rdata.get('auth_protocol') or 'http',
                 }
                 if context_complete(ctxt):
+                    # NOTE(jamespage) this is required for >= icehouse
+                    # so a missing value just indicates keystone needs
+                    # upgrading
+                    ctxt['admin_tenant_id'] = rdata.get('service_tenant_id')
                     return ctxt
         return {}
 
 
 class AMQPContext(OSContextGenerator):
     interfaces = ['amqp']
+
+    def __init__(self, ssl_dir=None):
+        self.ssl_dir = ssl_dir
 
     def __call__(self):
         log('Generating template context for amqp')
@@ -196,7 +258,6 @@ class AMQPContext(OSContextGenerator):
             log('Could not generate shared_db context. '
                 'Missing required charm config options: %s.' % e)
             raise OSContextError
-
         ctxt = {}
         for rid in relation_ids('amqp'):
             ha_vip_only = False
@@ -214,6 +275,14 @@ class AMQPContext(OSContextGenerator):
                                                       unit=unit),
                     'rabbitmq_virtual_host': vhost,
                 })
+
+                ssl_port = relation_get('ssl_port', rid=rid, unit=unit)
+                if ssl_port:
+                    ctxt['rabbit_ssl_port'] = ssl_port
+                ssl_ca = relation_get('ssl_ca', rid=rid, unit=unit)
+                if ssl_ca:
+                    ctxt['rabbit_ssl_ca'] = ssl_ca
+
                 if relation_get('ha_queues', rid=rid, unit=unit) is not None:
                     ctxt['rabbitmq_ha_queues'] = True
 
@@ -221,6 +290,16 @@ class AMQPContext(OSContextGenerator):
                                            rid=rid, unit=unit) is not None
 
                 if context_complete(ctxt):
+                    if 'rabbit_ssl_ca' in ctxt:
+                        if not self.ssl_dir:
+                            log(("Charm not setup for ssl support "
+                                 "but ssl ca found"))
+                            break
+                        ca_path = os.path.join(
+                            self.ssl_dir, 'rabbit-client-ca.pem')
+                        with open(ca_path, 'w') as fh:
+                            fh.write(b64decode(ctxt['rabbit_ssl_ca']))
+                            ctxt['rabbit_ssl_ca'] = ca_path
                     # Sufficient information found = break out!
                     break
             # Used for active/active rabbitmq >= grizzly
@@ -391,6 +470,8 @@ class ApacheSSLContext(OSContextGenerator):
             'private_address': unit_get('private-address'),
             'endpoints': []
         }
+        if is_clustered():
+            ctxt['private_address'] = config('vip')
         for api_port in self.external_ports:
             ext_port = determine_apache_port(api_port)
             int_port = determine_api_port(api_port)

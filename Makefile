@@ -1,11 +1,10 @@
 #!/usr/bin/make
 
 lint:
-	@echo -n "Running flake8 tests: "
-	@flake8 --exclude hooks/charmhelpers hooks
-	@flake8 unit_tests
+	@echo "Running flake8 tests: "
+	@flake8 --exclude hooks/charmhelpers hooks unit_tests
 	@echo "OK"
-	@echo -n "Running charm proof: "
+	@echo "Running charm proof: "
 	@charm proof
 	@echo "OK"
 

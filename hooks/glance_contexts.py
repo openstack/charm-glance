@@ -75,3 +75,8 @@ class ApacheSSLContext(SSLContext):
 
     def __call__(self):
         return super(ApacheSSLContext, self).__call__()
+
+
+class LoggingConfigContext(OSContextGenerator):
+    def __call__(self):
+        return {'debug': config('debug'), 'verbose': config('verbose')}

@@ -1,0 +1,13 @@
+{% if rabbitmq_host -%}
+rabbit_host = {{ rabbitmq_host }}
+rabbit_userid = {{ rabbitmq_user }}
+rabbit_password = {{ rabbitmq_password }}
+rabbit_virtual_host = {{ rabbitmq_virtual_host }}
+{% if rabbit_ssl_port -%}
+rabbit_use_ssl = True
+rabbit_port = {{ rabbit_ssl_port }}
+{% if rabbit_ssl_ca -%}
+kombu_ssl_ca_certs = {{rabbit_ssl_ca}}
+{% endif -%}
+{% endif -%}
+{% endif -%}

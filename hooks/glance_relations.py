@@ -22,7 +22,9 @@ from charmhelpers.core.hookenv import (
     config,
     Hooks,
     log as juju_log,
+    ERROR,
     open_port,
+    is_relation_made,
     relation_get,
     relation_set,
     relation_ids,
@@ -32,11 +34,14 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     restart_on_change,
-    service_stop,
-    mkdir
+    service_stop
 )
 
-from charmhelpers.fetch import apt_install, apt_update
+from charmhelpers.fetch import (
+    apt_install,
+    apt_update,
+    filter_installed_packages
+)
 
 from charmhelpers.contrib.hahelpers.cluster import (
     canonical_url, eligible_leader)
@@ -70,8 +75,8 @@ def install_hook():
 
     configure_installation_source(src)
 
-    apt_update()
-    apt_install(PACKAGES)
+    apt_update(fatal=True)
+    apt_install(PACKAGES, fatal=True)
 
     for service in SERVICES:
         service_stop(service)
@@ -79,8 +84,27 @@ def install_hook():
 
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
+    if is_relation_made('pgsql-db'):
+        # error, postgresql is used
+        e = ('Attempting to associate a mysql database when there is already '
+             'associated a postgresql one')
+        juju_log(e, level=ERROR)
+        raise Exception(e)
+
     relation_set(database=config('database'), username=config('database-user'),
                  hostname=unit_get('private-address'))
+
+
+@hooks.hook('pgsql-db-relation-joined')
+def pgsql_db_joined():
+    if is_relation_made('shared-db'):
+        # raise error
+        e = ('Attempting to associate a postgresql database when'
+             ' there is already associated a mysql one')
+        juju_log(e, level=ERROR)
+        raise Exception(e)
+
+    relation_set(database=config('database'))
 
 
 @hooks.hook('shared-db-relation-changed')
@@ -90,6 +114,31 @@ def db_changed():
 
     if 'shared-db' not in CONFIGS.complete_contexts():
         juju_log('shared-db relation incomplete. Peer not ready?')
+        return
+
+    CONFIGS.write(GLANCE_REGISTRY_CONF)
+    # since folsom, a db connection setting in glance-api.conf is required.
+    if rel != "essex":
+        CONFIGS.write(GLANCE_API_CONF)
+
+    if eligible_leader(CLUSTER_RES):
+        if rel == "essex":
+            status = call(['glance-manage', 'db_version'])
+            if status != 0:
+                juju_log('Setting version_control to 0')
+                check_call(["glance-manage", "version_control", "0"])
+
+        juju_log('Cluster leader, performing db sync')
+        migrate_database()
+
+
+@hooks.hook('pgsql-db-relation-changed')
+@restart_on_change(restart_map())
+def pgsql_db_changed():
+    rel = get_os_codename_package("glance-common")
+
+    if 'pgsql-db' not in CONFIGS.complete_contexts():
+        juju_log('pgsql-db relation incomplete. Peer not ready?')
         return
 
     CONFIGS.write(GLANCE_REGISTRY_CONF)
@@ -216,10 +265,10 @@ def config_changed():
     open_port(9292)
     configure_https()
 
-    #env_vars = {'OPENSTACK_PORT_MCASTPORT': config("ha-mcastport"),
+    # env_vars = {'OPENSTACK_PORT_MCASTPORT': config("ha-mcastport"),
     #            'OPENSTACK_SERVICE_API': "glance-api",
     #            'OPENSTACK_SERVICE_REGISTRY': "glance-registry"}
-    #save_script_rc(**env_vars)
+    # save_script_rc(**env_vars)
 
 
 @hooks.hook('cluster-relation-changed')
@@ -231,8 +280,11 @@ def cluster_changed():
 
 
 @hooks.hook('upgrade-charm')
+@restart_on_change(restart_map(), stopstart=True)
 def upgrade_charm():
-    cluster_changed()
+    apt_install(filter_installed_packages(PACKAGES), fatal=True)
+    configure_https()
+    CONFIGS.write_all()
 
 
 @hooks.hook('ha-relation-joined')
@@ -243,7 +295,7 @@ def ha_relation_joined():
     vip_iface = config("vip_iface")
     vip_cidr = config("vip_cidr")
 
-    #if vip and vip_iface and vip_cidr and \
+    # if vip and vip_iface and vip_cidr and \
     #    corosync_bindiface and corosync_mcastport:
 
     resources = {
@@ -289,7 +341,8 @@ def ha_relation_changed():
 @hooks.hook('ceph-relation-broken',
             'identity-service-relation-broken',
             'object-store-relation-broken',
-            'shared-db-relation-broken')
+            'shared-db-relation-broken',
+            'pgsql-db-relation-broken')
 def relation_broken():
     CONFIGS.write_all()
 

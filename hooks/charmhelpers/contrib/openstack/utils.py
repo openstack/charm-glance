@@ -65,6 +65,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('1.10.0', 'havana'),
     ('1.9.1', 'havana'),
     ('1.9.0', 'havana'),
+    ('1.13.1', 'icehouse'),
     ('1.13.0', 'icehouse'),
     ('1.12.0', 'icehouse'),
     ('1.11.0', 'icehouse'),
