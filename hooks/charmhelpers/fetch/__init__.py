@@ -184,7 +184,7 @@ def add_source(source, key=None):
             apt.write(PROPOSED_POCKET.format(release))
     if key:
         subprocess.check_call(['apt-key', 'adv', '--keyserver',
-                               'keyserver.ubuntu.com', '--recv',
+                               'hkp://keyserver.ubuntu.com:80', '--recv',
                                key])
 
 
