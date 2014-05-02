@@ -14,4 +14,8 @@ sync:
 test:
 	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage  unit_tests
 
+publish:
+	bzr push lp:charms/glance
+	bzr push lp:charms/trusty/glance
+
 all: test lint
