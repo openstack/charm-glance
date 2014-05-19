@@ -155,6 +155,100 @@ def hook_name():
     return os.path.basename(sys.argv[0])
 
 
+class Config(dict):
+    """A Juju charm config dictionary that can write itself to
+    disk (as json) and track which values have changed since
+    the previous hook invocation.
+
+    Do not instantiate this object directly - instead call
+    ``hookenv.config()``
+
+    Example usage::
+
+        >>> # inside a hook
+        >>> from charmhelpers.core import hookenv
+        >>> config = hookenv.config()
+        >>> config['foo']
+        'bar'
+        >>> config['mykey'] = 'myval'
+        >>> config.save()
+
+
+        >>> # user runs `juju set mycharm foo=baz`
+        >>> # now we're inside subsequent config-changed hook
+        >>> config = hookenv.config()
+        >>> config['foo']
+        'baz'
+        >>> # test to see if this val has changed since last hook
+        >>> config.changed('foo')
+        True
+        >>> # what was the previous value?
+        >>> config.previous('foo')
+        'bar'
+        >>> # keys/values that we add are preserved across hooks
+        >>> config['mykey']
+        'myval'
+        >>> # don't forget to save at the end of hook!
+        >>> config.save()
+
+    """
+    CONFIG_FILE_NAME = '.juju-persistent-config'
+
+    def __init__(self, *args, **kw):
+        super(Config, self).__init__(*args, **kw)
+        self._prev_dict = None
+        self.path = os.path.join(charm_dir(), Config.CONFIG_FILE_NAME)
+        if os.path.exists(self.path):
+            self.load_previous()
+
+    def load_previous(self, path=None):
+        """Load previous copy of config from disk so that current values
+        can be compared to previous values.
+
+        :param path:
+
+            File path from which to load the previous config. If `None`,
+            config is loaded from the default location. If `path` is
+            specified, subsequent `save()` calls will write to the same
+            path.
+
+        """
+        self.path = path or self.path
+        with open(self.path) as f:
+            self._prev_dict = json.load(f)
+
+    def changed(self, key):
+        """Return true if the value for this key has changed since
+        the last save.
+
+        """
+        if self._prev_dict is None:
+            return True
+        return self.previous(key) != self.get(key)
+
+    def previous(self, key):
+        """Return previous value for this key, or None if there
+        is no "previous" value.
+
+        """
+        if self._prev_dict:
+            return self._prev_dict.get(key)
+        return None
+
+    def save(self):
+        """Save this config to disk.
+
+        Preserves items in _prev_dict that do not exist in self.
+
+        """
+        if self._prev_dict:
+            for k, v in self._prev_dict.iteritems():
+                if k not in self:
+                    self[k] = v
+        with open(self.path, 'w') as f:
+            json.dump(self, f)
+
+
 @cached
 def config(scope=None):
     """Juju charm configuration"""
@@ -163,7 +257,10 @@ def config(scope=None):
         config_cmd_line.append(scope)
     config_cmd_line.append('--format=json')
     try:
-        return json.loads(subprocess.check_output(config_cmd_line))
+        config_data = json.loads(subprocess.check_output(config_cmd_line))
+        if scope is not None:
+            return config_data
+        return Config(config_data)
     except ValueError:
         return None
 

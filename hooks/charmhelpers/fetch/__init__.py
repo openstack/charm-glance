@@ -1,4 +1,5 @@
 import importlib
+import time
 from yaml import safe_load
 from charmhelpers.core.host import (
     lsb_release
@@ -14,6 +15,7 @@ from charmhelpers.core.hookenv import (
 )
 import apt_pkg
 import os
+
 
 CLOUD_ARCHIVE = """# Ubuntu Cloud Archive
 deb http://ubuntu-cloud.archive.canonical.com/ubuntu {} main
@@ -56,10 +58,62 @@ CLOUD_ARCHIVE_POCKETS = {
     'precise-proposed/icehouse': 'precise-proposed/icehouse',
 }
 
+# The order of this list is very important. Handlers should be listed in from
+# least- to most-specific URL matching.
+FETCH_HANDLERS = (
+    'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
+    'charmhelpers.fetch.bzrurl.BzrUrlFetchHandler',
+)
+
+APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.
+APT_NO_LOCK_RETRY_DELAY = 10  # Wait 10 seconds between apt lock checks.
+APT_NO_LOCK_RETRY_COUNT = 30  # Retry to acquire the lock X times.
+
+
+class SourceConfigError(Exception):
+    pass
+
+
+class UnhandledSource(Exception):
+    pass
+
+
+class AptLockError(Exception):
+    pass
+
+
+class BaseFetchHandler(object):
+
+    """Base class for FetchHandler implementations in fetch plugins"""
+
+    def can_handle(self, source):
+        """Returns True if the source can be handled. Otherwise returns
+        a string explaining why it cannot"""
+        return "Wrong source type"
+
+    def install(self, source):
+        """Try to download and unpack the source. Return the path to the
+        unpacked files or raise UnhandledSource."""
+        raise UnhandledSource("Wrong source type {}".format(source))
+
+    def parse_url(self, url):
+        return urlparse(url)
+
+    def base_url(self, url):
+        """Return url without querystring or fragment"""
+        parts = list(self.parse_url(url))
+        parts[4:] = ['' for i in parts[4:]]
+        return urlunparse(parts)
+
 
 def filter_installed_packages(packages):
     """Returns a list of packages that require installation"""
     apt_pkg.init()
+
+    # Tell apt to build an in-memory cache to prevent race conditions (if
+    # another process is already building the cache).
+    apt_pkg.config.set("Dir::Cache::pkgcache", "")
+
     cache = apt_pkg.Cache()
     _pkgs = []
     for package in packages:
@@ -87,14 +141,7 @@ def apt_install(packages, options=None, fatal=False):
         cmd.extend(packages)
     log("Installing {} with options: {}".format(packages,
                                                 options))
-    env = os.environ.copy()
-    if 'DEBIAN_FRONTEND' not in env:
-        env['DEBIAN_FRONTEND'] = 'noninteractive'
-
-    if fatal:
-        subprocess.check_call(cmd, env=env)
-    else:
-        subprocess.call(cmd, env=env)
+    _run_apt_command(cmd, fatal)
 
 
 def apt_upgrade(options=None, fatal=False, dist=False):
@@ -109,24 +156,13 @@ def apt_upgrade(options=None, fatal=False, dist=False):
     else:
         cmd.append('upgrade')
     log("Upgrading with options: {}".format(options))
-
-    env = os.environ.copy()
-    if 'DEBIAN_FRONTEND' not in env:
-        env['DEBIAN_FRONTEND'] = 'noninteractive'
-
-    if fatal:
-        subprocess.check_call(cmd, env=env)
-    else:
-        subprocess.call(cmd, env=env)
+    _run_apt_command(cmd, fatal)
 
 
 def apt_update(fatal=False):
     """Update local apt cache"""
     cmd = ['apt-get', 'update']
-    if fatal:
-        subprocess.check_call(cmd)
-    else:
-        subprocess.call(cmd)
+    _run_apt_command(cmd, fatal)
 
 
 def apt_purge(packages, fatal=False):
@@ -137,10 +173,7 @@ def apt_purge(packages, fatal=False):
     else:
         cmd.extend(packages)
     log("Purging {}".format(packages))
-    if fatal:
-        subprocess.check_call(cmd)
-    else:
-        subprocess.call(cmd)
+    _run_apt_command(cmd, fatal)
 
 
 def apt_hold(packages, fatal=False):
@@ -151,6 +184,7 @@ def apt_hold(packages, fatal=False):
     else:
         cmd.extend(packages)
     log("Holding {}".format(packages))
+
     if fatal:
         subprocess.check_call(cmd)
     else:
@@ -188,10 +222,6 @@ def add_source(source, key=None):
                                key])
 
 
-class SourceConfigError(Exception):
-    pass
-
-
 def configure_sources(update=False,
                       sources_var='install_sources',
                       keys_var='install_keys'):
@@ -224,17 +254,6 @@ def configure_sources(update=False,
     if update:
         apt_update(fatal=True)
 
-# The order of this list is very important. Handlers should be listed in from
-# least- to most-specific URL matching.
-FETCH_HANDLERS = (
-    'charmhelpers.fetch.archiveurl.ArchiveUrlFetchHandler',
-    'charmhelpers.fetch.bzrurl.BzrUrlFetchHandler',
-)
-
-
-class UnhandledSource(Exception):
-    pass
-
 
 def install_remote(source):
     """
@@ -265,30 +284,6 @@ def install_from_config(config_var_name):
     return install_remote(source)
 
 
-class BaseFetchHandler(object):
-
-    """Base class for FetchHandler implementations in fetch plugins"""
-
-    def can_handle(self, source):
-        """Returns True if the source can be handled. Otherwise returns
-        a string explaining why it cannot"""
-        return "Wrong source type"
-
-    def install(self, source):
-        """Try to download and unpack the source. Return the path to the
-        unpacked files or raise UnhandledSource."""
-        raise UnhandledSource("Wrong source type {}".format(source))
-
-    def parse_url(self, url):
-        return urlparse(url)
-
-    def base_url(self, url):
-        """Return url without querystring or fragment"""
-        parts = list(self.parse_url(url))
-        parts[4:] = ['' for i in parts[4:]]
-        return urlunparse(parts)
-
-
 def plugins(fetch_handlers=None):
     if not fetch_handlers:
         fetch_handlers = FETCH_HANDLERS
@@ -306,3 +301,40 @@ def plugins(fetch_handlers=None):
             log("FetchHandler {} not found, skipping plugin".format(
                 handler_name))
     return plugin_list
+
+
+def _run_apt_command(cmd, fatal=False):
+    """
+    Run an APT command, checking output and retrying if the fatal flag is set
+    to True.
+
+    :param: cmd: str: The apt command to run.
+    :param: fatal: bool: Whether the command's output should be checked and
+        retried.
+    """
+    env = os.environ.copy()
+
+    if 'DEBIAN_FRONTEND' not in env:
+        env['DEBIAN_FRONTEND'] = 'noninteractive'
+
+    if fatal:
+        retry_count = 0
+        result = None
+
+        # If the command is considered "fatal", we need to retry if the apt
+        # lock was not acquired.
+
+        while result is None or result == APT_NO_LOCK:
+            try:
+                result = subprocess.check_call(cmd, env=env)
+            except subprocess.CalledProcessError, e:
+                retry_count = retry_count + 1
+                if retry_count > APT_NO_LOCK_RETRY_COUNT:
+                    raise
+                result = e.returncode
+                log("Couldn't acquire DPKG lock. Will retry in {} seconds."
+                    "".format(APT_NO_LOCK_RETRY_DELAY))
+                time.sleep(APT_NO_LOCK_RETRY_DELAY)
+
+    else:
+        subprocess.call(cmd, env=env)
