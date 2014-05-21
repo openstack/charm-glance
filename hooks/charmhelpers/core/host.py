@@ -12,6 +12,7 @@ import random
 import string
 import subprocess
 import hashlib
+import apt_pkg
 
 from collections import OrderedDict
 
@@ -295,3 +296,16 @@ def get_nic_hwaddr(nic):
     if 'link/ether' in words:
         hwaddr = words[words.index('link/ether') + 1]
     return hwaddr
+
+
+def cmp_pkgrevno(package, revno, pkgcache=None):
+    '''Compare supplied revno with the revno of the installed package
+       1 => Installed revno is greater than supplied arg
+       0 => Installed revno is the same as supplied arg
+      -1 => Installed revno is less than supplied arg
+    '''
+    if not pkgcache:
+        apt_pkg.init()
+        pkgcache = apt_pkg.Cache()
+    pkg = pkgcache[package]
+    return apt_pkg.version_compare(pkg.current_ver.ver_str, revno)
