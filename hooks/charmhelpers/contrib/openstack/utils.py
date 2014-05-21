@@ -131,6 +131,11 @@ def get_os_version_codename(codename):
 def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
     apt.init()
+
+    # Tell apt to build an in-memory cache to prevent race conditions (if
+    # another process is already building the cache).
+    apt.config.set("Dir::Cache::pkgcache", "")
+
     cache = apt.Cache()
 
     try:
@@ -183,7 +188,7 @@ def get_os_version_package(pkg, fatal=True):
         if cname == codename:
             return version
     #e = "Could not determine OpenStack version for package: %s" % pkg
-    #error_out(e)
+    # error_out(e)
 
 
 os_rel = None
@@ -401,6 +406,8 @@ def ns_query(address):
         rtype = 'PTR'
     elif isinstance(address, basestring):
         rtype = 'A'
+    else:
+        return None
 
     answers = dns.resolver.query(address, rtype)
     if answers:
