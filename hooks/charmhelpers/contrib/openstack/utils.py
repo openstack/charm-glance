@@ -41,7 +41,8 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('quantal', 'folsom'),
     ('raring', 'grizzly'),
     ('saucy', 'havana'),
-    ('trusty', 'icehouse')
+    ('trusty', 'icehouse'),
+    ('utopic', 'juno'),
 ])
 
 
@@ -52,6 +53,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2013.1', 'grizzly'),
     ('2013.2', 'havana'),
     ('2014.1', 'icehouse'),
+    ('2014.2', 'juno'),
 ])
 
 # The ugly duckling
@@ -273,6 +275,9 @@ def configure_installation_source(rel):
             'icehouse': 'precise-updates/icehouse',
             'icehouse/updates': 'precise-updates/icehouse',
             'icehouse/proposed': 'precise-proposed/icehouse',
+            'juno': 'trusty-updates/juno',
+            'juno/updates': 'trusty-updates/juno',
+            'juno/proposed': 'trusty-proposed/juno',
         }
 
         try:

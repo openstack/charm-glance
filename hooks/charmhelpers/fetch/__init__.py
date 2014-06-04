@@ -56,6 +56,15 @@ CLOUD_ARCHIVE_POCKETS = {
     'icehouse/proposed': 'precise-proposed/icehouse',
     'precise-icehouse/proposed': 'precise-proposed/icehouse',
     'precise-proposed/icehouse': 'precise-proposed/icehouse',
+    # Juno
+    'juno': 'trusty-updates/juno',
+    'trusty-juno': 'trusty-updates/juno',
+    'trusty-juno/updates': 'trusty-updates/juno',
+    'trusty-updates/juno': 'trusty-updates/juno',
+    'juno/proposed': 'trusty-proposed/juno',
+    'juno/proposed': 'trusty-proposed/juno',
+    'trusty-juno/proposed': 'trusty-proposed/juno',
+    'trusty-proposed/juno': 'trusty-proposed/juno',
 }
 
 # The order of this list is very important. Handlers should be listed in from
