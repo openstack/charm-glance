@@ -9,7 +9,8 @@ lint:
 	@echo "OK"
 
 sync:
-	@charm-helper-sync -c charm-helpers.yaml
+	@charm-helper-sync -c charm-helpers-hooks.yaml
+	@charm-helper-sync -c charm-helpers-tests.yaml
 
 test:
 	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage  unit_tests
