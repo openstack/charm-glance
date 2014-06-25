@@ -163,7 +163,7 @@ def get_hacluster_config():
     return conf
 
 
-def canonical_url(configs, vip_setting='vip'):
+def canonical_url(configs, vip_setting='vip', address=None):
     '''
     Returns the correct HTTP URL to this host given the state of HTTPS
     configuration and hacluster.
@@ -179,5 +179,5 @@ def canonical_url(configs, vip_setting='vip'):
     if is_clustered():
         addr = config_get(vip_setting)
     else:
-        addr = unit_get('private-address')
+        addr = address or unit_get('private-address')
     return '%s://%s' % (scheme, addr)
