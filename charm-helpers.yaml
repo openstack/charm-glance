@@ -3,7 +3,8 @@ destination: hooks/charmhelpers
 include:
     - core
     - fetch
-    - contrib.openstack
+    - contrib.openstack|inc=*
     - contrib.hahelpers
     - contrib.storage.linux.ceph
     - payload.execd
+    - contrib.network.ip
