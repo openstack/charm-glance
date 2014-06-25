@@ -54,6 +54,7 @@ from charmhelpers.contrib.openstack.utils import (
 
 from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
 from charmhelpers.payload.execd import execd_preinstall
+from charmhelpers.contrib.network.ip import get_address_in_network
 
 from subprocess import (
     check_call,
@@ -163,7 +164,12 @@ def image_service_joined(relation_id=None):
         return
 
     relation_data = {
-        'glance-api-server': canonical_url(CONFIGS) + ":9292"
+        'glance-api-server': "{}:9292".format(
+        canonical_url(CONFIGS,
+                      address=get_address_in_network(config('os-internal-network'),
+                                                     unit_get('private-address'))
+                      )
+        )
     }
 
     juju_log("%s: image-service_joined: To peer glance-api-server=%s" %
@@ -222,14 +228,27 @@ def keystone_joined(relation_id=None):
         juju_log('Deferring keystone_joined() to service leader.')
         return
 
-    url = canonical_url(CONFIGS) + ":9292"
+    conf = config()
+    public_url = '{}:9292'.format(
+        canonical_url(
+            CONFIGS,
+            address=get_address_in_network(conf.get('os-public-network'),
+                                           unit_get('public-address')))
+    )
+    admin_internal_url = '{}:9292'.format(
+        canonical_url(
+            CONFIGS,
+            address=get_address_in_network(conf.get('os-internal-network'),
+                                           unit_get('private-address')))
+    )
+
     relation_data = {
         'service': 'glance',
         'region': config('region'),
-        'public_url': url,
-        'admin_url': url,
-        'internal_url': url, }
-
+        'public_url': public_url,
+        'admin_url': admin_internal_url,
+        'internal_url': admin_internal_url, }
+    
     relation_set(relation_id=relation_id, **relation_data)
 
 
@@ -265,10 +284,10 @@ def config_changed():
     open_port(9292)
     configure_https()
 
-    # env_vars = {'OPENSTACK_PORT_MCASTPORT': config("ha-mcastport"),
-    #            'OPENSTACK_SERVICE_API': "glance-api",
-    #            'OPENSTACK_SERVICE_REGISTRY': "glance-registry"}
-    # save_script_rc(**env_vars)
+    # Pickup and changes due to network reference architecture
+    # configuration
+    [keystone_joined(rid) for rid in relation_ids('identity-service')]
+    [image_service_joined(rid) for rid in relation_ids('image-service')]
 
 
 @hooks.hook('cluster-relation-changed')
