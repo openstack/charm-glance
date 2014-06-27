@@ -228,6 +228,7 @@ def keystone_joined(relation_id=None):
         juju_log('Deferring keystone_joined() to service leader.')
         return
 
+    # NOTE(jamespage) deal with VIP for clustering
     conf = config()
     public_url = '{}:9292'.format(
         canonical_url(
@@ -235,19 +236,24 @@ def keystone_joined(relation_id=None):
             address=get_address_in_network(conf.get('os-public-network'),
                                            unit_get('public-address')))
     )
-    admin_internal_url = '{}:9292'.format(
+    internal_url = '{}:9292'.format(
         canonical_url(
             CONFIGS,
             address=get_address_in_network(conf.get('os-internal-network'),
                                            unit_get('private-address')))
     )
-
+    admin_url = '{}:9292'.format(
+        canonical_url(
+            CONFIGS,
+            address=get_address_in_network(conf.get('os-admin-network'),
+                                           unit_get('private-address')))
+    )
     relation_data = {
         'service': 'glance',
         'region': config('region'),
         'public_url': public_url,
-        'admin_url': admin_internal_url,
-        'internal_url': admin_internal_url, }
+        'admin_url': admin_url,
+        'internal_url': internal_url, }
     
     relation_set(relation_id=relation_id, **relation_data)
 
