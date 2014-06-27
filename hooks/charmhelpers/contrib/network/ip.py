@@ -30,12 +30,12 @@ def get_address_in_network(network, fallback=None, fatal=False):
     """
     Get an IPv4 address within the network from the host.
 
-    Args:
-        network (str): CIDR presentation format. For example,
-                       '192.168.1.0/24'.
-        fallback (str): If no address is found, return fallback.
-        fatal (boolean): If no address is found, fallback is not
-                         set and fatal is True then exit(1).
+    :param network (str): CIDR presentation format. For example,
+        '192.168.1.0/24'.
+    :param fallback (str): If no address is found, return fallback.
+    :param fatal (boolean): If no address is found, fallback is not
+        set and fatal is True then exit(1).
+
     """
 
     def not_found_error_out():
