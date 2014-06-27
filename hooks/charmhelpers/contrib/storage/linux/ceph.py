@@ -303,7 +303,7 @@ def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
                         blk_device, fstype, system_services=[]):
     """
     NOTE: This function must only be called from a single service unit for
-          the same rbd_img otherwise data loss will occur.
+    the same rbd_img otherwise data loss will occur.
 
     Ensures given pool and RBD image exists, is mapped to a block device,
     and the device is formatted and mounted at the given mount_point.
