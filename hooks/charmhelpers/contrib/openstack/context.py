@@ -145,12 +145,16 @@ class SharedDBContext(OSContextGenerator):
         # with the service units local address and defer execution
         access_network = relation_get('access-network')
         if access_network is not None:
+            if self.relation_prefix is not None:
+                hostname_key = "{}_hostname".format(self.relation_prefix)
+            else:
+                hostname_key = "hostname"            
             access_hostname = get_address_in_network(access_network,
                                                      unit_get('private-address'))
-            set_hostname = relation_get(attribute='hostname',
+            set_hostname = relation_get(attribute=hostname_key,
                                         unit=local_unit())
             if set_hostname != access_hostname:
-                relation_set(hostname=access_hostname)
+                relation_set(relation_settings={hostname_key: access_hostname})
                 return ctxt  # Defer any further hook execution for now....
 
         password_setting = 'password'
