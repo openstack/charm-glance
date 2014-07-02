@@ -67,3 +67,29 @@ def get_address_in_network(network, fallback=None, fatal=False):
         not_found_error_out()
 
     return None
+
+
+def is_address_in_network(network, address):
+    """
+    Determine whether the provided address is within a network range.
+
+    :param network (str): CIDR presentation format. For example,
+        '192.168.1.0/24'.
+    :param address: An individual IPv4 or IPv6 address without a net
+        mask or subnet prefix. For example, '192.168.1.1'.
+    :returns boolean: Flag indicating whether address is in network.
+    """
+    try:
+        network = netaddr.IPNetwork(network)
+    except (netaddr.core.AddrFormatError, ValueError):
+        raise ValueError("Network (%s) is not in CIDR presentation format" %
+                         network)
+    try:
+        address = netaddr.IPAddress(address)
+    except (netaddr.core.AddrFormatError, ValueError):
+        raise ValueError("Address (%s) is not in correct presentation format" %
+                         address)
+    if address in network:
+        return True
+    else:
+        return False

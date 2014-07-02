@@ -21,6 +21,7 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     related_units,
+    relation_set,
     unit_get,
     unit_private_ip,
     ERROR,
@@ -41,6 +42,8 @@ from charmhelpers.contrib.hahelpers.apache import (
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
 )
+
+from charmhelpers.contrib.network.ip import get_address_in_network
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 
@@ -134,7 +137,21 @@ class SharedDBContext(OSContextGenerator):
                 'Missing required charm config options. '
                 '(database name and user)')
             raise OSContextError
+
         ctxt = {}
+
+        # NOTE(jamespage) if mysql charm provides a network upon which
+        # access to the database should be made, reconfigure relation
+        # with the service units local address and defer execution
+        access_network = relation_get('access-network')
+        if access_network is not None:
+            access_hostname = get_address_in_network(access_network,
+                                                     unit_get('private-address'))
+            set_hostname = relation_get(attribute='hostname',
+                                        unit=local_unit())
+            if set_hostname != access_hostname:
+                relation_set(hostname=access_hostname)
+                return ctxt  # Defer any further hook execution for now....
 
         password_setting = 'password'
         if self.relation_prefix:
