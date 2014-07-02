@@ -7,19 +7,36 @@ class OpenStackAmuletDeployment(AmuletDeployment):
     """This class inherits from AmuletDeployment and has additional support
        that is specifically for use by OpenStack charms."""
 
-    def __init__(self, series=None, openstack=None):
+    def __init__(self, series=None, openstack=None, source=None):
         """Initialize the deployment environment."""
-        self.openstack = None
         super(OpenStackAmuletDeployment, self).__init__(series)
+        self.openstack = openstack
+        self.source = source
 
-        if openstack:
-            self.openstack = openstack
+    def _add_services(self, this_service, other_services):
+        """Add services to the deployment and set openstack-origin."""
+        super(OpenStackAmuletDeployment, self)._add_services(this_service,
+                                                             other_services)
+        name = 0
+        services = other_services
+        services.append(this_service)
+        use_source = ['mysql', 'mongodb', 'rabbitmq-server', 'ceph']
+
+        if self.openstack:
+            for svc in services:
+                if svc[name] not in use_source:
+                    config = {'openstack-origin': self.openstack}
+                    self.d.configure(svc[name], config)
+
+        if self.source:
+            for svc in services:
+                if svc[name] in use_source:
+                    config = {'source': self.source}
+                    self.d.configure(svc[name], config)
 
     def _configure_services(self, configs):
         """Configure all of the services."""
         for service, config in configs.iteritems():
-            if service == self.this_service:
-                config['openstack-origin'] = self.openstack
             self.d.configure(service, config)
 
     def _get_openstack_release(self):
