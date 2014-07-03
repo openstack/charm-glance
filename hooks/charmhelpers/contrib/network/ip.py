@@ -28,7 +28,7 @@ def _validate_cidr(network):
 
 def get_address_in_network(network, fallback=None, fatal=False):
     """
-    Get an IPv4 address within the network from the host.
+    Get an IPv4 or IPv6 address within the network from the host.
 
     :param network (str): CIDR presentation format. For example,
         '192.168.1.0/24'.
@@ -51,14 +51,23 @@ def get_address_in_network(network, fallback=None, fatal=False):
                 not_found_error_out()
 
     _validate_cidr(network)
+    network = netaddr.IPNetwork(network)
     for iface in netifaces.interfaces():
         addresses = netifaces.ifaddresses(iface)
-        if netifaces.AF_INET in addresses:
+        if network.version == 4 and netifaces.AF_INET in addresses:
             addr = addresses[netifaces.AF_INET][0]['addr']
             netmask = addresses[netifaces.AF_INET][0]['netmask']
             cidr = netaddr.IPNetwork("%s/%s" % (addr, netmask))
-            if cidr in netaddr.IPNetwork(network):
+            if cidr in network:
                 return str(cidr.ip)
+        if network.version == 6 and netifaces.AF_INET6 in addresses:
+            for addr in addresses[netifaces.AF_INET6]:
+                if 'fe80' not in addr['addr']:
+                    netmask = addr['netmask']
+                    cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
+                                                        netmask))
+                    if cidr in network:
+                        return str(cidr.ip)
 
     if fallback is not None:
         return fallback
@@ -68,6 +77,16 @@ def get_address_in_network(network, fallback=None, fatal=False):
 
     return None
 
+
+def is_ipv6(address):
+    '''Determine whether provided address is IPv6 or not'''
+    try:
+        address = netaddr.IPAddress(address)
+    except netaddr.AddrFormatError:
+        return False
+    else:
+        return address.version == 6
+ 
 
 def is_address_in_network(network, address):
     """
