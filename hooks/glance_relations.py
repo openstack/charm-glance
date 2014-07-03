@@ -294,6 +294,15 @@ def config_changed():
     # configuration
     [keystone_joined(rid) for rid in relation_ids('identity-service')]
     [image_service_joined(rid) for rid in relation_ids('image-service')]
+    [cluster_joined(rid) for rid in relation_ids('cluster')]
+
+
+@hooks.hook('cluster-relation-joined')
+def cluster_joined(relation_id=None):
+    address = get_address_in_network(config('os-internal-network'),
+                                     unit_get('private-address'))
+    relation_set(relation_id=relation_id,
+                 relation_settings={'private-address': address})
 
 
 @hooks.hook('cluster-relation-changed')
