@@ -44,7 +44,7 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
-    canonical_url, eligible_leader)
+    eligible_leader)
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
@@ -55,6 +55,10 @@ from charmhelpers.contrib.openstack.utils import (
 from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
 from charmhelpers.payload.execd import execd_preinstall
 from charmhelpers.contrib.network.ip import get_address_in_network
+from charmhelpers.contrib.openstack.ip import (
+    canonical_url,
+    PUBLIC, INTERNAL, ADMIN
+)
 
 from subprocess import (
     check_call,
@@ -228,26 +232,9 @@ def keystone_joined(relation_id=None):
         juju_log('Deferring keystone_joined() to service leader.')
         return
 
-    # NOTE(jamespage) deal with VIP for clustering
-    conf = config()
-    public_url = '{}:9292'.format(
-        canonical_url(
-            CONFIGS,
-            address=get_address_in_network(conf.get('os-public-network'),
-                                           unit_get('public-address')))
-    )
-    internal_url = '{}:9292'.format(
-        canonical_url(
-            CONFIGS,
-            address=get_address_in_network(conf.get('os-internal-network'),
-                                           unit_get('private-address')))
-    )
-    admin_url = '{}:9292'.format(
-        canonical_url(
-            CONFIGS,
-            address=get_address_in_network(conf.get('os-admin-network'),
-                                           unit_get('private-address')))
-    )
+    public_url = '{}:9292'.format(canonical_url(CONFIGS, PUBLIC))
+    internal_url = '{}:9292'.format(canonical_url(CONFIGS, INTERNAL))
+    admin_url = '{}:9292'.format(canonical_url(CONFIGS, ADMIN))
     relation_data = {
         'service': 'glance',
         'region': config('region'),
