@@ -148,7 +148,7 @@ class SharedDBContext(OSContextGenerator):
             if self.relation_prefix is not None:
                 hostname_key = "{}_hostname".format(self.relation_prefix)
             else:
-                hostname_key = "hostname"            
+                hostname_key = "hostname"
             access_hostname = get_address_in_network(access_network,
                                                      unit_get('private-address'))
             set_hostname = relation_get(attribute=hostname_key,
@@ -400,7 +400,9 @@ class HAProxyContext(OSContextGenerator):
 
         cluster_hosts = {}
         l_unit = local_unit().replace('/', '-')
-        cluster_hosts[l_unit] = unit_get('private-address')
+        cluster_hosts[l_unit] = \
+            get_address_in_network(config('os-internal-network'),
+                                   unit_get('private-address'))
 
         for rid in relation_ids('cluster'):
             for unit in related_units(rid):
