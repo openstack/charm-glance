@@ -6,6 +6,7 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     is_address_in_network,
+    is_ipv6,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import is_clustered
@@ -44,7 +45,10 @@ def canonical_url(configs, endpoint_type=PUBLIC):
     scheme = 'http'
     if 'https' in configs.complete_contexts():
         scheme = 'https'
-    return '%s://%s' % (scheme, resolve_address(endpoint_type))
+    address = resolve_address(endpoint_type)
+    if is_ipv6(address):
+        address = "[{}]".format(address)
+    return '%s://%s' % (scheme, address)
 
 
 def resolve_address(endpoint_type=PUBLIC):
