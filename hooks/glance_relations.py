@@ -168,12 +168,8 @@ def image_service_joined(relation_id=None):
         return
 
     relation_data = {
-        'glance-api-server': "{}:9292".format(
-        canonical_url(CONFIGS,
-                      address=get_address_in_network(config('os-internal-network'),
-                                                     unit_get('private-address'))
-                      )
-        )
+        'glance-api-server':
+        "{}:9292".format(canonical_url(CONFIGS, INTERNAL))
     }
 
     juju_log("%s: image-service_joined: To peer glance-api-server=%s" %
