@@ -93,3 +93,50 @@ def is_address_in_network(network, address):
         return True
     else:
         return False
+
+
+def _get_for_address(address, key):
+    """Retrieve an attribute of or the physical interface that
+    the IP address provided could be bound to.
+
+    :param address (str): An individual IPv4 or IPv6 address without a net
+        mask or subnet prefix. For example, '192.168.1.1'.
+    :param key: 'iface' for the physical interface name or an attribute
+        of the configured interface, for example 'netmask'.
+    :returns str: Requested attribute or None if address is not bindable.
+    """
+    address = netaddr.IPAddress(address)
+    for iface in netifaces.interfaces():
+        addresses = netifaces.ifaddresses(iface)
+        if netifaces.AF_INET in addresses:
+            addr = addresses[netifaces.AF_INET][0]['addr']
+            netmask = addresses[netifaces.AF_INET][0]['netmask']
+            cidr = netaddr.IPNetwork("%s/%s" % (addr, netmask))
+            if address in cidr:
+                if key == 'iface':
+                    return iface
+                else:
+                    return addresses[netifaces.AF_INET][0][key]
+    return None
+
+
+def get_iface_for_address(address):
+    """Determine the physical interface to which an IP address could be bound
+
+    :param address (str): An individual IPv4 or IPv6 address without a net
+        mask or subnet prefix. For example, '192.168.1.1'.
+    :returns str: Interface name or None if address is not bindable.
+    """
+    return _get_for_address(address, 'iface')
+
+
+def get_netmask_for_address(address):
+    """Determine the netmask of the physical interface to which and IP address
+    could be bound
+
+    :param address (str): An individual IPv4 or IPv6 address without a net
+        mask or subnet prefix. For example, '192.168.1.1'.
+    :returns str: Netmask of configured interface or None if address is
+        not bindable.
+    """
+    return _get_for_address(address, 'netmask')
