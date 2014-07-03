@@ -44,7 +44,9 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
-    eligible_leader)
+    eligible_leader,
+    get_hacluster_config
+)
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
@@ -54,7 +56,11 @@ from charmhelpers.contrib.openstack.utils import (
 
 from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
 from charmhelpers.payload.execd import execd_preinstall
-from charmhelpers.contrib.network.ip import get_address_in_network
+from charmhelpers.contrib.network.ip import (
+    get_address_in_network,
+    get_netmask_for_address,
+    get_iface_for_address,
+)
 from charmhelpers.contrib.openstack.ip import (
     canonical_url,
     PUBLIC, INTERNAL, ADMIN
@@ -306,33 +312,44 @@ def upgrade_charm():
 
 @hooks.hook('ha-relation-joined')
 def ha_relation_joined():
-    corosync_bindiface = config("ha-bindiface")
-    corosync_mcastport = config("ha-mcastport")
-    vip = config("vip")
-    vip_iface = config("vip_iface")
-    vip_cidr = config("vip_cidr")
-
-    # if vip and vip_iface and vip_cidr and \
-    #    corosync_bindiface and corosync_mcastport:
-
+    config = get_hacluster_config()
+    
     resources = {
-        'res_glance_vip': 'ocf:heartbeat:IPaddr2',
-        'res_glance_haproxy': 'lsb:haproxy', }
+        'res_glance_haproxy': 'lsb:haproxy'
+    }
 
     resource_params = {
-        'res_glance_vip': 'params ip="%s" cidr_netmask="%s" nic="%s"' %
-                          (vip, vip_cidr, vip_iface),
-        'res_glance_haproxy': 'op monitor interval="5s"', }
+        'res_glance_haproxy': 'op monitor interval="5s"'
+    }
+
+    vip_group = []
+    for vip in config['vip'].split():
+        iface = get_iface_for_address(vip)
+        if iface is not None:
+            vip_key = 'res_glance_{}_vip'.format(iface)
+            resources[vip_key] = 'ocf:heartbeat:IPaddr2'
+            resource_params[vip_key] = (
+                 'params ip="{vip}" cidr_netmask="{netmask}"'
+                 ' nic="{iface}"'.format(vip=vip,
+                                         iface=iface,
+                                         netmask=get_netmask_for_address(vip))
+            )
+            vip_group.append(vip_key)
+
+    if len(vip_group) > 1:
+        relation_set(groups={'grp_glance_vips': ' '.join(vip_group)})
 
     init_services = {
-        'res_glance_haproxy': 'haproxy', }
+        'res_glance_haproxy': 'haproxy',
+    }
 
     clones = {
-        'cl_glance_haproxy': 'res_glance_haproxy', }
+        'cl_glance_haproxy': 'res_glance_haproxy',
+    }
 
     relation_set(init_services=init_services,
-                 corosync_bindiface=corosync_bindiface,
-                 corosync_mcastport=corosync_mcastport,
+                 corosync_bindiface=config['ha-bindiface'],
+                 corosync_mcastport=config['ha-mcastport'],
                  resources=resources,
                  resource_params=resource_params,
                  clones=clones)
