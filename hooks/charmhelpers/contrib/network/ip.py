@@ -83,10 +83,11 @@ def is_ipv6(address):
     try:
         address = netaddr.IPAddress(address)
     except netaddr.AddrFormatError:
+        # probably a hostname - so not an address at all!
         return False
     else:
         return address.version == 6
- 
+
 
 def is_address_in_network(network, address):
     """
@@ -127,7 +128,7 @@ def _get_for_address(address, key):
     address = netaddr.IPAddress(address)
     for iface in netifaces.interfaces():
         addresses = netifaces.ifaddresses(iface)
-        if netifaces.AF_INET in addresses:
+        if address.version == 4 and netifaces.AF_INET in addresses:
             addr = addresses[netifaces.AF_INET][0]['addr']
             netmask = addresses[netifaces.AF_INET][0]['netmask']
             cidr = netaddr.IPNetwork("%s/%s" % (addr, netmask))
@@ -136,6 +137,16 @@ def _get_for_address(address, key):
                     return iface
                 else:
                     return addresses[netifaces.AF_INET][0][key]
+        if address.version == 6 and netifaces.AF_INET6 in addresses:
+            for addr in addresses[netifaces.AF_INET6]:
+                if 'fe80' not in addr['addr']:
+                    cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
+                                                        addr['netmask']))
+                    if address in cidr:
+                        if key == 'iface':
+                            return iface
+                        else:
+                            return addr[key]
     return None
 
 
