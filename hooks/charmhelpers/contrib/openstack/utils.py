@@ -3,7 +3,6 @@
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict
 
-import apt_pkg as apt
 import subprocess
 import os
 import socket
@@ -41,7 +40,8 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('quantal', 'folsom'),
     ('raring', 'grizzly'),
     ('saucy', 'havana'),
-    ('trusty', 'icehouse')
+    ('trusty', 'icehouse'),
+    ('utopic', 'juno'),
 ])
 
 
@@ -52,6 +52,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2013.1', 'grizzly'),
     ('2013.2', 'havana'),
     ('2014.1', 'icehouse'),
+    ('2014.2', 'juno'),
 ])
 
 # The ugly duckling
@@ -83,6 +84,8 @@ def get_os_codename_install_source(src):
     '''Derive OpenStack release codename from a given installation source.'''
     ubuntu_rel = lsb_release()['DISTRIB_CODENAME']
     rel = ''
+    if src is None:
+        return rel
     if src in ['distro', 'distro-proposed']:
         try:
             rel = UBUNTU_OPENSTACK_RELEASE[ubuntu_rel]
@@ -130,6 +133,7 @@ def get_os_version_codename(codename):
 
 def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
+    import apt_pkg as apt
     apt.init()
 
     # Tell apt to build an in-memory cache to prevent race conditions (if
@@ -187,7 +191,7 @@ def get_os_version_package(pkg, fatal=True):
     for version, cname in vers_map.iteritems():
         if cname == codename:
             return version
-    #e = "Could not determine OpenStack version for package: %s" % pkg
+    # e = "Could not determine OpenStack version for package: %s" % pkg
     # error_out(e)
 
 
@@ -273,6 +277,9 @@ def configure_installation_source(rel):
             'icehouse': 'precise-updates/icehouse',
             'icehouse/updates': 'precise-updates/icehouse',
             'icehouse/proposed': 'precise-proposed/icehouse',
+            'juno': 'trusty-updates/juno',
+            'juno/updates': 'trusty-updates/juno',
+            'juno/proposed': 'trusty-proposed/juno',
         }
 
         try:
@@ -320,6 +327,7 @@ def openstack_upgrade_available(package):
 
     """
 
+    import apt_pkg as apt
     src = config('openstack-origin')
     cur_vers = get_os_version_package(package)
     available_vers = get_os_version_install_source(src)
