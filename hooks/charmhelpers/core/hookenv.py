@@ -25,7 +25,7 @@ cache = {}
 def cached(func):
     """Cache return values for multiple executions of func + args
 
-    For example:
+    For example::
 
         @cached
         def unit_get(attribute):
@@ -445,18 +445,19 @@ class UnregisteredHookError(Exception):
 class Hooks(object):
     """A convenient handler for hook functions.
 
-    Example:
+    Example::
+
         hooks = Hooks()
 
         # register a hook, taking its name from the function name
         @hooks.hook()
         def install():
-            ...
+            pass  # your code here
 
         # register a hook, providing a custom hook name
         @hooks.hook("config-changed")
         def config_changed():
-            ...
+            pass  # your code here
 
         if __name__ == "__main__":
             # execute a hook based on the name the program is called by
