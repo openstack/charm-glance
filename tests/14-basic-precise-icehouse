@@ -1,0 +1,11 @@
+#!/usr/bin/python
+
+"""Amulet tests on a basic glance deployment on precise-icehouse."""
+
+from basic_deployment import GlanceBasicDeployment
+
+if __name__ == '__main__':
+    deployment = GlanceBasicDeployment(series='precise',
+                                         openstack='cloud:precise-icehouse',
+                                         source='cloud:precise-updates/icehouse')
+    deployment.run_tests()
