@@ -81,7 +81,7 @@ def install_hook():
     execd_preinstall()
     src = config('openstack-origin')
     if (lsb_release()['DISTRIB_CODENAME'] == 'precise' and
-       src == 'distro'):
+            src == 'distro'):
         src = 'cloud:precise-folsom'
 
     configure_installation_source(src)
@@ -243,7 +243,7 @@ def keystone_joined(relation_id=None):
         'public_url': public_url,
         'admin_url': admin_url,
         'internal_url': internal_url, }
-    
+
     relation_set(relation_id=relation_id, **relation_data)
 
 
@@ -313,7 +313,7 @@ def upgrade_charm():
 @hooks.hook('ha-relation-joined')
 def ha_relation_joined():
     config = get_hacluster_config()
-    
+
     resources = {
         'res_glance_haproxy': 'lsb:haproxy'
     }
@@ -329,10 +329,10 @@ def ha_relation_joined():
             vip_key = 'res_glance_{}_vip'.format(iface)
             resources[vip_key] = 'ocf:heartbeat:IPaddr2'
             resource_params[vip_key] = (
-                 'params ip="{vip}" cidr_netmask="{netmask}"'
-                 ' nic="{iface}"'.format(vip=vip,
-                                         iface=iface,
-                                         netmask=get_netmask_for_address(vip))
+                'params ip="{vip}" cidr_netmask="{netmask}"'
+                ' nic="{iface}"'.format(vip=vip,
+                                        iface=iface,
+                                        netmask=get_netmask_for_address(vip))
             )
             vip_group.append(vip_key)
 
