@@ -25,6 +25,7 @@ from charmhelpers.core.hookenv import (
     unit_get,
     unit_private_ip,
     ERROR,
+    INFO
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -714,7 +715,7 @@ class SubordinateConfigContext(OSContextGenerator):
         self.interface = interface
 
     def __call__(self):
-        ctxt = {}
+        ctxt = {'sections': {}}
         for rid in relation_ids(self.interface):
             for unit in related_units(rid):
                 sub_config = relation_get('subordinate_configuration',
@@ -740,10 +741,14 @@ class SubordinateConfigContext(OSContextGenerator):
 
                     sub_config = sub_config[self.config_file]
                     for k, v in sub_config.iteritems():
-                        ctxt[k] = v
+                        if k == 'sections':
+                            for section, config_dict in v.iteritems():
+                                log("adding section '%s'" % (section))
+                                ctxt[k][section] = config_dict
+                        else:
+                            ctxt[k] = v
 
-        if not ctxt:
-            ctxt['sections'] = {}
+        log("%d section(s) found" % (len(ctxt['sections'])), level=INFO)
 
         return ctxt
 

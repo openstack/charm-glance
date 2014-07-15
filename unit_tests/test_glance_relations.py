@@ -454,7 +454,7 @@ class GlanceRelationTests(CharmTestCase):
                           'res_glance_haproxy': 'lsb:haproxy'},
             'resource_params': {
                 'res_glance_eth1_vip': 'params ip="10.10.10.10"'
-                                  ' cidr_netmask="255.255.0.0" nic="eth1"',
+                ' cidr_netmask="255.255.0.0" nic="eth1"',
                 'res_glance_haproxy': 'op monitor interval="5s"'},
             'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
         }
