@@ -42,7 +42,7 @@ from charmhelpers.contrib.openstack.utils import (
     get_os_codename_package,
     configure_installation_source)
 
-CLUSTER_RES = "res_glance_vip"
+CLUSTER_RES = "grp_glance_vips"
 
 PACKAGES = [
     "apache2", "glance", "python-mysqldb", "python-swift",
