@@ -146,12 +146,12 @@ def get_hacluster_config():
     Obtains all relevant configuration from charm configuration required
     for initiating a relation to hacluster:
 
-        ha-bindiface, ha-mcastport, vip, vip_iface, vip_cidr
+        ha-bindiface, ha-mcastport, vip
 
     returns: dict: A dict containing settings keyed by setting name.
     raises: HAIncompleteConfig if settings are missing.
     '''
-    settings = ['ha-bindiface', 'ha-mcastport', 'vip', 'vip_iface', 'vip_cidr']
+    settings = ['ha-bindiface', 'ha-mcastport', 'vip']
     conf = {}
     for setting in settings:
         conf[setting] = config_get(setting)

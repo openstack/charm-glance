@@ -52,15 +52,11 @@ options:
   # HA configuration settings
   vip:
     type: string
-    description: "Virtual IP to use to front Glance API in ha configuration"
-  vip_iface:
-    type: string
-    default: eth0
-    description: "Network Interface where to place the Virtual IP"
-  vip_cidr:
-    type: int
-    default: 24
-    description: "Netmask that will be used for the Virtual IP"
+    description: |
+      Virtual IP(s) to use to front API services in HA configuration.
+      .
+      If multiple networks are being used, a VIP should be provided for each
+      network, separated by spaces.
   ha-bindiface:
     type: string
     default: eth0
