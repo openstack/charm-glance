@@ -128,6 +128,20 @@ def neutron_plugins():
             'server_packages': ['neutron-server',
                                 'neutron-plugin-vmware'],
             'server_services': ['neutron-server']
+        },
+        'n1kv': {
+            'config': '/etc/neutron/plugins/cisco/cisco_plugins.ini',
+            'driver': 'neutron.plugins.cisco.network_plugin.PluginV2',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
+            'services': [],
+            'packages': [['neutron-plugin-cisco']],
+            'server_packages': ['neutron-server',
+                                'neutron-plugin-cisco'],
+            'server_services': ['neutron-server']
         }
     }
     if release >= 'icehouse':

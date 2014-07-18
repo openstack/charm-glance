@@ -30,17 +30,17 @@ def get_loader(templates_dir, os_release):
     loading dir.
 
     A charm may also ship a templates dir with this module
-    and it will be appended to the bottom of the search list, eg:
-    hooks/charmhelpers/contrib/openstack/templates.
+    and it will be appended to the bottom of the search list, eg::
 
-    :param templates_dir: str: Base template directory containing release
-                               sub-directories.
-    :param os_release   : str: OpenStack release codename to construct template
-                               loader.
+        hooks/charmhelpers/contrib/openstack/templates
 
-    :returns            : jinja2.ChoiceLoader constructed with a list of
-                          jinja2.FilesystemLoaders, ordered in descending
-                          order by OpenStack release.
+    :param templates_dir (str): Base template directory containing release
+        sub-directories.
+    :param os_release (str): OpenStack release codename to construct template
+        loader.
+    :returns: jinja2.ChoiceLoader constructed with a list of
+        jinja2.FilesystemLoaders, ordered in descending
+        order by OpenStack release.
     """
     tmpl_dirs = [(rel, os.path.join(templates_dir, rel))
                  for rel in OPENSTACK_CODENAMES.itervalues()]
@@ -111,7 +111,8 @@ class OSConfigRenderer(object):
     and ease the burden of managing config templates across multiple OpenStack
     releases.
 
-    Basic usage:
+    Basic usage::
+
         # import some common context generates from charmhelpers
         from charmhelpers.contrib.openstack import context
 
@@ -131,21 +132,19 @@ class OSConfigRenderer(object):
         # write out all registered configs
         configs.write_all()
 
-    Details:
+    **OpenStack Releases and template loading**
 
-    OpenStack Releases and template loading
-    ---------------------------------------
     When the object is instantiated, it is associated with a specific OS
     release.  This dictates how the template loader will be constructed.
 
     The constructed loader attempts to load the template from several places
     in the following order:
-        - from the most recent OS release-specific template dir (if one exists)
-        - the base templates_dir
-        - a template directory shipped in the charm with this helper file.
+    - from the most recent OS release-specific template dir (if one exists)
+    - the base templates_dir
+    - a template directory shipped in the charm with this helper file.
 
+    For the example above, '/tmp/templates' contains the following structure::
 
-    For the example above, '/tmp/templates' contains the following structure:
         /tmp/templates/nova.conf
         /tmp/templates/api-paste.ini
         /tmp/templates/grizzly/api-paste.ini
@@ -169,8 +168,8 @@ class OSConfigRenderer(object):
     $CHARM/hooks/charmhelpers/contrib/openstack/templates.  This allows
     us to ship common templates (haproxy, apache) with the helpers.
 
-    Context generators
-    ---------------------------------------
+    **Context generators**
+
     Context generators are used to generate template contexts during hook
     execution.  Doing so may require inspecting service relations, charm
     config, etc.  When registered, a config file is associated with a list

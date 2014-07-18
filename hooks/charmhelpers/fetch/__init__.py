@@ -13,7 +13,6 @@ from charmhelpers.core.hookenv import (
     config,
     log,
 )
-import apt_pkg
 import os
 
 
@@ -117,6 +116,7 @@ class BaseFetchHandler(object):
 
 def filter_installed_packages(packages):
     """Returns a list of packages that require installation"""
+    import apt_pkg
     apt_pkg.init()
 
     # Tell apt to build an in-memory cache to prevent race conditions (if
@@ -235,31 +235,39 @@ def configure_sources(update=False,
                       sources_var='install_sources',
                       keys_var='install_keys'):
     """
-    Configure multiple sources from charm configuration
+    Configure multiple sources from charm configuration.
+
+    The lists are encoded as yaml fragments in the configuration.
+    The frament needs to be included as a string.
 
     Example config:
-        install_sources:
+        install_sources: |
           - "ppa:foo"
           - "http://example.com/repo precise main"
-        install_keys:
+        install_keys: |
           - null
           - "a1b2c3d4"
 
     Note that 'null' (a.k.a. None) should not be quoted.
     """
-    sources = safe_load(config(sources_var))
-    keys = config(keys_var)
-    if keys is not None:
-        keys = safe_load(keys)
-    if isinstance(sources, basestring) and (
-            keys is None or isinstance(keys, basestring)):
-        add_source(sources, keys)
+    sources = safe_load((config(sources_var) or '').strip()) or []
+    keys = safe_load((config(keys_var) or '').strip()) or None
+
+    if isinstance(sources, basestring):
+        sources = [sources]
+
+    if keys is None:
+        for source in sources:
+            add_source(source, None)
     else:
-        if not len(sources) == len(keys):
-            msg = 'Install sources and keys lists are different lengths'
-            raise SourceConfigError(msg)
-        for src_num in range(len(sources)):
-            add_source(sources[src_num], keys[src_num])
+        if isinstance(keys, basestring):
+            keys = [keys]
+
+        if len(sources) != len(keys):
+            raise SourceConfigError(
+                'Install sources and keys lists are different lengths')
+        for source, key in zip(sources, keys):
+            add_source(source, key)
     if update:
         apt_update(fatal=True)
 
