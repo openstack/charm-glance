@@ -1,5 +1,7 @@
 import sys
 
+from functools import partial
+
 from charmhelpers.fetch import apt_install
 from charmhelpers.core.hookenv import (
     ERROR, log,
@@ -62,10 +64,9 @@ def get_address_in_network(network, fallback=None, fatal=False):
                 return str(cidr.ip)
         if network.version == 6 and netifaces.AF_INET6 in addresses:
             for addr in addresses[netifaces.AF_INET6]:
-                if 'fe80' not in addr['addr']:
-                    netmask = addr['netmask']
+                if not addr['addr'].startswith('fe80'):
                     cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
-                                                        netmask))
+                                                        addr['netmask']))
                     if cidr in network:
                         return str(cidr.ip)
 
@@ -139,7 +140,7 @@ def _get_for_address(address, key):
                     return addresses[netifaces.AF_INET][0][key]
         if address.version == 6 and netifaces.AF_INET6 in addresses:
             for addr in addresses[netifaces.AF_INET6]:
-                if 'fe80' not in addr['addr']:
+                if not addr['addr'].startswith('fe80'):
                     cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
                                                         addr['netmask']))
                     if address in cidr:
@@ -150,23 +151,6 @@ def _get_for_address(address, key):
     return None
 
 
-def get_iface_for_address(address):
-    """Determine the physical interface to which an IP address could be bound
+get_iface_for_address = partial(_get_for_address, key='iface')
 
-    :param address (str): An individual IPv4 or IPv6 address without a net
-        mask or subnet prefix. For example, '192.168.1.1'.
-    :returns str: Interface name or None if address is not bindable.
-    """
-    return _get_for_address(address, 'iface')
-
-
-def get_netmask_for_address(address):
-    """Determine the netmask of the physical interface to which and IP address
-    could be bound
-
-    :param address (str): An individual IPv4 or IPv6 address without a net
-        mask or subnet prefix. For example, '192.168.1.1'.
-    :returns str: Netmask of configured interface or None if address is
-        not bindable.
-    """
-    return _get_for_address(address, 'netmask')
+get_netmask_for_address = partial(_get_for_address, key='netmask')
