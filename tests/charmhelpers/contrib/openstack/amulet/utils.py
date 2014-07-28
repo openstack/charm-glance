@@ -177,39 +177,11 @@ class OpenStackAmuletUtils(AmuletUtils):
             image = glance.images.create(name=image_name, is_public=True,
                                          disk_format='qcow2',
                                          container_format='bare', data=f)
-        count = 1
-        status = image.status
-        while status != 'active' and count < 10:
-            time.sleep(3)
-            image = glance.images.get(image.id)
-            status = image.status
-            self.log.debug('image status: {}'.format(status))
-            count += 1
-
-        if status != 'active':
-            self.log.error('image creation timed out')
-            return None
-
         return image
 
     def delete_image(self, glance, image):
         """Delete the specified image."""
-        num_before = len(list(glance.images.list()))
         glance.images.delete(image)
-
-        count = 1
-        num_after = len(list(glance.images.list()))
-        while num_after != (num_before - 1) and count < 10:
-            time.sleep(3)
-            num_after = len(list(glance.images.list()))
-            self.log.debug('number of images: {}'.format(num_after))
-            count += 1
-
-        if num_after != (num_before - 1):
-            self.log.error('image deletion timed out')
-            return False
-
-        return True
 
     def create_instance(self, nova, image_name, instance_name, flavor):
         """Create the specified instance."""
@@ -227,27 +199,11 @@ class OpenStackAmuletUtils(AmuletUtils):
             self.log.debug('instance status: {}'.format(status))
             count += 1
 
-        if status != 'ACTIVE':
-            self.log.error('instance creation timed out')
+        if status == 'BUILD':
             return None
 
         return instance
 
     def delete_instance(self, nova, instance):
         """Delete the specified instance."""
-        num_before = len(list(nova.servers.list()))
         nova.servers.delete(instance)
-
-        count = 1
-        num_after = len(list(nova.servers.list()))
-        while num_after != (num_before - 1) and count < 10:
-            time.sleep(3)
-            num_after = len(list(nova.servers.list()))
-            self.log.debug('number of instances: {}'.format(num_after))
-            count += 1
-
-        if num_after != (num_before - 1):
-            self.log.error('instance deletion timed out')
-            return False
-
-        return True

@@ -139,11 +139,11 @@ class AmuletUtils(object):
         return self._get_dir_mtime(sentry_unit, proc_dir)
 
     def service_restarted(self, sentry_unit, service, filename,
-                          pgrep_full=False, sleep_time=20):
+                          pgrep_full=False):
         """Compare a service's start time vs a file's last modification time
            (such as a config file for that service) to determine if the service
            has been restarted."""
-        sleep(sleep_time)
+        sleep(10)
         if self._get_proc_start_time(sentry_unit, service, pgrep_full) >= \
            self._get_file_mtime(sentry_unit, filename):
             return True

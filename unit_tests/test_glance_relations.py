@@ -54,7 +54,10 @@ TO_PATCH = [
     'check_call',
     'execd_preinstall',
     'lsb_release',
-    'filter_installed_packages'
+    'filter_installed_packages',
+    'get_hacluster_config',
+    'get_netmask_for_address',
+    'get_iface_for_address'
 ]
 
 
@@ -435,21 +438,23 @@ class GlanceRelationTests(CharmTestCase):
         self.assertTrue(configs.write_all.called)
 
     def test_ha_relation_joined(self):
-        self.test_config.set('ha-bindiface', 'em0')
-        self.test_config.set('ha-mcastport', '8080')
-        self.test_config.set('vip', '10.10.10.10')
-        self.test_config.set('vip_iface', 'em1')
-        self.test_config.set('vip_cidr', '24')
+        self.get_hacluster_config.return_value = {
+            'ha-bindiface': 'em0',
+            'ha-mcastport': '8080',
+            'vip': '10.10.10.10',
+        }
+        self.get_iface_for_address.return_value = 'eth1'
+        self.get_netmask_for_address.return_value = '255.255.0.0'
         relations.ha_relation_joined()
         args = {
             'corosync_bindiface': 'em0',
             'corosync_mcastport': '8080',
             'init_services': {'res_glance_haproxy': 'haproxy'},
-            'resources': {'res_glance_vip': 'ocf:heartbeat:IPaddr2',
+            'resources': {'res_glance_eth1_vip': 'ocf:heartbeat:IPaddr2',
                           'res_glance_haproxy': 'lsb:haproxy'},
             'resource_params': {
-                'res_glance_vip': 'params ip="10.10.10.10"'
-                                  ' cidr_netmask="24" nic="em1"',
+                'res_glance_eth1_vip': 'params ip="10.10.10.10"'
+                ' cidr_netmask="255.255.0.0" nic="eth1"',
                 'res_glance_haproxy': 'op monitor interval="5s"'},
             'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
         }

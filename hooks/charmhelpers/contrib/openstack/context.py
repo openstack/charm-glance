@@ -21,6 +21,7 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     related_units,
+    relation_set,
     unit_get,
     unit_private_ip,
     ERROR,
@@ -42,6 +43,8 @@ from charmhelpers.contrib.hahelpers.apache import (
 from charmhelpers.contrib.openstack.neutron import (
     neutron_plugin_attribute,
 )
+
+from charmhelpers.contrib.network.ip import get_address_in_network
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 
@@ -135,7 +138,25 @@ class SharedDBContext(OSContextGenerator):
                 'Missing required charm config options. '
                 '(database name and user)')
             raise OSContextError
+
         ctxt = {}
+
+        # NOTE(jamespage) if mysql charm provides a network upon which
+        # access to the database should be made, reconfigure relation
+        # with the service units local address and defer execution
+        access_network = relation_get('access-network')
+        if access_network is not None:
+            if self.relation_prefix is not None:
+                hostname_key = "{}_hostname".format(self.relation_prefix)
+            else:
+                hostname_key = "hostname"
+            access_hostname = get_address_in_network(access_network,
+                                                     unit_get('private-address'))
+            set_hostname = relation_get(attribute=hostname_key,
+                                        unit=local_unit())
+            if set_hostname != access_hostname:
+                relation_set(relation_settings={hostname_key: access_hostname})
+                return ctxt  # Defer any further hook execution for now....
 
         password_setting = 'password'
         if self.relation_prefix:
@@ -341,10 +362,12 @@ class CephContext(OSContextGenerator):
         use_syslog = str(config('use-syslog')).lower()
         for rid in relation_ids('ceph'):
             for unit in related_units(rid):
-                mon_hosts.append(relation_get('private-address', rid=rid,
-                                              unit=unit))
                 auth = relation_get('auth', rid=rid, unit=unit)
                 key = relation_get('key', rid=rid, unit=unit)
+                ceph_addr = \
+                    relation_get('ceph-public-address', rid=rid, unit=unit) or \
+                    relation_get('private-address', rid=rid, unit=unit)
+                mon_hosts.append(ceph_addr)
 
         ctxt = {
             'mon_hosts': ' '.join(mon_hosts),
@@ -378,7 +401,9 @@ class HAProxyContext(OSContextGenerator):
 
         cluster_hosts = {}
         l_unit = local_unit().replace('/', '-')
-        cluster_hosts[l_unit] = unit_get('private-address')
+        cluster_hosts[l_unit] = \
+            get_address_in_network(config('os-internal-network'),
+                                   unit_get('private-address'))
 
         for rid in relation_ids('cluster'):
             for unit in related_units(rid):

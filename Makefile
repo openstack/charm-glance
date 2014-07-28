@@ -1,4 +1,5 @@
 #!/usr/bin/make
+PYTHON := /usr/bin/env python
 
 lint:
 	@echo "Running flake8 tests: "
@@ -8,12 +9,17 @@ lint:
 	@charm proof
 	@echo "OK"
 
-sync:
-	@charm-helper-sync -c charm-helpers-hooks.yaml
-	@charm-helper-sync -c charm-helpers-tests.yaml
-
 unit_test:
-	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage  unit_tests
+	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage unit_tests
+
+bin/charm_helpers_sync.py:
+	@mkdir -p bin
+	@bzr cat lp:charm-helpers/tools/charm_helpers_sync/charm_helpers_sync.py \
+        > bin/charm_helpers_sync.py
+
+sync: bin/charm_helpers_sync.py
+	@$(PYTHON) bin/charm_helpers_sync.py -c charm-helpers-hooks.yaml
+	@$(PYTHON) bin/charm_helpers_sync.py -c charm-helpers-tests.yaml
 
 test:
 	@echo Starting Amulet tests...
