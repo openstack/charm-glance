@@ -7,7 +7,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
     """This class inherits from AmuletDeployment and has additional support
        that is specifically for use by OpenStack charms."""
 
-    def __init__(self, series, openstack=None, source=None):
+    def __init__(self, series=None, openstack=None, source=None):
         """Initialize the deployment environment."""
         super(OpenStackAmuletDeployment, self).__init__(series)
         self.openstack = openstack
@@ -24,15 +24,13 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         if self.openstack:
             for svc in services:
-                charm_name = self._get_charm_name(svc[name])
-                if charm_name not in use_source:
+                if svc[name] not in use_source:
                     config = {'openstack-origin': self.openstack}
                     self.d.configure(svc[name], config)
 
         if self.source:
             for svc in services:
-                charm_name = self._get_charm_name(svc[name])
-                if charm_name in use_source:
+                if svc[name] in use_source:
                     config = {'source': self.source}
                     self.d.configure(svc[name], config)
 

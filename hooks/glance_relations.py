@@ -44,7 +44,9 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
-    canonical_url, eligible_leader)
+    eligible_leader,
+    get_hacluster_config
+)
 
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
@@ -54,6 +56,15 @@ from charmhelpers.contrib.openstack.utils import (
 
 from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
 from charmhelpers.payload.execd import execd_preinstall
+from charmhelpers.contrib.network.ip import (
+    get_address_in_network,
+    get_netmask_for_address,
+    get_iface_for_address,
+)
+from charmhelpers.contrib.openstack.ip import (
+    canonical_url,
+    PUBLIC, INTERNAL, ADMIN
+)
 
 from subprocess import (
     check_call,
@@ -70,7 +81,7 @@ def install_hook():
     execd_preinstall()
     src = config('openstack-origin')
     if (lsb_release()['DISTRIB_CODENAME'] == 'precise' and
-       src == 'distro'):
+            src == 'distro'):
         src = 'cloud:precise-folsom'
 
     configure_installation_source(src)
@@ -163,7 +174,8 @@ def image_service_joined(relation_id=None):
         return
 
     relation_data = {
-        'glance-api-server': canonical_url(CONFIGS) + ":9292"
+        'glance-api-server':
+        "{}:9292".format(canonical_url(CONFIGS, INTERNAL))
     }
 
     juju_log("%s: image-service_joined: To peer glance-api-server=%s" %
@@ -222,13 +234,15 @@ def keystone_joined(relation_id=None):
         juju_log('Deferring keystone_joined() to service leader.')
         return
 
-    url = canonical_url(CONFIGS) + ":9292"
+    public_url = '{}:9292'.format(canonical_url(CONFIGS, PUBLIC))
+    internal_url = '{}:9292'.format(canonical_url(CONFIGS, INTERNAL))
+    admin_url = '{}:9292'.format(canonical_url(CONFIGS, ADMIN))
     relation_data = {
         'service': 'glance',
         'region': config('region'),
-        'public_url': url,
-        'admin_url': url,
-        'internal_url': url, }
+        'public_url': public_url,
+        'admin_url': admin_url,
+        'internal_url': internal_url, }
 
     relation_set(relation_id=relation_id, **relation_data)
 
@@ -265,10 +279,19 @@ def config_changed():
     open_port(9292)
     configure_https()
 
-    # env_vars = {'OPENSTACK_PORT_MCASTPORT': config("ha-mcastport"),
-    #            'OPENSTACK_SERVICE_API': "glance-api",
-    #            'OPENSTACK_SERVICE_REGISTRY': "glance-registry"}
-    # save_script_rc(**env_vars)
+    # Pickup and changes due to network reference architecture
+    # configuration
+    [keystone_joined(rid) for rid in relation_ids('identity-service')]
+    [image_service_joined(rid) for rid in relation_ids('image-service')]
+    [cluster_joined(rid) for rid in relation_ids('cluster')]
+
+
+@hooks.hook('cluster-relation-joined')
+def cluster_joined(relation_id=None):
+    address = get_address_in_network(config('os-internal-network'),
+                                     unit_get('private-address'))
+    relation_set(relation_id=relation_id,
+                 relation_settings={'private-address': address})
 
 
 @hooks.hook('cluster-relation-changed')
@@ -289,33 +312,44 @@ def upgrade_charm():
 
 @hooks.hook('ha-relation-joined')
 def ha_relation_joined():
-    corosync_bindiface = config("ha-bindiface")
-    corosync_mcastport = config("ha-mcastport")
-    vip = config("vip")
-    vip_iface = config("vip_iface")
-    vip_cidr = config("vip_cidr")
-
-    # if vip and vip_iface and vip_cidr and \
-    #    corosync_bindiface and corosync_mcastport:
+    config = get_hacluster_config()
 
     resources = {
-        'res_glance_vip': 'ocf:heartbeat:IPaddr2',
-        'res_glance_haproxy': 'lsb:haproxy', }
+        'res_glance_haproxy': 'lsb:haproxy'
+    }
 
     resource_params = {
-        'res_glance_vip': 'params ip="%s" cidr_netmask="%s" nic="%s"' %
-                          (vip, vip_cidr, vip_iface),
-        'res_glance_haproxy': 'op monitor interval="5s"', }
+        'res_glance_haproxy': 'op monitor interval="5s"'
+    }
+
+    vip_group = []
+    for vip in config['vip'].split():
+        iface = get_iface_for_address(vip)
+        if iface is not None:
+            vip_key = 'res_glance_{}_vip'.format(iface)
+            resources[vip_key] = 'ocf:heartbeat:IPaddr2'
+            resource_params[vip_key] = (
+                'params ip="{vip}" cidr_netmask="{netmask}"'
+                ' nic="{iface}"'.format(vip=vip,
+                                        iface=iface,
+                                        netmask=get_netmask_for_address(vip))
+            )
+            vip_group.append(vip_key)
+
+    if len(vip_group) > 1:
+        relation_set(groups={'grp_glance_vips': ' '.join(vip_group)})
 
     init_services = {
-        'res_glance_haproxy': 'haproxy', }
+        'res_glance_haproxy': 'haproxy',
+    }
 
     clones = {
-        'cl_glance_haproxy': 'res_glance_haproxy', }
+        'cl_glance_haproxy': 'res_glance_haproxy',
+    }
 
     relation_set(init_services=init_services,
-                 corosync_bindiface=corosync_bindiface,
-                 corosync_mcastport=corosync_mcastport,
+                 corosync_bindiface=config['ha-bindiface'],
+                 corosync_mcastport=config['ha-mcastport'],
                  resources=resources,
                  resource_params=resource_params,
                  clones=clones)

@@ -1,40 +1,35 @@
 import amulet
-import re
 
 
 class AmuletDeployment(object):
     """This class provides generic Amulet deployment and test runner
        methods."""
 
-    def __init__(self, series):
+    def __init__(self, series=None):
         """Initialize the deployment environment."""
-        self.series = series
-        self.d = amulet.Deployment(series=self.series)
+        self.series = None
 
-    def _get_charm_name(self, service_name):
-        """Gets the charm name from the service name. Unique service names can
-           be specified with a '-service#' suffix (e.g. mysql-service1)."""
-        if re.match(r"^.*-service\d{1,3}$", service_name):
-            charm_name = re.sub('\-service\d{1,3}$', '', service_name)
+        if series:
+            self.series = series
+            self.d = amulet.Deployment(series=self.series)
         else:
-            charm_name = service_name
-        return charm_name
+            self.d = amulet.Deployment()
 
     def _add_services(self, this_service, other_services):
         """Add services to the deployment where this_service is the local charm
            that we're focused on testing and other_services are the other
            charms that come from the charm store."""
         name, units = range(2)
-
-        charm_name = self._get_charm_name(this_service[name])
-        self.d.add(this_service[name],
-                   units=this_service[units])
+        self.this_service = this_service[name]
+        self.d.add(this_service[name], units=this_service[units])
 
         for svc in other_services:
-            charm_name = self._get_charm_name(svc[name])
-            self.d.add(svc[name],
-                       charm='cs:{}/{}'.format(self.series, charm_name),
-                       units=svc[units])
+            if self.series:
+                self.d.add(svc[name],
+                           charm='cs:{}/{}'.format(self.series, svc[name]),
+                           units=svc[units])
+            else:
+                self.d.add(svc[name], units=svc[units])
 
     def _add_relations(self, relations):
         """Add all of the relations for the services."""
