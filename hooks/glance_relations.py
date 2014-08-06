@@ -60,11 +60,13 @@ from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_netmask_for_address,
     get_iface_for_address,
+    get_ipv6_addr,
 )
 from charmhelpers.contrib.openstack.ip import (
     canonical_url,
     PUBLIC, INTERNAL, ADMIN
 )
+from charmhelpers.contrib.peerstorage import peer_store
 
 from subprocess import (
     check_call,
@@ -101,9 +103,16 @@ def db_joined():
              'associated a postgresql one')
         juju_log(e, level=ERROR)
         raise Exception(e)
-
-    relation_set(database=config('database'), username=config('database-user'),
-                 hostname=unit_get('private-address'))
+    if config('prefer-ipv6'):
+        relation_data = {
+            'database': config('database'),
+            'username': config('database-user'),
+            'private-address': get_ipv6_addr(),
+        }
+        relation_set(**relation_data)
+    else:
+        relation_set(database=config('database'), username=config('database-user'),
+                     hostname=unit_get('private-address'))
 
 
 @hooks.hook('pgsql-db-relation-joined')
@@ -297,6 +306,7 @@ def cluster_joined(relation_id=None):
 @hooks.hook('cluster-relation-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def cluster_changed():
+    peer_store('private-address', get_ipv6_addr())
     configure_https()
     CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write(HAPROXY_CONF)
@@ -312,7 +322,14 @@ def upgrade_charm():
 
 @hooks.hook('ha-relation-joined')
 def ha_relation_joined():
-    config = get_hacluster_config()
+    cluster_config = get_hacluster_config()
+
+    if config('prefer-ipv6'):
+        res_ks_vip = 'ocf:heartbeat:IPv6addr'
+        vip_params = 'ipv6addr'
+    else:
+        res_ks_vip = 'ocf:heartbeat:IPaddr2'
+        vip_params = 'ip'
 
     resources = {
         'res_glance_haproxy': 'lsb:haproxy'
@@ -323,21 +340,22 @@ def ha_relation_joined():
     }
 
     vip_group = []
-    for vip in config['vip'].split():
+    for vip in cluster_config['vip'].split():
         iface = get_iface_for_address(vip)
         if iface is not None:
             vip_key = 'res_glance_{}_vip'.format(iface)
-            resources[vip_key] = 'ocf:heartbeat:IPaddr2'
+            resources[vip_key] = res_ks_vip
             resource_params[vip_key] = (
-                'params ip="{vip}" cidr_netmask="{netmask}"'
-                ' nic="{iface}"'.format(vip=vip,
+                'params {ip}="{vip}" cidr_netmask="{netmask}"'
+                ' nic="{iface}"'.format(ip=vip_params,
+                                        vip=vip,
                                         iface=iface,
                                         netmask=get_netmask_for_address(vip))
             )
             vip_group.append(vip_key)
 
-    if len(vip_group) > 1:
-        relation_set(groups={'grp_glance_vips': ' '.join(vip_group)})
+    #if len(vip_group) > 1:
+    relation_set(groups={'grp_glance_vips': ' '.join(vip_group)})
 
     init_services = {
         'res_glance_haproxy': 'haproxy',
@@ -348,8 +366,8 @@ def ha_relation_joined():
     }
 
     relation_set(init_services=init_services,
-                 corosync_bindiface=config['ha-bindiface'],
-                 corosync_mcastport=config['ha-mcastport'],
+                 corosync_bindiface=cluster_config['ha-bindiface'],
+                 corosync_mcastport=cluster_config['ha-mcastport'],
                  resources=resources,
                  resource_params=resource_params,
                  clones=clones)
