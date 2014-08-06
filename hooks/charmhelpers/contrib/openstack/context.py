@@ -753,6 +753,17 @@ class SubordinateConfigContext(OSContextGenerator):
         return ctxt
 
 
+class LogLevelContext(OSContextGenerator):
+
+    def __call__(self):
+        ctxt = {}
+        ctxt['debug'] = \
+            False if config('debug') is None else config('debug')
+        ctxt['verbose'] = \
+            False if config('verbose') is None else config('verbose')
+        return ctxt
+
+
 class SyslogContext(OSContextGenerator):
 
     def __call__(self):
