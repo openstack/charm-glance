@@ -16,8 +16,11 @@ ERROR = logging.ERROR
 
 
 class OpenStackAmuletUtils(AmuletUtils):
-    """This class inherits from AmuletUtils and has additional support
-       that is specifically for use by OpenStack charms."""
+    """OpenStack amulet utilities.
+
+       This class inherits from AmuletUtils and has additional support
+       that is specifically for use by OpenStack charms.
+       """
 
     def __init__(self, log_level=ERROR):
         """Initialize the deployment environment."""
@@ -25,13 +28,17 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     def validate_endpoint_data(self, endpoints, admin_port, internal_port,
                                public_port, expected):
-        """Validate actual endpoint data vs expected endpoint data. The ports
-           are used to find the matching endpoint."""
+        """Validate endpoint data.
+
+           Validate actual endpoint data vs expected endpoint data. The ports
+           are used to find the matching endpoint.
+           """
         found = False
         for ep in endpoints:
             self.log.debug('endpoint: {}'.format(repr(ep)))
-            if admin_port in ep.adminurl and internal_port in ep.internalurl \
-               and public_port in ep.publicurl:
+            if (admin_port in ep.adminurl and
+                    internal_port in ep.internalurl and
+                    public_port in ep.publicurl):
                 found = True
                 actual = {'id': ep.id,
                           'region': ep.region,
@@ -47,8 +54,11 @@ class OpenStackAmuletUtils(AmuletUtils):
             return 'endpoint not found'
 
     def validate_svc_catalog_endpoint_data(self, expected, actual):
-        """Validate a list of actual service catalog endpoints vs a list of
-           expected service catalog endpoints."""
+        """Validate service catalog endpoint data.
+
+           Validate a list of actual service catalog endpoints vs a list of
+           expected service catalog endpoints.
+           """
         self.log.debug('actual: {}'.format(repr(actual)))
         for k, v in expected.iteritems():
             if k in actual:
@@ -60,8 +70,11 @@ class OpenStackAmuletUtils(AmuletUtils):
         return ret
 
     def validate_tenant_data(self, expected, actual):
-        """Validate a list of actual tenant data vs list of expected tenant
-           data."""
+        """Validate tenant data.
+
+           Validate a list of actual tenant data vs list of expected tenant
+           data.
+           """
         self.log.debug('actual: {}'.format(repr(actual)))
         for e in expected:
             found = False
@@ -78,8 +91,11 @@ class OpenStackAmuletUtils(AmuletUtils):
         return ret
 
     def validate_role_data(self, expected, actual):
-        """Validate a list of actual role data vs a list of expected role
-           data."""
+        """Validate role data.
+
+           Validate a list of actual role data vs a list of expected role
+           data.
+           """
         self.log.debug('actual: {}'.format(repr(actual)))
         for e in expected:
             found = False
@@ -95,8 +111,11 @@ class OpenStackAmuletUtils(AmuletUtils):
         return ret
 
     def validate_user_data(self, expected, actual):
-        """Validate a list of actual user data vs a list of expected user
-           data."""
+        """Validate user data.
+
+           Validate a list of actual user data vs a list of expected user
+           data.
+           """
         self.log.debug('actual: {}'.format(repr(actual)))
         for e in expected:
             found = False
@@ -114,21 +133,24 @@ class OpenStackAmuletUtils(AmuletUtils):
         return ret
 
     def validate_flavor_data(self, expected, actual):
-        """Validate a list of actual flavors vs a list of expected flavors."""
+        """Validate flavor data.
+
+           Validate a list of actual flavors vs a list of expected flavors.
+           """
         self.log.debug('actual: {}'.format(repr(actual)))
         act = [a.name for a in actual]
         return self._validate_list_data(expected, act)
 
     def tenant_exists(self, keystone, tenant):
-        """Return True if tenant exists"""
+        """Return True if tenant exists."""
         return tenant in [t.name for t in keystone.tenants.list()]
 
     def authenticate_keystone_admin(self, keystone_sentry, user, password,
                                     tenant):
         """Authenticates admin user with the keystone admin endpoint."""
-        service_ip = \
-            keystone_sentry.relation('shared-db',
-                                     'mysql:shared-db')['private-address']
+        unit = keystone_sentry
+        service_ip = unit.relation('shared-db',
+                                   'mysql:shared-db')['private-address']
         ep = "http://{}:35357/v2.0".format(service_ip.strip().decode('utf-8'))
         return keystone_client.Client(username=user, password=password,
                                       tenant_name=tenant, auth_url=ep)
@@ -177,11 +199,39 @@ class OpenStackAmuletUtils(AmuletUtils):
             image = glance.images.create(name=image_name, is_public=True,
                                          disk_format='qcow2',
                                          container_format='bare', data=f)
+        count = 1
+        status = image.status
+        while status != 'active' and count < 10:
+            time.sleep(3)
+            image = glance.images.get(image.id)
+            status = image.status
+            self.log.debug('image status: {}'.format(status))
+            count += 1
+
+        if status != 'active':
+            self.log.error('image creation timed out')
+            return None
+
         return image
 
     def delete_image(self, glance, image):
         """Delete the specified image."""
+        num_before = len(list(glance.images.list()))
         glance.images.delete(image)
+
+        count = 1
+        num_after = len(list(glance.images.list()))
+        while num_after != (num_before - 1) and count < 10:
+            time.sleep(3)
+            num_after = len(list(glance.images.list()))
+            self.log.debug('number of images: {}'.format(num_after))
+            count += 1
+
+        if num_after != (num_before - 1):
+            self.log.error('image deletion timed out')
+            return False
+
+        return True
 
     def create_instance(self, nova, image_name, instance_name, flavor):
         """Create the specified instance."""
@@ -199,11 +249,27 @@ class OpenStackAmuletUtils(AmuletUtils):
             self.log.debug('instance status: {}'.format(status))
             count += 1
 
-        if status == 'BUILD':
+        if status != 'ACTIVE':
+            self.log.error('instance creation timed out')
             return None
 
         return instance
 
     def delete_instance(self, nova, instance):
         """Delete the specified instance."""
+        num_before = len(list(nova.servers.list()))
         nova.servers.delete(instance)
+
+        count = 1
+        num_after = len(list(nova.servers.list()))
+        while num_after != (num_before - 1) and count < 10:
+            time.sleep(3)
+            num_after = len(list(nova.servers.list()))
+            self.log.debug('number of instances: {}'.format(num_after))
+            count += 1
+
+        if num_after != (num_before - 1):
+            self.log.error('instance deletion timed out')
+            return False
+
+        return True

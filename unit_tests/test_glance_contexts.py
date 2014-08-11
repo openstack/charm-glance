@@ -11,6 +11,7 @@ TO_PATCH = [
     'service_name',
     'determine_apache_port',
     'determine_api_port',
+    'get_ipv6_addr',
 ]
 
 
@@ -67,3 +68,18 @@ class TestGlanceContexts(CharmTestCase):
                 mock_unit_get.assert_called_with('private-address')
                 self.assertTrue(mock_enable_modules.called)
                 self.assertTrue(mock_configure_cert.called)
+
+    @patch('glance_contexts.config')
+    def test_glance_ipv6_context_service_enabled(self, mock_config):
+        mock_config.return_value = True
+        self.get_ipv6_addr.return_value = '2001:db8:1::1'
+        ctxt = contexts.GlanceIPv6Context()
+        self.assertEquals(ctxt(), {'bind_host': '2001:db8:1::1',
+                                   'registry_host': '[2001:db8:1::1]'})
+
+    @patch('glance_contexts.config')
+    def test_glance_ipv6_context_service_disabled(self, mock_config):
+        mock_config.return_value = False
+        ctxt = contexts.GlanceIPv6Context()
+        self.assertEquals(ctxt(), {'bind_host': '0.0.0.0',
+                                   'registry_host': '0.0.0.0'})

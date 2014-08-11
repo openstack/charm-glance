@@ -111,7 +111,8 @@ def db_joined():
         }
         relation_set(**relation_data)
     else:
-        relation_set(database=config('database'), username=config('database-user'),
+        relation_set(database=config('database'),
+                     username=config('database-user'),
                      hostname=unit_get('private-address'))
 
 
@@ -306,7 +307,8 @@ def cluster_joined(relation_id=None):
 @hooks.hook('cluster-relation-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def cluster_changed():
-    peer_store('private-address', get_ipv6_addr())
+    if config('prefer-ipv6'):
+        peer_store('private-address', get_ipv6_addr())
     configure_https()
     CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write(HAPROXY_CONF)
