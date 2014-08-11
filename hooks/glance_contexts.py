@@ -19,6 +19,7 @@ from charmhelpers.contrib.network.ip import (
     get_ipv6_addr
 )
 
+
 class CephGlanceContext(OSContextGenerator):
     interfaces = ['ceph-glance']
 
