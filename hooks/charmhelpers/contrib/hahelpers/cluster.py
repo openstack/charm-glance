@@ -6,6 +6,11 @@
 #  Adam Gandelman <adamg@ubuntu.com>
 #
 
+"""
+Helpers for clustering and determining "cluster leadership" and other
+clustering-related helpers.
+"""
+
 import subprocess
 import os
 
@@ -19,12 +24,36 @@ from charmhelpers.core.hookenv import (
     config as config_get,
     INFO,
     ERROR,
+    WARNING,
     unit_get,
 )
 
 
 class HAIncompleteConfig(Exception):
     pass
+
+
+def is_elected_leader(resource):
+    """
+    Returns True if the charm executing this is the elected cluster leader.
+
+    It relies on two mechanisms to determine leadership:
+        1. If the charm is part of a corosync cluster, call corosync to
+        determine leadership.
+        2. If the charm is not part of a corosync cluster, the leader is
+        determined as being "the alive unit with the lowest unit numer". In
+        other words, the oldest surviving unit.
+    """
+    if is_clustered():
+        if not is_crm_leader(resource):
+            log('Deferring action to CRM leader.', level=INFO)
+            return False
+    else:
+        peers = peer_units()
+        if peers and not oldest_peer(peers):
+            log('Deferring action to oldest service unit.', level=INFO)
+            return False
+    return True
 
 
 def is_clustered():
@@ -38,7 +67,11 @@ def is_clustered():
     return False
 
 
-def is_leader(resource):
+def is_crm_leader(resource):
+    """
+    Returns True if the charm calling this is the elected corosync leader,
+    as returned by calling the external "crm" command.
+    """
     cmd = [
         "crm", "resource",
         "show", resource
@@ -54,15 +87,31 @@ def is_leader(resource):
             return False
 
 
-def peer_units():
+def is_leader(resource):
+    log("is_leader is deprecated. Please consider using is_crm_leader "
+        "instead.", level=WARNING)
+    return is_crm_leader(resource)
+
+
+def peer_units(peer_relation="cluster"):
     peers = []
-    for r_id in (relation_ids('cluster') or []):
+    for r_id in (relation_ids(peer_relation) or []):
         for unit in (relation_list(r_id) or []):
             peers.append(unit)
     return peers
 
 
+def peer_ips(peer_relation='cluster', addr_key='private-address'):
+    '''Return a dict of peers and their private-address'''
+    peers = {}
+    for r_id in relation_ids(peer_relation):
+        for unit in relation_list(r_id):
+            peers[unit] = relation_get(addr_key, rid=r_id, unit=unit)
+    return peers
+
+
 def oldest_peer(peers):
+    """Determines who the oldest peer is by comparing unit numbers."""
     local_unit_no = int(os.getenv('JUJU_UNIT_NAME').split('/')[1])
     for peer in peers:
         remote_unit_no = int(peer.split('/')[1])
@@ -72,16 +121,9 @@ def oldest_peer(peers):
 
 
 def eligible_leader(resource):
-    if is_clustered():
-        if not is_leader(resource):
-            log('Deferring action to CRM leader.', level=INFO)
-            return False
-    else:
-        peers = peer_units()
-        if peers and not oldest_peer(peers):
-            log('Deferring action to oldest service unit.', level=INFO)
-            return False
-    return True
+    log("eligible_leader is deprecated. Please consider using "
+        "is_elected_leader instead.", level=WARNING)
+    return is_elected_leader(resource)
 
 
 def https():

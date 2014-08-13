@@ -4,8 +4,11 @@ from charmhelpers.contrib.amulet.deployment import (
 
 
 class OpenStackAmuletDeployment(AmuletDeployment):
-    """This class inherits from AmuletDeployment and has additional support
-       that is specifically for use by OpenStack charms."""
+    """OpenStack amulet deployment.
+
+       This class inherits from AmuletDeployment and has additional support
+       that is specifically for use by OpenStack charms.
+       """
 
     def __init__(self, series=None, openstack=None, source=None):
         """Initialize the deployment environment."""
@@ -40,11 +43,14 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             self.d.configure(service, config)
 
     def _get_openstack_release(self):
-        """Return an integer representing the enum value of the openstack
-           release."""
-        self.precise_essex, self.precise_folsom, self.precise_grizzly, \
-            self.precise_havana, self.precise_icehouse, \
-            self.trusty_icehouse = range(6)
+        """Get openstack release.
+
+           Return an integer representing the enum value of the openstack
+           release.
+           """
+        (self.precise_essex, self.precise_folsom, self.precise_grizzly,
+         self.precise_havana, self.precise_icehouse,
+         self.trusty_icehouse) = range(6)
         releases = {
             ('precise', None): self.precise_essex,
             ('precise', 'cloud:precise-folsom'): self.precise_folsom,
