@@ -122,6 +122,7 @@ def filter_installed_packages(packages):
     # Tell apt to build an in-memory cache to prevent race conditions (if
     # another process is already building the cache).
     apt_pkg.config.set("Dir::Cache::pkgcache", "")
+    apt_pkg.config.set("Dir::Cache::srcpkgcache", "")
 
     cache = apt_pkg.Cache()
     _pkgs = []

@@ -7,6 +7,7 @@ from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     is_address_in_network,
     is_ipv6,
+    get_ipv6_addr,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import is_clustered
@@ -64,10 +65,13 @@ def resolve_address(endpoint_type=PUBLIC):
                         vip):
                     resolved_address = vip
     else:
+        if config('prefer-ipv6'):
+            fallback_addr = get_ipv6_addr()
+        else:
+            fallback_addr = unit_get(_address_map[endpoint_type]['fallback'])
         resolved_address = get_address_in_network(
-            config(_address_map[endpoint_type]['config']),
-            unit_get(_address_map[endpoint_type]['fallback'])
-        )
+            config(_address_map[endpoint_type]['config']), fallback_addr)
+
     if resolved_address is None:
         raise ValueError('Unable to resolve a suitable IP address'
                          ' based on charm state and configuration')
