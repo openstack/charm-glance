@@ -4,7 +4,7 @@ from functools import partial
 
 from charmhelpers.fetch import apt_install
 from charmhelpers.core.hookenv import (
-    ERROR, log,
+    ERROR, log, config,
 )
 
 try:
@@ -154,3 +154,21 @@ def _get_for_address(address, key):
 get_iface_for_address = partial(_get_for_address, key='iface')
 
 get_netmask_for_address = partial(_get_for_address, key='netmask')
+
+
+def get_ipv6_addr(iface="eth0"):
+    try:
+        iface_addrs = netifaces.ifaddresses(iface)
+        if netifaces.AF_INET6 not in iface_addrs:
+            raise Exception("Interface '%s' doesn't have an ipv6 address." % iface)
+
+        addresses = netifaces.ifaddresses(iface)[netifaces.AF_INET6]
+        ipv6_addr = [a['addr'] for a in addresses if not a['addr'].startswith('fe80')
+                     and config('vip') != a['addr']]
+        if not ipv6_addr:
+            raise Exception("Interface '%s' doesn't have global ipv6 address." % iface)
+
+        return ipv6_addr[0]
+
+    except ValueError:
+        raise ValueError("Invalid interface '%s'" % iface)
