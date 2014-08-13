@@ -110,7 +110,7 @@ class GlanceRelationTests(CharmTestCase):
             'database': 'glance',
             'username': 'glance',
         }
-        relation_data['private-address'] = '2001:db8:1::1'
+        relation_data['hostname'] = '2001:db8:1::1'
 
         self.relation_set.assert_called_with(**relation_data)
         self.get_ipv6_addr.assert_called_once()

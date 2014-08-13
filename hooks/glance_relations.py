@@ -40,7 +40,8 @@ from charmhelpers.core.host import (
 from charmhelpers.fetch import (
     apt_install,
     apt_update,
-    filter_installed_packages
+    filter_installed_packages,
+    add_source
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -88,8 +89,21 @@ def install_hook():
 
     configure_installation_source(src)
 
+    # Note(xianghui): Need to install haproxy(1.5.3) from trusty-backports
+    # to support ipv6 address, so check is required to make sure not
+    # breaking other versions.
+    trusty = lsb_release()['DISTRIB_CODENAME'] == 'trusty'
+    if config('prefer-ipv6') and trusty:
+        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports'
+                   ' main')
+        add_source('deb-src http://archive.ubuntu.com/ubuntu trusty-backports'
+                   ' main')
+
     apt_update(fatal=True)
     apt_install(PACKAGES, fatal=True)
+
+    if config('prefer-ipv6') and trusty:
+        apt_install('haproxy/trusty-backports', fatal=True)
 
     for service in SERVICES:
         service_stop(service)
@@ -104,16 +118,13 @@ def db_joined():
         juju_log(e, level=ERROR)
         raise Exception(e)
     if config('prefer-ipv6'):
-        relation_data = {
-            'database': config('database'),
-            'username': config('database-user'),
-            'private-address': get_ipv6_addr(),
-        }
-        relation_set(**relation_data)
+        host = get_ipv6_addr()
     else:
-        relation_set(database=config('database'),
-                     username=config('database-user'),
-                     hostname=unit_get('private-address'))
+        host = unit_get('private-address')
+
+    relation_set(database=config('database'),
+                 username=config('database-user'),
+                 hostname=host)
 
 
 @hooks.hook('pgsql-db-relation-joined')
