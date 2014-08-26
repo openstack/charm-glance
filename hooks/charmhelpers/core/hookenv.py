@@ -285,8 +285,9 @@ def relation_get(attribute=None, unit=None, rid=None):
         raise
 
 
-def relation_set(relation_id=None, relation_settings={}, **kwargs):
+def relation_set(relation_id=None, relation_settings=None, **kwargs):
     """Set relation information for the current unit"""
+    relation_settings = relation_settings if relation_settings else {}
     relation_cmd_line = ['relation-set']
     if relation_id is not None:
         relation_cmd_line.extend(('-r', relation_id))
