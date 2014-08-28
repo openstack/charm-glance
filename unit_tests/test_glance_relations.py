@@ -24,6 +24,7 @@ TO_PATCH = [
     'config',
     'juju_log',
     'is_relation_made',
+    'local_unit',
     'open_port',
     'relation_ids',
     'relation_set',
@@ -142,7 +143,9 @@ class GlanceRelationTests(CharmTestCase):
             'pgsql-db relation incomplete. Peer not ready?'
         )
 
-    def _shared_db_test(self, configs):
+    def _shared_db_test(self, configs, unit_name):
+        self.relation_get.return_value = 'glance/0 glance/3'
+        self.local_unit.return_value = unit_name
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['shared-db']
         configs.write = MagicMock()
@@ -155,8 +158,8 @@ class GlanceRelationTests(CharmTestCase):
         relations.pgsql_db_changed()
 
     @patch.object(relations, 'CONFIGS')
-    def test_db_changed_no_essex(self, configs):
-        self._shared_db_test(configs)
+    def test_db_changed_allowed(self, configs):
+        self._shared_db_test(configs, 'glance/0')
         self.assertEquals([call('/etc/glance/glance-registry.conf'),
                            call('/etc/glance/glance-api.conf')],
                           configs.write.call_args_list)
@@ -164,6 +167,14 @@ class GlanceRelationTests(CharmTestCase):
             'Cluster leader, performing db sync'
         )
         self.migrate_database.assert_called_with()
+
+    @patch.object(relations, 'CONFIGS')
+    def test_db_changed_not_allowed(self, configs):
+        self._shared_db_test(configs, 'glance/2')
+        self.assertEquals([call('/etc/glance/glance-registry.conf'),
+                           call('/etc/glance/glance-api.conf')],
+                          configs.write.call_args_list)
+        self.assertFalse(self.migrate_database.called)
 
     @patch.object(relations, 'CONFIGS')
     def test_postgresql_db_changed_no_essex(self, configs):
@@ -180,7 +191,7 @@ class GlanceRelationTests(CharmTestCase):
     def test_db_changed_with_essex_not_setting_version_control(self, configs):
         self.get_os_codename_package.return_value = "essex"
         self.call.return_value = 0
-        self._shared_db_test(configs)
+        self._shared_db_test(configs, 'glance/0')
         self.assertEquals([call('/etc/glance/glance-registry.conf')],
                           configs.write.call_args_list)
         self.juju_log.assert_called_with(
@@ -205,7 +216,7 @@ class GlanceRelationTests(CharmTestCase):
     def test_db_changed_with_essex_setting_version_control(self, configs):
         self.get_os_codename_package.return_value = "essex"
         self.call.return_value = 1
-        self._shared_db_test(configs)
+        self._shared_db_test(configs, 'glance/0')
         self.assertEquals([call('/etc/glance/glance-registry.conf')],
                           configs.write.call_args_list)
         self.check_call.assert_called_with(
