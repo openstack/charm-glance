@@ -458,7 +458,10 @@ class GlanceRelationTests(CharmTestCase):
                 'res_glance_haproxy': 'op monitor interval="5s"'},
             'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
         }
-        self.relation_set.assert_called_with(**args)
+        self.relation_set.assert_has_calls([
+            call(groups={'grp_glance_vips': 'res_glance_eth1_vip'}),
+            call(**args),
+        ])
 
     def test_ha_relation_changed_not_clustered(self):
         self.relation_get.return_value = False
