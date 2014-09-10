@@ -1,0 +1,9 @@
+{% if zmq_host -%}
+# ZeroMQ configuration (restart-nonce: {{ zmq_nonce }})
+rpc_backend = zmq
+rpc_zmq_matchmaker = oslo.messaging._drivers.matchmaker_ring.MatchMakerRing
+rpc_zmq_host = {{ zmq_host }}
+{% if notifications == 'True' -%}
+notification_driver = zmq
+{% endif -%}
+{% endif -%}

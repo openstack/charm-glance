@@ -92,7 +92,9 @@ CONFIG_FILES = OrderedDict([
                           glance_contexts.ObjectStoreContext(),
                           glance_contexts.HAProxyContext(),
                           context.SyslogContext(),
-                          glance_contexts.LoggingConfigContext()],
+                          glance_contexts.LoggingConfigContext(),
+                          context.ZeroMQContext(),
+                          context.NotificationDriverContext(),],
         'services': ['glance-api']
     }),
     (GLANCE_API_PASTE_INI, {
