@@ -21,6 +21,7 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     related_units,
+    is_relation_made,
     relation_set,
     unit_get,
     unit_private_ip,
@@ -49,6 +50,9 @@ from charmhelpers.contrib.network.ip import (
     get_ipv6_addr,
 )
 
+from charmhelpers.contrib.openstack.utils import (
+    get_matchmaker_map,
+)
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 
 
@@ -786,4 +790,38 @@ class SyslogContext(OSContextGenerator):
         ctxt = {
             'use_syslog': config('use-syslog')
         }
+        return ctxt
+
+
+class ZeroMQContext(OSContextGenerator):
+    interfaces = ['zeromq-configuration']
+
+    def __call__(self):
+        ctxt = {}
+        if is_relation_made('zeromq-configuration', 'host'):
+            for rid in relation_ids('zeromq-configuration'):
+                    for unit in related_units(rid):
+                        ctxt['zmq_nonce'] = relation_get('nonce', unit, rid)
+                        ctxt['zmq_host'] = relation_get('host', unit, rid)
+        return ctxt
+
+class NotificationDriverContext(OSContextGenerator):
+
+    def __init__(self, zmq_relation='zeromq-configuration', amqp_relation='amqp'):
+        """
+        :param zmq_relation   : Name of Zeromq relation to check
+        """
+        self.zmq_relation = zmq_relation
+        self.amqp_relation = amqp_relation
+
+    def __call__(self):
+        ctxt = {
+            'notifications': "False",
+        }
+        if is_relation_made(self.zmq_relation):
+            matchmaker_data = get_matchmaker_map()
+            if 'notifications-info' in matchmaker_data:
+                ctxt['notifications'] = "True"
+        elif is_relation_made(self.amqp_relation):
+            ctxt['notifications'] = "True"
         return ctxt

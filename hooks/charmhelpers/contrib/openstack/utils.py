@@ -3,15 +3,17 @@
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict
 
-import subprocess
+import json
 import os
 import socket
+import subprocess
 import sys
 
 from charmhelpers.core.hookenv import (
     config,
     log as juju_log,
     charm_dir,
+    is_relation_made,
     ERROR,
     INFO
 )
@@ -70,6 +72,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('1.13.0', 'icehouse'),
     ('1.12.0', 'icehouse'),
     ('1.11.0', 'icehouse'),
+    ('2.0.0', 'juno'),
 ])
 
 DEFAULT_LOOPBACK_SIZE = '5G'
@@ -456,3 +459,11 @@ def get_hostname(address, fqdn=True):
             return result
     else:
         return result.split('.')[0]
+
+
+def get_matchmaker_map(mm_file='/etc/oslo/matchmaker_ring.json'):
+    mm_map = {}
+    if os.path.isfile(mm_file):
+        with open(mm_file, 'r') as f:
+            mm_map = json.load(f)
+    return mm_map
