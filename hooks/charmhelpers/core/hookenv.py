@@ -203,6 +203,17 @@ class Config(dict):
         if os.path.exists(self.path):
             self.load_previous()
 
+    def __getitem__(self, key):
+        """For regular dict lookups, check the current juju config first,
+        then the previous (saved) copy. This ensures that user-saved values
+        will be returned by a dict lookup.
+
+        """
+        try:
+            return dict.__getitem__(self, key)
+        except KeyError:
+            return (self._prev_dict or {})[key]
+
     def load_previous(self, path=None):
         """Load previous copy of config from disk.
 

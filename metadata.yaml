@@ -27,9 +27,6 @@ requires:
   ha:
     interface: hacluster
     scope: container
-  zeromq-configuration:
-    interface: zeromq-configuration
-    scope: container
 peers:
   cluster:
     interface: glance-ha
