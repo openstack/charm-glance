@@ -18,6 +18,4 @@ rabbit_port = {{ rabbit_ssl_port }}
 kombu_ssl_ca_certs = {{ rabbit_ssl_ca }}
 {% endif -%}
 {% endif -%}
-{% if notifications == 'True' -%}                                                                                                                notification_driver = rabbit                                                                                                                     
-{% endif -%} 
 {% endif -%}
