@@ -25,6 +25,7 @@ from charmhelpers.core.hookenv import (
     ERROR,
     open_port,
     is_relation_made,
+    local_unit,
     relation_get,
     relation_set,
     relation_ids,
@@ -133,6 +134,13 @@ def db_changed():
         CONFIGS.write(GLANCE_API_CONF)
 
     if eligible_leader(CLUSTER_RES):
+        # Bugs 1353135 & 1187508. Dbs can appear to be ready before the units
+        # acl entry has been added. So, if the db supports passing a list of
+        # permitted units then check if we're in the list.
+        allowed_units = relation_get('allowed_units')
+        if allowed_units and local_unit() not in allowed_units.split():
+            juju_log('Allowed_units list provided and this unit not present')
+            return
         if rel == "essex":
             status = call(['glance-manage', 'db_version'])
             if status != 0:
