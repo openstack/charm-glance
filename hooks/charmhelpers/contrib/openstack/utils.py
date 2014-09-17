@@ -23,7 +23,7 @@ from charmhelpers.contrib.storage.linux.lvm import (
 )
 
 from charmhelpers.core.host import lsb_release, mounts, umount
-from charmhelpers.fetch import apt_install
+from charmhelpers.fetch import apt_install, apt_cache
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
 
@@ -70,6 +70,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('1.13.0', 'icehouse'),
     ('1.12.0', 'icehouse'),
     ('1.11.0', 'icehouse'),
+    ('2.0.0', 'juno'),
 ])
 
 DEFAULT_LOOPBACK_SIZE = '5G'
@@ -134,13 +135,8 @@ def get_os_version_codename(codename):
 def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
     import apt_pkg as apt
-    apt.init()
 
-    # Tell apt to build an in-memory cache to prevent race conditions (if
-    # another process is already building the cache).
-    apt.config.set("Dir::Cache::pkgcache", "")
-
-    cache = apt.Cache()
+    cache = apt_cache()
 
     try:
         pkg = cache[package]
