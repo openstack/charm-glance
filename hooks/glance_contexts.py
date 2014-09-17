@@ -2,7 +2,9 @@ from charmhelpers.core.hookenv import (
     is_relation_made,
     relation_ids,
     service_name,
-    config
+    config,
+    relation_get,
+    related_units,
 )
 
 from charmhelpers.contrib.openstack.context import (
@@ -16,7 +18,8 @@ from charmhelpers.contrib.hahelpers.cluster import (
 )
 
 from charmhelpers.contrib.network.ip import (
-    get_ipv6_addr
+    get_ipv6_addr,
+    format_ipv6_addr,
 )
 
 
@@ -95,6 +98,12 @@ class GlanceIPv6Context(OSContextGenerator):
             ipv6_addr = get_ipv6_addr()
             ctxt['bind_host'] = ipv6_addr
             ctxt['registry_host'] = '[%s]' % ipv6_addr
+            for rid in relation_ids('shared-db'):
+                for unit in related_units(rid):
+                    rdata = relation_get(rid=rid, unit=unit)
+                    db_host = format_ipv6_addr(rdata.get('db_host'))
+                    if db_host is not None:
+                        ctxt['database_host'] = db_host
         else:
             ctxt['bind_host'] = '0.0.0.0'
             ctxt['registry_host'] = '0.0.0.0'

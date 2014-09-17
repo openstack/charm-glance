@@ -25,6 +25,7 @@ from charmhelpers.core.hookenv import (
     ERROR,
     open_port,
     is_relation_made,
+    local_unit,
     relation_get,
     relation_set,
     relation_ids,
@@ -67,7 +68,6 @@ from charmhelpers.contrib.openstack.ip import (
     canonical_url,
     PUBLIC, INTERNAL, ADMIN
 )
-from charmhelpers.contrib.peerstorage import peer_store
 
 from subprocess import (
     check_call,
@@ -95,8 +95,6 @@ def install_hook():
     trusty = lsb_release()['DISTRIB_CODENAME'] == 'trusty'
     if config('prefer-ipv6') and trusty:
         add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports'
-                   ' main')
-        add_source('deb-src http://archive.ubuntu.com/ubuntu trusty-backports'
                    ' main')
 
     apt_update(fatal=True)
@@ -154,6 +152,13 @@ def db_changed():
         CONFIGS.write(GLANCE_API_CONF)
 
     if eligible_leader(CLUSTER_RES):
+        # Bugs 1353135 & 1187508. Dbs can appear to be ready before the units
+        # acl entry has been added. So, if the db supports passing a list of
+        # permitted units then check if we're in the list.
+        allowed_units = relation_get('allowed_units')
+        if allowed_units and local_unit() not in allowed_units.split():
+            juju_log('Allowed_units list provided and this unit not present')
+            return
         if rel == "essex":
             status = call(['glance-manage', 'db_version'])
             if status != 0:
@@ -319,7 +324,11 @@ def cluster_joined(relation_id=None):
 @restart_on_change(restart_map(), stopstart=True)
 def cluster_changed():
     if config('prefer-ipv6'):
-        peer_store('private-address', get_ipv6_addr())
+        for rid in relation_ids('cluster'):
+            relation_set(relation_id=rid,
+                         relation_settings={'private-address':
+                                            get_ipv6_addr()})
+
     configure_https()
     CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write(HAPROXY_CONF)
@@ -367,9 +376,7 @@ def ha_relation_joined():
             )
             vip_group.append(vip_key)
 
-    #if len(vip_group) > 1:
     relation_set(groups={'grp_glance_vips': ' '.join(vip_group)})
-
     init_services = {
         'res_glance_haproxy': 'haproxy',
     }

@@ -17,20 +17,13 @@ class ServiceManager(object):
         """
         Register a list of services, given their definitions.
 
-        Traditional charm authoring is focused on implementing hooks.  That is,
-        the charm author is thinking in terms of "What hook am I handling; what
-        does this hook need to do?"  However, in most cases, the real question
-        should be "Do I have the information I need to configure and start this
-        piece of software and, if so, what are the steps for doing so?"  The
-        ServiceManager framework tries to bring the focus to the data and the
-        setup tasks, in the most declarative way possible.
-
         Service definitions are dicts in the following formats (all keys except
         'service' are optional)::
 
             {
                 "service": <service name>,
                 "required_data": <list of required data contexts>,
+                "provided_data": <list of provided data contexts>,
                 "data_ready": <one or more callbacks>,
                 "data_lost": <one or more callbacks>,
                 "start": <one or more callbacks>,
@@ -43,6 +36,10 @@ class ServiceManager(object):
         Only when all items in the 'required_data' list are populated are the list
         of 'data_ready' and 'start' callbacks executed.  See `is_ready()` for more
         information.
+
+        The 'provided_data' list should contain relation data providers, most likely
+        a subclass of :class:`charmhelpers.core.services.helpers.RelationContext`,
+        that will indicate a set of data to set on a given relation.
 
         The 'data_ready' value should be either a single callback, or a list of
         callbacks, to be called when all items in 'required_data' pass `is_ready()`.
@@ -121,14 +118,25 @@ class ServiceManager(object):
         else:
             self.provide_data()
             self.reconfigure_services()
+        cfg = hookenv.config()
+        if cfg.implicit_save:
+            cfg.save()
 
     def provide_data(self):
+        """
+        Set the relation data for each provider in the ``provided_data`` list.
+
+        A provider must have a `name` attribute, which indicates which relation
+        to set data on, and a `provide_data()` method, which returns a dict of
+        data to set.
+        """
         hook_name = hookenv.hook_name()
         for service in self.services.values():
             for provider in service.get('provided_data', []):
                 if re.match(r'{}-relation-(joined|changed)'.format(provider.name), hook_name):
                     data = provider.provide_data()
-                    if provider._is_ready(data):
+                    _ready = provider._is_ready(data) if hasattr(provider, '_is_ready') else data
+                    if _ready:
                         hookenv.relation_set(None, data)
 
     def reconfigure_services(self, *service_names):

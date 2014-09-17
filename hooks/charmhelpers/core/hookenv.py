@@ -156,12 +156,15 @@ def hook_name():
 
 
 class Config(dict):
-    """A Juju charm config dictionary that can write itself to
-    disk (as json) and track which values have changed since
-    the previous hook invocation.
+    """A dictionary representation of the charm's config.yaml, with some
+    extra features:
 
-    Do not instantiate this object directly - instead call
-    ``hookenv.config()``
+    - See which values in the dictionary have changed since the previous hook.
+    - For values that have changed, see what the previous value was.
+    - Store arbitrary data for use in a later hook.
+
+    NOTE: Do not instantiate this object directly - instead call
+    ``hookenv.config()``, which will return an instance of :class:`Config`.
 
     Example usage::
 
@@ -170,8 +173,8 @@ class Config(dict):
         >>> config = hookenv.config()
         >>> config['foo']
         'bar'
+        >>> # store a new key/value for later use
         >>> config['mykey'] = 'myval'
-        >>> config.save()
 
 
         >>> # user runs `juju set mycharm foo=baz`
@@ -188,22 +191,34 @@ class Config(dict):
         >>> # keys/values that we add are preserved across hooks
         >>> config['mykey']
         'myval'
-        >>> # don't forget to save at the end of hook!
-        >>> config.save()
 
     """
     CONFIG_FILE_NAME = '.juju-persistent-config'
 
     def __init__(self, *args, **kw):
         super(Config, self).__init__(*args, **kw)
+        self.implicit_save = True
         self._prev_dict = None
         self.path = os.path.join(charm_dir(), Config.CONFIG_FILE_NAME)
         if os.path.exists(self.path):
             self.load_previous()
 
+    def __getitem__(self, key):
+        """For regular dict lookups, check the current juju config first,
+        then the previous (saved) copy. This ensures that user-saved values
+        will be returned by a dict lookup.
+
+        """
+        try:
+            return dict.__getitem__(self, key)
+        except KeyError:
+            return (self._prev_dict or {})[key]
+
     def load_previous(self, path=None):
-        """Load previous copy of config from disk so that current values
-        can be compared to previous values.
+        """Load previous copy of config from disk.
+
+        In normal usage you don't need to call this method directly - it
+        is called automatically at object initialization.
 
         :param path:
 
@@ -218,8 +233,8 @@ class Config(dict):
             self._prev_dict = json.load(f)
 
     def changed(self, key):
-        """Return true if the value for this key has changed since
-        the last save.
+        """Return True if the current value for this key is different from
+        the previous value.
 
         """
         if self._prev_dict is None:
@@ -228,7 +243,7 @@ class Config(dict):
 
     def previous(self, key):
         """Return previous value for this key, or None if there
-        is no "previous" value.
+        is no previous value.
 
         """
         if self._prev_dict:
@@ -238,7 +253,13 @@ class Config(dict):
     def save(self):
         """Save this config to disk.
 
-        Preserves items in _prev_dict that do not exist in self.
+        If the charm is using the :mod:`Services Framework <services.base>`
+        or :meth:'@hook <Hooks.hook>' decorator, this
+        is called automatically at the end of successful hook execution.
+        Otherwise, it should be called directly by user code.
+
+        To disable automatic saves, set ``implicit_save=False`` on this
+        instance.
 
         """
         if self._prev_dict:
@@ -285,8 +306,9 @@ def relation_get(attribute=None, unit=None, rid=None):
         raise
 
 
-def relation_set(relation_id=None, relation_settings={}, **kwargs):
+def relation_set(relation_id=None, relation_settings=None, **kwargs):
     """Set relation information for the current unit"""
+    relation_settings = relation_settings if relation_settings else {}
     relation_cmd_line = ['relation-set']
     if relation_id is not None:
         relation_cmd_line.extend(('-r', relation_id))
@@ -477,6 +499,9 @@ class Hooks(object):
         hook_name = os.path.basename(args[0])
         if hook_name in self._hooks:
             self._hooks[hook_name]()
+            cfg = config()
+            if cfg.implicit_save:
+                cfg.save()
         else:
             raise UnregisteredHookError(hook_name)
 
