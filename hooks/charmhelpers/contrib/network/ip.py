@@ -172,3 +172,16 @@ def get_ipv6_addr(iface="eth0"):
 
     except ValueError:
         raise ValueError("Invalid interface '%s'" % iface)
+
+
+def format_ipv6_addr(address):
+    """
+    IPv6 needs to be wrapped with [] in url link to parse correctly.
+    """
+    if is_ipv6(address):
+        address = "[%s]" % address
+    else:
+        log("Not an valid ipv6 address: %s" % address,
+            level=ERROR)
+        address = None
+    return address
