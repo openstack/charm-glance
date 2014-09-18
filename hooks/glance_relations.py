@@ -16,7 +16,8 @@ from glance_utils import (
     GLANCE_API_CONF,
     GLANCE_API_PASTE_INI,
     HAPROXY_CONF,
-    ceph_config_file)
+    ceph_config_file,
+    setup_ipv6)
 
 from charmhelpers.core.hookenv import (
     config,
@@ -42,7 +43,6 @@ from charmhelpers.fetch import (
     apt_install,
     apt_update,
     filter_installed_packages,
-    add_source
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -89,24 +89,11 @@ def install_hook():
 
     configure_installation_source(src)
 
-    # Note(xianghui): Need to install haproxy(1.5.3) from trusty-backports
-    # to support ipv6 address, so check is required to make sure not
-    # breaking other versions, IPv6 only support for >= Trusty
-    ubuntu_rel = lsb_release()['DISTRIB_RELEASE']
-    if config('prefer-ipv6') and float(ubuntu_rel) < 14.04:
-        raise Exception("IPv6 is not supported for Ubuntu "
-                        "versions less than Trusty 14.04")
-
-    trusty = lsb_release()['DISTRIB_CODENAME'] == 'trusty'
-    if config('prefer-ipv6') and trusty:
-        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports'
-                   ' main')
-
     apt_update(fatal=True)
     apt_install(PACKAGES, fatal=True)
 
-    if config('prefer-ipv6') and trusty:
-        apt_install('haproxy/trusty-backports', fatal=True)
+    if config('prefer-ipv6'):
+        setup_ipv6()
 
     for service in SERVICES:
         service_stop(service)
@@ -303,6 +290,8 @@ def keystone_changed():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    if config('prefer-ipv6'):
+        setup_ipv6()
     if openstack_upgrade_available('glance-common'):
         juju_log('Upgrading OpenStack release')
         do_openstack_upgrade(CONFIGS)
