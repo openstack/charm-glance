@@ -16,7 +16,7 @@ from charmhelpers.contrib.hahelpers.cluster import (
 )
 
 from charmhelpers.contrib.network.ip import (
-    get_ipv6_addr,
+    get_ipv6_addr
 )
 
 
@@ -98,4 +98,5 @@ class GlanceIPv6Context(OSContextGenerator):
         else:
             ctxt['bind_host'] = '0.0.0.0'
             ctxt['registry_host'] = '0.0.0.0'
+
         return ctxt
