@@ -115,8 +115,6 @@ options:
       192.168.0.0/24)
       .
       This network will be used for public endpoints.
-
-  # IPv6 
   prefer-ipv6:
     default: false
     type: boolean
