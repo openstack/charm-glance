@@ -42,7 +42,7 @@ from charmhelpers.core.host import (
 from charmhelpers.fetch import (
     apt_install,
     apt_update,
-    filter_installed_packages,
+    filter_installed_packages
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (

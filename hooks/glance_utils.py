@@ -23,7 +23,7 @@ from charmhelpers.core.host import (
     mkdir,
     service_stop,
     service_start,
-    lsb_release,
+    lsb_release
 )
 
 from charmhelpers.contrib.openstack import (

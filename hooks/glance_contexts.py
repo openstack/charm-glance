@@ -2,7 +2,7 @@ from charmhelpers.core.hookenv import (
     is_relation_made,
     relation_ids,
     service_name,
-    config,
+    config
 )
 
 from charmhelpers.contrib.openstack.context import (
