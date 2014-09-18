@@ -54,7 +54,7 @@ from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     get_os_codename_package,
     openstack_upgrade_available,
-    lsb_release, )
+    lsb_release)
 
 from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
 from charmhelpers.payload.execd import execd_preinstall
@@ -62,7 +62,7 @@ from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_netmask_for_address,
     get_iface_for_address,
-    get_ipv6_addr,
+    get_ipv6_addr
 )
 from charmhelpers.contrib.openstack.ip import (
     canonical_url,
@@ -292,6 +292,7 @@ def keystone_changed():
 def config_changed():
     if config('prefer-ipv6'):
         setup_ipv6()
+
     if openstack_upgrade_available('glance-common'):
         juju_log('Upgrading OpenStack release')
         do_openstack_upgrade(CONFIGS)
