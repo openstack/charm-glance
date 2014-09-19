@@ -108,7 +108,7 @@ def db_joined():
         juju_log(e, level=ERROR)
         raise Exception(e)
     if config('prefer-ipv6'):
-        host = get_ipv6_addr()
+        host = get_ipv6_addr()[0]
     else:
         host = unit_get('private-address')
 
@@ -322,7 +322,7 @@ def cluster_changed():
         for rid in relation_ids('cluster'):
             relation_set(relation_id=rid,
                          relation_settings={'private-address':
-                                            get_ipv6_addr()})
+                                            get_ipv6_addr()[0]})
 
     configure_https()
     CONFIGS.write(GLANCE_API_CONF)

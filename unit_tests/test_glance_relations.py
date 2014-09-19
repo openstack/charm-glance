@@ -114,7 +114,7 @@ class GlanceRelationTests(CharmTestCase):
 
     def test_db_joined_with_ipv6(self):
         self.test_config.set('prefer-ipv6', True)
-        self.get_ipv6_addr.return_value = '2001:db8:1::1'
+        self.get_ipv6_addr.return_value = ['2001:db8:1::1']
         self.is_relation_made.return_value = False
         relations.db_joined()
         relation_data = {
