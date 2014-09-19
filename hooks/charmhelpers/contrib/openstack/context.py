@@ -415,7 +415,7 @@ class HAProxyContext(OSContextGenerator):
         cluster_hosts = {}
         l_unit = local_unit().replace('/', '-')
         if config('prefer-ipv6'):
-            addr = get_ipv6_addr()
+            addr = get_ipv6_addr()[0]
         else:
             addr = unit_get('private-address')
         cluster_hosts[l_unit] = get_address_in_network(config('os-internal-network'),

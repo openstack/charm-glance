@@ -92,7 +92,7 @@ class GlanceIPv6Context(OSContextGenerator):
     def __call__(self):
         ctxt = {}
         if config('prefer-ipv6'):
-            ipv6_addr = get_ipv6_addr()
+            ipv6_addr = get_ipv6_addr()[0]
             ctxt['bind_host'] = ipv6_addr
             ctxt['registry_host'] = '[%s]' % ipv6_addr
         else:
