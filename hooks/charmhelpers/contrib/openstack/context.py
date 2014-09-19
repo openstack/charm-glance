@@ -47,6 +47,7 @@ from charmhelpers.contrib.openstack.neutron import (
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_ipv6_addr,
+    format_ipv6_addr,
 )
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
@@ -168,8 +169,10 @@ class SharedDBContext(OSContextGenerator):
         for rid in relation_ids('shared-db'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
+                host = rdata.get('db_host')
+                host = format_ipv6_addr(host) or host
                 ctxt = {
-                    'database_host': rdata.get('db_host'),
+                    'database_host': host,
                     'database': self.database,
                     'database_user': self.user,
                     'database_password': rdata.get(password_setting),
@@ -245,9 +248,12 @@ class IdentityServiceContext(OSContextGenerator):
         for rid in relation_ids('identity-service'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
+                serv_host = rdata.get('service_host')
+                serv_host = format_ipv6_addr(serv_host) or serv_host
+
                 ctxt = {
                     'service_port': rdata.get('service_port'),
-                    'service_host': rdata.get('service_host'),
+                    'service_host': serv_host,
                     'auth_host': rdata.get('auth_host'),
                     'auth_port': rdata.get('auth_port'),
                     'admin_tenant_name': rdata.get('service_tenant'),
@@ -297,11 +303,13 @@ class AMQPContext(OSContextGenerator):
             for unit in related_units(rid):
                 if relation_get('clustered', rid=rid, unit=unit):
                     ctxt['clustered'] = True
-                    ctxt['rabbitmq_host'] = relation_get('vip', rid=rid,
-                                                         unit=unit)
+                    vip = relation_get('vip', rid=rid, unit=unit)
+                    vip = format_ipv6_addr(vip) or vip
+                    ctxt['rabbitmq_host'] = vip
                 else:
-                    ctxt['rabbitmq_host'] = relation_get('private-address',
-                                                         rid=rid, unit=unit)
+                    host = relation_get('private-address', rid=rid, unit=unit)
+                    host = format_ipv6_addr(host) or host
+                    ctxt['rabbitmq_host'] = host
                 ctxt.update({
                     'rabbitmq_user': username,
                     'rabbitmq_password': relation_get('password', rid=rid,
@@ -340,8 +348,9 @@ class AMQPContext(OSContextGenerator):
                     and len(related_units(rid)) > 1:
                 rabbitmq_hosts = []
                 for unit in related_units(rid):
-                    rabbitmq_hosts.append(relation_get('private-address',
-                                                       rid=rid, unit=unit))
+                    host = relation_get('private-address', rid=rid, unit=unit)
+                    host = format_ipv6_addr(host) or host
+                    rabbitmq_hosts.append(host)
                 ctxt['rabbitmq_hosts'] = ','.join(rabbitmq_hosts)
         if not context_complete(ctxt):
             return {}
@@ -370,6 +379,7 @@ class CephContext(OSContextGenerator):
                 ceph_addr = \
                     relation_get('ceph-public-address', rid=rid, unit=unit) or \
                     relation_get('private-address', rid=rid, unit=unit)
+                ceph_addr = format_ipv6_addr(ceph_addr) or ceph_addr
                 mon_hosts.append(ceph_addr)
 
         ctxt = {
