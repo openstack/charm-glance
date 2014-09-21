@@ -15,10 +15,6 @@ from charmhelpers.contrib.hahelpers.cluster import (
     determine_api_port,
 )
 
-from charmhelpers.contrib.network.ip import (
-    get_ipv6_addr
-)
-
 
 class CephGlanceContext(OSContextGenerator):
     interfaces = ['ceph-glance']
@@ -92,9 +88,8 @@ class GlanceIPv6Context(OSContextGenerator):
     def __call__(self):
         ctxt = {}
         if config('prefer-ipv6'):
-            ipv6_addr = get_ipv6_addr()[0]
-            ctxt['bind_host'] = ipv6_addr
-            ctxt['registry_host'] = '[%s]' % ipv6_addr
+            ctxt['bind_host'] = '::'
+            ctxt['registry_host'] = '::'
         else:
             ctxt['bind_host'] = '0.0.0.0'
             ctxt['registry_host'] = '0.0.0.0'
