@@ -89,7 +89,7 @@ class GlanceIPv6Context(OSContextGenerator):
         ctxt = {}
         if config('prefer-ipv6'):
             ctxt['bind_host'] = '::'
-            ctxt['registry_host'] = '::'
+            ctxt['registry_host'] = '[::]'
         else:
             ctxt['bind_host'] = '0.0.0.0'
             ctxt['registry_host'] = '0.0.0.0'
