@@ -209,15 +209,40 @@ def mounts():
     return system_mounts
 
 
-def file_hash(path):
-    """Generate a md5 hash of the contents of 'path' or None if not found """
+def file_hash(path, hash_type='md5'):
+    """
+    Generate a hash checksum of the contents of 'path' or None if not found.
+
+    :param str hash_type: Any hash alrgorithm supported by :mod:`hashlib`,
+                          such as md5, sha1, sha256, sha512, etc.
+    """
     if os.path.exists(path):
-        h = hashlib.md5()
+        h = getattr(hashlib, hash_type)()
         with open(path, 'r') as source:
             h.update(source.read())  # IGNORE:E1101 - it does have update
         return h.hexdigest()
     else:
         return None
+
+
+def check_hash(path, checksum, hash_type='md5'):
+    """
+    Validate a file using a cryptographic checksum.
+
+
+    :param str checksum: Value of the checksum used to validate the file.
+    :param str hash_type: Hash algorithm used to generate :param:`checksum`.
+                          Can be any hash alrgorithm supported by :mod:`hashlib`,
+                          such as md5, sha1, sha256, sha512, etc.
+    :raises ChecksumError: If the file fails the checksum
+    """
+    actual_checksum = file_hash(path, hash_type)
+    if checksum != actual_checksum:
+        raise ChecksumError("'%s' != '%s'" % (checksum, actual_checksum))
+
+
+class ChecksumError(ValueError):
+    pass
 
 
 def restart_on_change(restart_map, stopstart=False):

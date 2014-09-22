@@ -8,7 +8,6 @@ from subprocess import (
     check_call
 )
 
-
 from charmhelpers.fetch import (
     apt_install,
     filter_installed_packages,
@@ -28,6 +27,11 @@ from charmhelpers.core.hookenv import (
     INFO
 )
 
+from charmhelpers.core.host import (
+    mkdir,
+    write_file
+)
+
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
     determine_api_port,
@@ -38,6 +42,7 @@ from charmhelpers.contrib.hahelpers.cluster import (
 from charmhelpers.contrib.hahelpers.apache import (
     get_cert,
     get_ca_cert,
+    install_ca_cert,
 )
 
 from charmhelpers.contrib.openstack.neutron import (
@@ -47,6 +52,7 @@ from charmhelpers.contrib.openstack.neutron import (
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_ipv6_addr,
+    is_address_in_network
 )
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
@@ -490,22 +496,30 @@ class ApacheSSLContext(OSContextGenerator):
         cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http']
         check_call(cmd)
 
-    def configure_cert(self):
-        if not os.path.isdir('/etc/apache2/ssl'):
-            os.mkdir('/etc/apache2/ssl')
+    def configure_cert(self, cn=None):
         ssl_dir = os.path.join('/etc/apache2/ssl/', self.service_namespace)
-        if not os.path.isdir(ssl_dir):
-            os.mkdir(ssl_dir)
-        cert, key = get_cert()
-        with open(os.path.join(ssl_dir, 'cert'), 'w') as cert_out:
-            cert_out.write(b64decode(cert))
-        with open(os.path.join(ssl_dir, 'key'), 'w') as key_out:
-            key_out.write(b64decode(key))
+        mkdir(path=ssl_dir)
+        cert, key = get_cert(cn)
+        write_file(path=os.path.join(ssl_dir, 'cert_{}'.format(cn)),
+                   content=b64decode(cert))
+        write_file(path=os.path.join(ssl_dir, 'key_{}'.format(cn)),
+                   content=b64decode(key))
+
+    def configure_ca(self):
         ca_cert = get_ca_cert()
         if ca_cert:
-            with open(CA_CERT_PATH, 'w') as ca_out:
-                ca_out.write(b64decode(ca_cert))
-            check_call(['update-ca-certificates'])
+            install_ca_cert(b64decode(ca_cert))
+
+    def canonical_names(self):
+        '''Figure out which canonical names clients will access this service'''
+        cns = []
+        for r_id in relation_ids('identity-service'):
+            for unit in related_units(r_id):
+                rdata = relation_get(rid=r_id, unit=unit)
+                for k in rdata:
+                    if k.startswith('ssl_key_'):
+                        cns.append(k.lstrip('ssl_key_'))
+        return list(set(cns))
 
     def __call__(self):
         if isinstance(self.external_ports, basestring):
@@ -513,21 +527,47 @@ class ApacheSSLContext(OSContextGenerator):
         if (not self.external_ports or not https()):
             return {}
 
-        self.configure_cert()
+        self.configure_ca()
         self.enable_modules()
 
         ctxt = {
             'namespace': self.service_namespace,
-            'private_address': unit_get('private-address'),
-            'endpoints': []
+            'endpoints': [],
+            'ext_ports': []
         }
-        if is_clustered():
-            ctxt['private_address'] = config('vip')
-        for api_port in self.external_ports:
-            ext_port = determine_apache_port(api_port)
-            int_port = determine_api_port(api_port)
-            portmap = (int(ext_port), int(int_port))
-            ctxt['endpoints'].append(portmap)
+
+        for cn in self.canonical_names():
+            self.configure_cert(cn)
+
+        addresses = []
+        vips = []
+        if config('vip'):
+            vips = config('vip').split()
+
+        for network_type in ['os-internal-network',
+                             'os-admin-network',
+                             'os-public-network']:
+            address = get_address_in_network(config(network_type),
+                                             unit_get('private-address'))
+            if len(vips) > 0 and is_clustered():
+                for vip in vips:
+                    if is_address_in_network(config(network_type),
+                                             vip):
+                        addresses.append((address, vip))
+                        break
+            elif is_clustered():
+                addresses.append((address, config('vip')))
+            else:
+                addresses.append((address, address))
+
+        for address, endpoint in set(addresses):
+            for api_port in self.external_ports:
+                ext_port = determine_apache_port(api_port)
+                int_port = determine_api_port(api_port)
+                portmap = (address, endpoint, int(ext_port), int(int_port))
+                ctxt['endpoints'].append(portmap)
+                ctxt['ext_ports'].append(int(ext_port))
+        ctxt['ext_ports'] = list(set(ctxt['ext_ports']))
         return ctxt
 
 
