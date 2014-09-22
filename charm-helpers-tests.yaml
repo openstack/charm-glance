@@ -1,4 +1,4 @@
-branch: lp:charm-helpers
+branch: lp:~cts-engineering/charms/trusty/charm-helpers/ipv6
 destination: tests/charmhelpers
 include:
     - contrib.amulet

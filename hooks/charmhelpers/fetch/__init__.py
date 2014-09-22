@@ -311,22 +311,35 @@ def configure_sources(update=False,
         apt_update(fatal=True)
 
 
-def install_remote(source):
+def install_remote(source, *args, **kwargs):
     """
     Install a file tree from a remote source
 
     The specified source should be a url of the form:
         scheme://[host]/path[#[option=value][&...]]
 
-    Schemes supported are based on this modules submodules
-    Options supported are submodule-specific"""
+    Schemes supported are based on this modules submodules.
+    Options supported are submodule-specific.
+    Additional arguments are passed through to the submodule.
+
+    For example::
+
+        dest = install_remote('http://example.com/archive.tgz',
+                              checksum='deadbeef',
+                              hash_type='sha1')
+
+    This will download `archive.tgz`, validate it using SHA1 and, if
+    the file is ok, extract it and return the directory in which it
+    was extracted.  If the checksum fails, it will raise
+    :class:`charmhelpers.core.host.ChecksumError`.
+    """
     # We ONLY check for True here because can_handle may return a string
     # explaining why it can't handle a given source.
     handlers = [h for h in plugins() if h.can_handle(source) is True]
     installed_to = None
     for handler in handlers:
         try:
-            installed_to = handler.install(source)
+            installed_to = handler.install(source, *args, **kwargs)
         except UnhandledSource:
             pass
     if not installed_to:

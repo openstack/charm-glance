@@ -47,7 +47,7 @@ from charmhelpers.contrib.openstack.neutron import (
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_ipv6_addr,
-    format_ipv6_addr,
+    format_ipv6_addr
 )
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'

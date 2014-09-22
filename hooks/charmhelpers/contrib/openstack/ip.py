@@ -66,10 +66,7 @@ def resolve_address(endpoint_type=PUBLIC):
                     resolved_address = vip
     else:
         if config('prefer-ipv6'):
-            list = []
-            if config('vip'):
-                list.append(config('vip'))
-            fallback_addr = get_ipv6_addr(exc_list=list)[0]
+            fallback_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
         else:
             fallback_addr = unit_get(_address_map[endpoint_type]['fallback'])
         resolved_address = get_address_in_network(

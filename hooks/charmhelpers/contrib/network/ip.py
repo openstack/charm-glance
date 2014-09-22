@@ -5,7 +5,9 @@ from functools import partial
 
 from charmhelpers.fetch import apt_install
 from charmhelpers.core.hookenv import (
-    ERROR, log,
+    WARNING,
+    ERROR,
+    log
 )
 
 try:
@@ -164,9 +166,9 @@ def format_ipv6_addr(address):
     if is_ipv6(address):
         address = "[%s]" % address
     else:
-        log("Not an valid ipv6 address: %s" % address,
-            level=ERROR)
+        log("Not a valid ipv6 address: %s" % address, level=WARNING)
         address = None
+
     return address
 
 
