@@ -12,21 +12,19 @@ from charmhelpers.payload.archive import (
     get_archive_handler,
     extract,
 )
-from charmhelpers.core.host import mkdir
+from charmhelpers.core.host import mkdir, check_hash
 
-"""
-This class is a plugin for charmhelpers.fetch.install_remote.
 
-It grabs, validates and installs remote archives fetched over "http", "https", "ftp" or "file" protocols. The contents of the archive are installed in $CHARM_DIR/fetched/.
-
-Example usage:
-install_remote("https://example.com/some/archive.tar.gz")
-# Installs the contents of archive.tar.gz in $CHARM_DIR/fetched/.
-
-See charmhelpers.fetch.archiveurl.get_archivehandler for supported archive types.
-"""
 class ArchiveUrlFetchHandler(BaseFetchHandler):
-    """Handler for archives via generic URLs"""
+    """
+    Handler to download archive files from arbitrary URLs.
+
+    Can fetch from http, https, ftp, and file URLs.
+
+    Can install either tarballs (.tar, .tgz, .tbz2, etc) or zip files.
+
+    Installs the contents of the archive in $CHARM_DIR/fetched/.
+    """
     def can_handle(self, source):
         url_parts = self.parse_url(source)
         if url_parts.scheme not in ('http', 'https', 'ftp', 'file'):
@@ -36,6 +34,12 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
         return False
 
     def download(self, source, dest):
+        """
+        Download an archive file.
+
+        :param str source: URL pointing to an archive file.
+        :param str dest: Local path location to download archive file to.
+        """
         # propogate all exceptions
         # URLError, OSError, etc
         proto, netloc, path, params, query, fragment = urlparse.urlparse(source)
@@ -60,7 +64,29 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
                 os.unlink(dest)
             raise e
 
-    def install(self, source):
+    # Mandatory file validation via Sha1 or MD5 hashing.
+    def download_and_validate(self, url, hashsum, validate="sha1"):
+        tempfile, headers = urlretrieve(url)
+        check_hash(tempfile, hashsum, validate)
+        return tempfile
+
+    def install(self, source, dest=None, checksum=None, hash_type='sha1'):
+        """
+        Download and install an archive file, with optional checksum validation.
+
+        The checksum can also be given on the :param:`source` URL's fragment.
+        For example::
+
+            handler.install('http://example.com/file.tgz#sha1=deadbeef')
+
+        :param str source: URL pointing to an archive file.
+        :param str dest: Local destination path to install to.  If not given,
+                         installs to `$CHARM_DIR/archives/archive_file_name`.
+        :param str checksum: If given, validate the archive file after download.
+        :param str hash_type: Algorithm used to generate :param:`checksum`.
+                              Can be any hash alrgorithm supported by :mod:`hashlib`,
+                              such as md5, sha1, sha256, sha512, etc.
+        """
         url_parts = self.parse_url(source)
         dest_dir = os.path.join(os.environ.get('CHARM_DIR'), 'fetched')
         if not os.path.exists(dest_dir):
@@ -72,32 +98,10 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
             raise UnhandledSource(e.reason)
         except OSError as e:
             raise UnhandledSource(e.strerror)
-        return extract(dld_file)
-
-    # Mandatory file validation via Sha1 or MD5 hashing.
-    def download_and_validate(self, url, hashsum, validate="sha1"):
-        if validate == 'sha1' and len(hashsum) != 40:
-            raise ValueError("HashSum must be = 40 characters when using sha1"
-                             " validation")
-        if validate == 'md5' and len(hashsum) != 32:
-            raise ValueError("HashSum must be = 32 characters when using md5"
-                             " validation")
-        tempfile, headers = urlretrieve(url)
-        self.validate_file(tempfile, hashsum, validate)
-        return tempfile
-
-    # Predicate method that returns status of hash matching expected hash.
-    def validate_file(self, source, hashsum, vmethod='sha1'):
-        if vmethod != 'sha1' and vmethod != 'md5':
-            raise ValueError("Validation Method not supported")
-
-        if vmethod == 'md5':
-            m = hashlib.md5()
-        if vmethod == 'sha1':
-            m = hashlib.sha1()
-        with open(source) as f:
-            for line in f:
-                m.update(line)
-        if hashsum != m.hexdigest():
-            msg = "Hash Mismatch on {} expected {} got {}"
-            raise ValueError(msg.format(source, hashsum, m.hexdigest()))
+        options = urlparse.parse_qs(url_parts.fragment)
+        for key, value in options.items():
+            if key in hashlib.algorithms:
+                check_hash(dld_file, value, key)
+        if checksum:
+            check_hash(dld_file, checksum, hash_type)
+        return extract(dld_file, dest)

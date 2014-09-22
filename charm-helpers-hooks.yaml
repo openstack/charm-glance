@@ -1,4 +1,4 @@
-branch: lp:charm-helpers
+branch: lp:~cts-engineering/charms/trusty/charm-helpers/ipv6
 destination: hooks/charmhelpers
 include:
     - core
