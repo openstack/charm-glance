@@ -250,11 +250,13 @@ class IdentityServiceContext(OSContextGenerator):
                 rdata = relation_get(rid=rid, unit=unit)
                 serv_host = rdata.get('service_host')
                 serv_host = format_ipv6_addr(serv_host) or serv_host
+                auth_host = rdata.get('auth_host')
+                auth_host = format_ipv6_addr(auth_host) or auth_host
 
                 ctxt = {
                     'service_port': rdata.get('service_port'),
                     'service_host': serv_host,
-                    'auth_host': rdata.get('auth_host'),
+                    'auth_host': auth_host,
                     'auth_port': rdata.get('auth_port'),
                     'admin_tenant_name': rdata.get('service_tenant'),
                     'admin_user': rdata.get('service_username'),
