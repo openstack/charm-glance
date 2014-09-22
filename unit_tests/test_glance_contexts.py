@@ -73,7 +73,7 @@ class TestGlanceContexts(CharmTestCase):
         mock_config.return_value = True
         ctxt = contexts.GlanceIPv6Context()
         self.assertEquals(ctxt(), {'bind_host': '::',
-                                   'registry_host': '::'})
+                                   'registry_host': '[::]'})
 
     @patch('glance_contexts.config')
     def test_glance_ipv6_context_service_disabled(self, mock_config):
