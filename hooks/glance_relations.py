@@ -178,9 +178,6 @@ def pgsql_db_changed():
 
 @hooks.hook('image-service-relation-joined')
 def image_service_joined(relation_id=None):
-    if not eligible_leader(CLUSTER_RES):
-        return
-
     relation_data = {
         'glance-api-server':
         "{}:9292".format(canonical_url(CONFIGS, INTERNAL))
@@ -368,9 +365,6 @@ def ha_relation_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
         juju_log('ha_changed: hacluster subordinate is not fully clustered.')
-        return
-    if not eligible_leader(CLUSTER_RES):
-        juju_log('ha_changed: hacluster complete but we are not leader.')
         return
 
     # reconfigure endpoint in keystone to point to clustered VIP.
