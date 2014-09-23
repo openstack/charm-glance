@@ -14,6 +14,8 @@ utils.restart_map = MagicMock()
 
 import glance_relations as relations
 
+relations.hooks._config_save = False
+
 utils.register_configs = _reg
 utils.restart_map = _map
 
