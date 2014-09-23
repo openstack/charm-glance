@@ -486,9 +486,10 @@ class Hooks(object):
             hooks.execute(sys.argv)
     """
 
-    def __init__(self):
+    def __init__(self, config_save=True):
         super(Hooks, self).__init__()
         self._hooks = {}
+        self._config_save = config_save
 
     def register(self, name, function):
         """Register a hook"""
@@ -499,9 +500,10 @@ class Hooks(object):
         hook_name = os.path.basename(args[0])
         if hook_name in self._hooks:
             self._hooks[hook_name]()
-            cfg = config()
-            if cfg.implicit_save:
-                cfg.save()
+            if self._config_save:
+                cfg = config()
+                if cfg.implicit_save:
+                    cfg.save()
         else:
             raise UnregisteredHookError(hook_name)
 
