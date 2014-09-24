@@ -801,3 +801,16 @@ class SyslogContext(OSContextGenerator):
             'use_syslog': config('use-syslog')
         }
         return ctxt
+
+
+class BindHostContext(OSContextGenerator):
+
+    def __call__(self):
+        if config('prefer-ipv6'):
+            return {
+                'bind_host': '::'
+            }
+        else:
+            return {
+                'bind_host': '0.0.0.0'
+            }

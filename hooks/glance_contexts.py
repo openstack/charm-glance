@@ -8,6 +8,7 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.contrib.openstack.context import (
     OSContextGenerator,
     ApacheSSLContext as SSLContext,
+    BindHostContext
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -83,15 +84,13 @@ class LoggingConfigContext(OSContextGenerator):
         return {'debug': config('debug'), 'verbose': config('verbose')}
 
 
-class GlanceIPv6Context(OSContextGenerator):
+class GlanceIPv6Context(BindHostContext):
 
     def __call__(self):
-        ctxt = {}
+        ctxt = super(GlanceIPv6Context, self).__call__()
         if config('prefer-ipv6'):
-            ctxt['bind_host'] = '::'
             ctxt['registry_host'] = '[::]'
         else:
-            ctxt['bind_host'] = '0.0.0.0'
             ctxt['registry_host'] = '0.0.0.0'
 
         return ctxt

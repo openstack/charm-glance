@@ -314,16 +314,16 @@ def cluster_joined(relation_id=None):
     relation_set(relation_id=relation_id,
                  relation_settings={'private-address': address})
 
-
-@hooks.hook('cluster-relation-changed')
-@restart_on_change(restart_map(), stopstart=True)
-def cluster_changed():
     if config('prefer-ipv6'):
         for rid in relation_ids('cluster'):
             addr = get_ipv6_addr(exc_list=[config('vip')])[0]
             relation_set(relation_id=rid,
                          relation_settings={'private-address': addr})
 
+
+@hooks.hook('cluster-relation-changed')
+@restart_on_change(restart_map(), stopstart=True)
+def cluster_changed():
     configure_https()
     CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write(HAPROXY_CONF)
@@ -371,7 +371,9 @@ def ha_relation_joined():
             )
             vip_group.append(vip_key)
 
-    relation_set(groups={'grp_glance_vips': ' '.join(vip_group)})
+    if len(vip_group) >= 1:
+        relation_set(groups={'grp_glance_vips': ' '.join(vip_group)})
+
     init_services = {
         'res_glance_haproxy': 'haproxy',
     }
