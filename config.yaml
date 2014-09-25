@@ -124,6 +124,6 @@ options:
       is expected.
       .
       NOTE: these charms do not currently support IPv6 privacy extension. In
-      order for this charm to function correctly, the privacy must be
+      order for this charm to function correctly, the privacy extension must be
       disabled and a non-temporary address must be configured/available on
       your network interface.
