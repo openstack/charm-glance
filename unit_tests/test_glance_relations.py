@@ -128,7 +128,8 @@ class GlanceRelationTests(CharmTestCase):
         }
         relation_data['hostname'] = '2001:db8:1::1'
 
-        self.sync_db_with_multi_ipv6_addresses.assert_called_with_once()
+        self.sync_db_with_multi_ipv6_addresses.assert_called_with_once(
+            'glance', 'glance')
         self.get_ipv6_addr.assert_called_once()
 
     def test_postgresql_db_joined(self):
