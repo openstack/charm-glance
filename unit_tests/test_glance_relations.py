@@ -59,7 +59,8 @@ TO_PATCH = [
     'get_hacluster_config',
     'get_netmask_for_address',
     'get_iface_for_address',
-    'get_ipv6_addr'
+    'get_ipv6_addr',
+    'sync_db_with_multi_ipv6_addresses',
 ]
 
 
@@ -112,9 +113,13 @@ class GlanceRelationTests(CharmTestCase):
                                              hostname='glance.foohost.com')
         self.unit_get.assert_called_with('private-address')
 
-    def test_db_joined_with_ipv6(self):
+    @patch.object(relations, 'sync_db_with_multi_ipv6_addresses')
+    @patch.object(relations, 'get_ipv6_addr')
+    def test_db_joined_with_ipv6(self, mock_get_ipv6_addr,
+                                 mock_sync_db):
         self.test_config.set('prefer-ipv6', True)
-        self.get_ipv6_addr.return_value = ['2001:db8:1::1']
+        mock_get_ipv6_addr.return_value = ['2001:db8:1::1']
+        mock_sync_db.return_value = MagicMock()
         self.is_relation_made.return_value = False
         relations.db_joined()
         relation_data = {
@@ -123,7 +128,7 @@ class GlanceRelationTests(CharmTestCase):
         }
         relation_data['hostname'] = '2001:db8:1::1'
 
-        self.relation_set.assert_called_with(**relation_data)
+        self.sync_db_with_multi_ipv6_addresses.assert_called_with_once()
         self.get_ipv6_addr.assert_called_once()
 
     def test_postgresql_db_joined(self):

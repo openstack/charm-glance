@@ -54,7 +54,8 @@ from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     get_os_codename_package,
     openstack_upgrade_available,
-    lsb_release)
+    lsb_release,
+    sync_db_with_multi_ipv6_addresses)
 
 from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
 from charmhelpers.payload.execd import execd_preinstall
@@ -107,14 +108,15 @@ def db_joined():
              'associated a postgresql one')
         juju_log(e, level=ERROR)
         raise Exception(e)
+
     if config('prefer-ipv6'):
         host = get_ipv6_addr(exc_list=[config('vip')])[0]
+        sync_db_with_multi_ipv6_addresses()
     else:
         host = unit_get('private-address')
-
-    relation_set(database=config('database'),
-                 username=config('database-user'),
-                 hostname=host)
+        relation_set(database=config('database'),
+                     username=config('database-user'),
+                     hostname=host)
 
 
 @hooks.hook('pgsql-db-relation-joined')
@@ -292,6 +294,7 @@ def keystone_changed():
 def config_changed():
     if config('prefer-ipv6'):
         setup_ipv6()
+        sync_db_with_multi_ipv6_addresses()
 
     if openstack_upgrade_available('glance-common'):
         juju_log('Upgrading OpenStack release')
