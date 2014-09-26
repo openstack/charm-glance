@@ -24,10 +24,10 @@ class AmuletDeployment(object):
         """Add services.
 
            Add services to the deployment where this_service is the local charm
-           that we're focused on testing and other_services are the other
-           charms that come from the charm store.
+           that we're testing and other_services are the other services that
+           are being used in the amulet tests.
            """
-        name, units = range(2)
+        name, units, location = range(3)
 
         if this_service[name] != os.path.basename(os.getcwd()):
             s = this_service[name]
@@ -37,12 +37,13 @@ class AmuletDeployment(object):
         self.d.add(this_service[name], units=this_service[units])
 
         for svc in other_services:
-            if self.series:
-                self.d.add(svc[name],
-                           charm='cs:{}/{}'.format(self.series, svc[name]),
-                           units=svc[units])
+            if len(svc) > 2:
+                branch_location = svc[location]
+            elif self.series:
+                branch_location = 'cs:{}/{}'.format(self.series, svc[name]),
             else:
-                self.d.add(svc[name], units=svc[units])
+                branch_location = None
+            self.d.add(svc[name], charm=branch_location, units=svc[units])
 
     def _add_relations(self, relations):
         """Add all of the relations for the services."""
@@ -57,7 +58,7 @@ class AmuletDeployment(object):
     def _deploy(self):
         """Deploy environment and wait for all hooks to finish executing."""
         try:
-            self.d.setup()
+            self.d.setup(timeout=900)
             self.d.sentry.wait(timeout=900)
         except amulet.helpers.TimeoutError:
             amulet.raise_status(amulet.FAIL, msg="Deployment timed out")

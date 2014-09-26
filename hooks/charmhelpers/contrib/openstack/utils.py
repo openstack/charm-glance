@@ -13,13 +13,19 @@ from charmhelpers.core.hookenv import (
     log as juju_log,
     charm_dir,
     ERROR,
-    INFO
+    INFO,
+    relation_ids,
+    relation_set
 )
 
 from charmhelpers.contrib.storage.linux.lvm import (
     deactivate_lvm_volume_group,
     is_lvm_physical_volume,
     remove_lvm_physical_volume,
+)
+
+from charmhelpers.contrib.network.ip import (
+    get_ipv6_addr
 )
 
 from charmhelpers.core.host import lsb_release, mounts, umount
@@ -457,3 +463,12 @@ def get_hostname(address, fqdn=True):
             return result
     else:
         return result.split('.')[0]
+
+
+def sync_db_with_multi_ipv6_addresses():
+    hosts = get_ipv6_addr(dynamic_only=False)
+    for rid in relation_ids('shared-db'):
+        relation_set(relation_id=rid,
+                     database=config('database'),
+                     username=config('database-user'),
+                     hostname=hosts)
