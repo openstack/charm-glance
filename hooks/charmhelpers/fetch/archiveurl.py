@@ -74,18 +74,19 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
         """
         Download and install an archive file, with optional checksum validation.
 
-        The checksum can also be given on the :param:`source` URL's fragment.
+        The checksum can also be given on the `source` URL's fragment.
         For example::
 
             handler.install('http://example.com/file.tgz#sha1=deadbeef')
 
         :param str source: URL pointing to an archive file.
-        :param str dest: Local destination path to install to.  If not given,
-                         installs to `$CHARM_DIR/archives/archive_file_name`.
+        :param str dest: Local destination path to install to. If not given,
+            installs to `$CHARM_DIR/archives/archive_file_name`.
         :param str checksum: If given, validate the archive file after download.
-        :param str hash_type: Algorithm used to generate :param:`checksum`.
-                              Can be any hash alrgorithm supported by :mod:`hashlib`,
-                              such as md5, sha1, sha256, sha512, etc.
+        :param str hash_type: Algorithm used to generate `checksum`.
+            Can be any hash alrgorithm supported by :mod:`hashlib`,
+            such as md5, sha1, sha256, sha512, etc.
+
         """
         url_parts = self.parse_url(source)
         dest_dir = os.path.join(os.environ.get('CHARM_DIR'), 'fetched')
