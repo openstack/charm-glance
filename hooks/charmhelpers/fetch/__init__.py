@@ -208,7 +208,8 @@ def add_source(source, key=None):
     """Add a package source to this system.
 
     @param source: a URL or sources.list entry, as supported by
-    add-apt-repository(1). Examples:
+    add-apt-repository(1). Examples::
+
         ppa:charmers/example
         deb https://stub:key@private.example.com/ubuntu trusty main
 

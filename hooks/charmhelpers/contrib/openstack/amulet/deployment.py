@@ -1,3 +1,6 @@
+from bzrlib.branch import Branch
+import os
+import re
 from charmhelpers.contrib.amulet.deployment import (
     AmuletDeployment
 )
@@ -16,11 +19,41 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         self.openstack = openstack
         self.source = source
 
+    def _is_dev_branch(self):
+        """Determine if branch being tested is a dev (i.e. next) branch."""
+        branch = Branch.open(os.getcwd())
+        parent = branch.get_parent()
+        pattern = re.compile("^.*/next/$")
+        if (pattern.match(parent)):
+            return True
+        else:
+            return False
+
+    def _determine_branch_locations(self, other_services):
+        """Determine the branch locations for the other services.
+
+           If the branch being tested is a dev branch, then determine the
+           development branch locations for the other services. Otherwise,
+           the default charm store branches will be used."""
+        name = 0
+        if self._is_dev_branch():
+            updated_services = []
+            for svc in other_services:
+                if svc[name] in ['mysql', 'mongodb', 'rabbitmq-server']:
+                    location = 'lp:charms/{}'.format(svc[name])
+                else:
+                    temp = 'lp:~openstack-charmers/charms/trusty/{}/next'
+                    location = temp.format(svc[name])
+                updated_services.append(svc + (location,))
+            other_services = updated_services
+        return other_services
+
     def _add_services(self, this_service, other_services):
-        """Add services to the deployment and set openstack-origin."""
+        """Add services to the deployment and set openstack-origin/source."""
+        name = 0
+        other_services = self._determine_branch_locations(other_services)
         super(OpenStackAmuletDeployment, self)._add_services(this_service,
                                                              other_services)
-        name = 0
         services = other_services
         services.append(this_service)
         use_source = ['mysql', 'mongodb', 'rabbitmq-server', 'ceph']

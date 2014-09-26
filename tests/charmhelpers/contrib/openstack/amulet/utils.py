@@ -187,15 +187,16 @@ class OpenStackAmuletUtils(AmuletUtils):
 
         f = opener.open("http://download.cirros-cloud.net/version/released")
         version = f.read().strip()
-        cirros_img = "tests/cirros-{}-x86_64-disk.img".format(version)
+        cirros_img = "cirros-{}-x86_64-disk.img".format(version)
+        local_path = os.path.join('tests', cirros_img)
 
-        if not os.path.exists(cirros_img):
+        if not os.path.exists(local_path):
             cirros_url = "http://{}/{}/{}".format("download.cirros-cloud.net",
                                                   version, cirros_img)
-            opener.retrieve(cirros_url, cirros_img)
+            opener.retrieve(cirros_url, local_path)
         f.close()
 
-        with open(cirros_img) as f:
+        with open(local_path) as f:
             image = glance.images.create(name=image_name, is_public=True,
                                          disk_format='qcow2',
                                          container_format='bare', data=f)

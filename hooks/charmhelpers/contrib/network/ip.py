@@ -1,4 +1,6 @@
 import glob
+import re
+import subprocess
 import sys
 
 from functools import partial
@@ -172,7 +174,8 @@ def format_ipv6_addr(address):
     return address
 
 
-def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False, fatal=True, exc_list=None):
+def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False,
+                   fatal=True, exc_list=None):
     """
     Return the assigned IP address for a given interface, if any, or [].
     """
@@ -212,26 +215,67 @@ def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False, fatal=T
                 if 'addr' in entry and entry['addr'] not in exc_list:
                     addresses.append(entry['addr'])
     if fatal and not addresses:
-        raise Exception("Interface '%s' doesn't have any %s addresses." % (iface, inet_type))
+        raise Exception("Interface '%s' doesn't have any %s addresses." %
+                        (iface, inet_type))
     return addresses
 
 get_ipv4_addr = partial(get_iface_addr, inet_type='AF_INET')
 
 
-def get_ipv6_addr(iface='eth0', inc_aliases=False, fatal=True, exc_list=None):
-    """
-    Return the assigned IPv6 address for a given interface, if any, or [].
+def get_ipv6_addr(iface='eth0', inc_aliases=False, fatal=True, exc_list=None,
+                  dynamic_only=True):
+    """Get assigned IPv6 address for a given interface.
+
+    Returns list of addresses found. If no address found, returns empty list.
+
+    We currently only support scope global IPv6 addresses i.e. non-temporary
+    addresses. If no global IPv6 address is found, return the first one found
+    in the ipv6 address list.
     """
     addresses = get_iface_addr(iface=iface, inet_type='AF_INET6',
                                inc_aliases=inc_aliases, fatal=fatal,
                                exc_list=exc_list)
-    remotly_addressable = []
-    for address in addresses:
-        if not address.startswith('fe80'):
-            remotly_addressable.append(address)
-    if fatal and not remotly_addressable:
-        raise Exception("Interface '%s' doesn't have global ipv6 address." % iface)
-    return remotly_addressable
+
+    if addresses:
+        global_addrs = []
+        for addr in addresses:
+            key_scope_link_local = re.compile("^fe80::..(.+)%(.+)")
+            m = re.match(key_scope_link_local, addr)
+            if m:
+                eui_64_mac = m.group(1)
+                iface = m.group(2)
+            else:
+                global_addrs.append(addr)
+
+        if global_addrs:
+            # Make sure any found global addresses are not temporary
+            cmd = ['ip', 'addr', 'show', iface]
+            out = subprocess.check_output(cmd)
+            if dynamic_only:
+                key = re.compile("inet6 (.+)/[0-9]+ scope global dynamic.*")
+            else:
+                key = re.compile("inet6 (.+)/[0-9]+ scope global.*")
+
+            addrs = []
+            for line in out.split('\n'):
+                line = line.strip()
+                m = re.match(key, line)
+                if m and 'temporary' not in line:
+                    # Return the first valid address we find
+                    for addr in global_addrs:
+                        if m.group(1) == addr:
+                            if not dynamic_only or \
+                                    m.group(1).endswith(eui_64_mac):
+                                addrs.append(addr)
+
+            if addrs:
+                return addrs
+
+    if fatal:
+        raise Exception("Interface '%s' doesn't have a scope global "
+                        "non-temporary ipv6 address." % iface)
+
+    return []
 
 
 def get_bridges(vnic_dir='/sys/devices/virtual/net'):
