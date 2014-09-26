@@ -4,6 +4,7 @@
 from collections import OrderedDict
 
 import subprocess
+import json
 import os
 import socket
 import sys
@@ -471,4 +472,4 @@ def sync_db_with_multi_ipv6_addresses():
         relation_set(relation_id=rid,
                      database=config('database'),
                      username=config('database-user'),
-                     hostname=hosts)
+                     hostname=json.dumps(hosts))
