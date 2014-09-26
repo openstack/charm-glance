@@ -235,10 +235,6 @@ def ceph_changed():
 
 @hooks.hook('identity-service-relation-joined')
 def keystone_joined(relation_id=None):
-    if not eligible_leader(CLUSTER_RES):
-        juju_log('Deferring keystone_joined() to service leader.')
-        return
-
     public_url = '{}:9292'.format(canonical_url(CONFIGS, PUBLIC))
     internal_url = '{}:9292'.format(canonical_url(CONFIGS, INTERNAL))
     admin_url = '{}:9292'.format(canonical_url(CONFIGS, ADMIN))
