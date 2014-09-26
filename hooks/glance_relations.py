@@ -110,7 +110,6 @@ def db_joined():
         raise Exception(e)
 
     if config('prefer-ipv6'):
-        host = get_ipv6_addr(exc_list=[config('vip')])[0]
         sync_db_with_multi_ipv6_addresses()
     else:
         host = unit_get('private-address')
