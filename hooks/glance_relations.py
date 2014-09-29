@@ -67,6 +67,8 @@ from charmhelpers.contrib.openstack.ip import (
     PUBLIC, INTERNAL, ADMIN
 )
 
+from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
+
 from subprocess import (
     check_call,
     call, )
@@ -289,10 +291,15 @@ def config_changed():
 
 @hooks.hook('cluster-relation-joined')
 def cluster_joined(relation_id=None):
-    address = get_address_in_network(config('os-internal-network'),
-                                     unit_get('private-address'))
-    relation_set(relation_id=relation_id,
-                 relation_settings={'private-address': address})
+    for addr_type in ADDRESS_TYPES:
+        address = get_address_in_network(
+            config('os-{}-network'.format(addr_type))
+        )
+        if address:
+            relation_set(
+                relation_id=relation_id,
+                relation_settings={'{}-address'.format(addr_type): address}
+            )
 
 
 @hooks.hook('cluster-relation-changed')
