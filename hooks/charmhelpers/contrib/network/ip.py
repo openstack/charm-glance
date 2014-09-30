@@ -5,6 +5,7 @@ import sys
 
 from functools import partial
 
+from charmhelpers.core.hookenv import unit_get
 from charmhelpers.fetch import apt_install
 from charmhelpers.core.hookenv import (
     WARNING,
@@ -222,11 +223,49 @@ def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False,
 get_ipv4_addr = partial(get_iface_addr, inet_type='AF_INET')
 
 
-def get_ipv6_addr(iface='eth0', inc_aliases=False, fatal=True, exc_list=None,
+def get_iface_from_addr(addr):
+    """Work out on which interface the provided address is configured."""
+    for iface in netifaces.interfaces():
+        addresses = netifaces.ifaddresses(iface)
+        for inet_type in addresses:
+            for _addr in addresses[inet_type]:
+                _addr = _addr['addr']
+                # link local
+                ll_key = re.compile("(.+)%.*")
+                raw = re.match(ll_key, _addr)
+                if raw:
+                    _addr = raw.group(1)
+                if _addr == addr:
+                    log("Address '%s' is configured on iface '%s'" %
+                        (addr, iface))
+                    return iface
+
+    msg = "Unable to infer net iface on which '%s' is configured" % (addr)
+    raise Exception(msg)
+
+
+def sniff_iface(f):
+    """If no iface provided, inject net iface inferred from unit private
+    address.
+    """
+    def iface_sniffer(*args, **kwargs):
+        if not kwargs.get('iface', None):
+            kwargs['iface'] = get_iface_from_addr(unit_get('private-address'))
+
+        return f(*args, **kwargs)
+
+    return iface_sniffer
+
+
+@sniff_iface
+def get_ipv6_addr(iface=None, inc_aliases=False, fatal=True, exc_list=None,
                   dynamic_only=True):
     """Get assigned IPv6 address for a given interface.
 
     Returns list of addresses found. If no address found, returns empty list.
+
+    If iface is None, we infer the current primary interface by doing a reverse
+    lookup on the unit private-address.
 
     We currently only support scope global IPv6 addresses i.e. non-temporary
     addresses. If no global IPv6 address is found, return the first one found
