@@ -364,7 +364,6 @@ def ha_relation_joined():
 
 
 @hooks.hook('ha-relation-changed')
-@restart_on_change(restart_map())
 def ha_relation_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
@@ -376,8 +375,6 @@ def ha_relation_changed():
 
     # notify glance client services of reconfigured URL.
     [image_service_joined(rid) for rid in relation_ids('image-service')]
-
-    CONFIGS.write_all()
 
 
 @hooks.hook('ceph-relation-broken',
