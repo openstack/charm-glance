@@ -243,9 +243,9 @@ def services():
 
 
 def setup_ipv6():
-    ubuntu_rel = float(lsb_release()['DISTRIB_RELEASE'])
-    if ubuntu_rel < 'trusty':
-        raise Exception("IPv6 is not supported for Ubuntu "
+    ubuntu_rel = lsb_release()['DISTRIB_CODENAME'].lower()
+    if ubuntu_rel < "trusty":
+        raise Exception("IPv6 is not supported in the charms for Ubuntu "
                         "versions less than Trusty 14.04")
 
     # NOTE(xianghui): Need to install haproxy(1.5.3) from trusty-backports
