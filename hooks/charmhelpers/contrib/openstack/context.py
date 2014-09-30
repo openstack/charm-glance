@@ -421,6 +421,11 @@ class HAProxyContext(OSContextGenerator):
             'units': cluster_hosts,
         }
 
+        if config('haproxy-server-timeout'):
+            ctxt['haproxy_server_timeout'] = config('haproxy-server-timeout')
+        if config('haproxy-client-timeout'):
+            ctxt['haproxy_client_timeout'] = config('haproxy-client-timeout')
+
         if config('prefer-ipv6'):
             ctxt['local_host'] = 'ip6-localhost'
             ctxt['haproxy_host'] = '::'
