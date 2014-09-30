@@ -63,7 +63,8 @@ from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_netmask_for_address,
     get_iface_for_address,
-    get_ipv6_addr
+    get_ipv6_addr,
+    is_ipv6
 )
 from charmhelpers.contrib.openstack.ip import (
     canonical_url,
@@ -92,9 +93,6 @@ def install_hook():
 
     apt_update(fatal=True)
     apt_install(PACKAGES, fatal=True)
-
-    if config('prefer-ipv6'):
-        setup_ipv6()
 
     for service in SERVICES:
         service_stop(service)
@@ -313,16 +311,15 @@ def config_changed():
 
 @hooks.hook('cluster-relation-joined')
 def cluster_joined(relation_id=None):
+    if config('prefer-ipv6'):
+        private_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
+    else:
+        private_addr = unit_get('private-address')
+
     address = get_address_in_network(config('os-internal-network'),
-                                     unit_get('private-address'))
+                                     private_addr)
     relation_set(relation_id=relation_id,
                  relation_settings={'private-address': address})
-
-    if config('prefer-ipv6'):
-        for rid in relation_ids('cluster'):
-            addr = get_ipv6_addr(exc_list=[config('vip')])[0]
-            relation_set(relation_id=rid,
-                         relation_settings={'private-address': addr})
 
 
 @hooks.hook('cluster-relation-changed')
@@ -345,13 +342,6 @@ def upgrade_charm():
 def ha_relation_joined():
     cluster_config = get_hacluster_config()
 
-    if config('prefer-ipv6'):
-        res_ks_vip = 'ocf:heartbeat:IPv6addr'
-        vip_params = 'ipv6addr'
-    else:
-        res_ks_vip = 'ocf:heartbeat:IPaddr2'
-        vip_params = 'ip'
-
     resources = {
         'res_glance_haproxy': 'lsb:haproxy'
     }
@@ -362,6 +352,13 @@ def ha_relation_joined():
 
     vip_group = []
     for vip in cluster_config['vip'].split():
+        if is_ipv6(vip):
+            res_ks_vip = 'ocf:heartbeat:IPv6addr'
+            vip_params = 'ipv6addr'
+        else:
+            res_ks_vip = 'ocf:heartbeat:IPaddr2'
+            vip_params = 'ip'
+
         iface = get_iface_for_address(vip)
         if iface is not None:
             vip_key = 'res_glance_{}_vip'.format(iface)

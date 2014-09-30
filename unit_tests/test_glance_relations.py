@@ -95,15 +95,6 @@ class GlanceRelationTests(CharmTestCase):
             "cloud:precise-folsom"
         )
 
-    def test_install_hook_precise_distro_with_ipv6(self):
-        self.test_config.set('openstack-origin', 'distro')
-        self.test_config.set('prefer-ipv6', 'True')
-        self.lsb_release.return_value = {'DISTRIB_RELEASE': 12.04,
-                                         'DISTRIB_CODENAME': 'precise'}
-        self.service_stop.return_value = True
-        with self.assertRaises(Exception):
-            relations.install_hook()
-
     def test_db_joined(self):
         self.unit_get.return_value = 'glance.foohost.com'
         self.is_relation_made.return_value = False
