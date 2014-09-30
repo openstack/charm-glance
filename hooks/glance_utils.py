@@ -244,14 +244,14 @@ def services():
 
 def setup_ipv6():
     ubuntu_rel = float(lsb_release()['DISTRIB_RELEASE'])
-    if ubuntu_rel < 14.04:
+    if ubuntu_rel < 'trusty':
         raise Exception("IPv6 is not supported for Ubuntu "
                         "versions less than Trusty 14.04")
 
     # NOTE(xianghui): Need to install haproxy(1.5.3) from trusty-backports
     # to support ipv6 address, so check is required to make sure not
     # breaking other versions, IPv6 only support for >= Trusty
-    if ubuntu_rel == 14.04:
+    if ubuntu_rel == 'trusty':
         add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports'
                    ' main')
         apt_update()
