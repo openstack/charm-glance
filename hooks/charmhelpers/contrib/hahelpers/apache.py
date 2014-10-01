@@ -20,20 +20,27 @@ from charmhelpers.core.hookenv import (
 )
 
 
-def get_cert():
+def get_cert(cn=None):
+    # TODO: deal with multiple https endpoints via charm config
     cert = config_get('ssl_cert')
     key = config_get('ssl_key')
     if not (cert and key):
         log("Inspecting identity-service relations for SSL certificate.",
             level=INFO)
         cert = key = None
+        if cn:
+            ssl_cert_attr = 'ssl_cert_{}'.format(cn)
+            ssl_key_attr = 'ssl_key_{}'.format(cn)
+        else:
+            ssl_cert_attr = 'ssl_cert'
+            ssl_key_attr = 'ssl_key'
         for r_id in relation_ids('identity-service'):
             for unit in relation_list(r_id):
                 if not cert:
-                    cert = relation_get('ssl_cert',
+                    cert = relation_get(ssl_cert_attr,
                                         rid=r_id, unit=unit)
                 if not key:
-                    key = relation_get('ssl_key',
+                    key = relation_get(ssl_key_attr,
                                        rid=r_id, unit=unit)
     return (cert, key)
 

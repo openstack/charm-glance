@@ -1,10 +1,16 @@
+import glob
+import re
+import subprocess
 import sys
 
 from functools import partial
 
+from charmhelpers.core.hookenv import unit_get
 from charmhelpers.fetch import apt_install
 from charmhelpers.core.hookenv import (
-    ERROR, log, config,
+    WARNING,
+    ERROR,
+    log
 )
 
 try:
@@ -156,19 +162,182 @@ get_iface_for_address = partial(_get_for_address, key='iface')
 get_netmask_for_address = partial(_get_for_address, key='netmask')
 
 
-def get_ipv6_addr(iface="eth0"):
+def format_ipv6_addr(address):
+    """
+    IPv6 needs to be wrapped with [] in url link to parse correctly.
+    """
+    if is_ipv6(address):
+        address = "[%s]" % address
+    else:
+        log("Not a valid ipv6 address: %s" % address, level=WARNING)
+        address = None
+
+    return address
+
+
+def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False,
+                   fatal=True, exc_list=None):
+    """
+    Return the assigned IP address for a given interface, if any, or [].
+    """
+    # Extract nic if passed /dev/ethX
+    if '/' in iface:
+        iface = iface.split('/')[-1]
+    if not exc_list:
+        exc_list = []
     try:
-        iface_addrs = netifaces.ifaddresses(iface)
-        if netifaces.AF_INET6 not in iface_addrs:
-            raise Exception("Interface '%s' doesn't have an ipv6 address." % iface)
+        inet_num = getattr(netifaces, inet_type)
+    except AttributeError:
+        raise Exception('Unknown inet type ' + str(inet_type))
 
-        addresses = netifaces.ifaddresses(iface)[netifaces.AF_INET6]
-        ipv6_addr = [a['addr'] for a in addresses if not a['addr'].startswith('fe80')
-                     and config('vip') != a['addr']]
-        if not ipv6_addr:
-            raise Exception("Interface '%s' doesn't have global ipv6 address." % iface)
+    interfaces = netifaces.interfaces()
+    if inc_aliases:
+        ifaces = []
+        for _iface in interfaces:
+            if iface == _iface or _iface.split(':')[0] == iface:
+                ifaces.append(_iface)
+        if fatal and not ifaces:
+            raise Exception("Invalid interface '%s'" % iface)
+        ifaces.sort()
+    else:
+        if iface not in interfaces:
+            if fatal:
+                raise Exception("%s not found " % (iface))
+            else:
+                return []
+        else:
+            ifaces = [iface]
 
-        return ipv6_addr[0]
+    addresses = []
+    for netiface in ifaces:
+        net_info = netifaces.ifaddresses(netiface)
+        if inet_num in net_info:
+            for entry in net_info[inet_num]:
+                if 'addr' in entry and entry['addr'] not in exc_list:
+                    addresses.append(entry['addr'])
+    if fatal and not addresses:
+        raise Exception("Interface '%s' doesn't have any %s addresses." %
+                        (iface, inet_type))
+    return addresses
 
-    except ValueError:
-        raise ValueError("Invalid interface '%s'" % iface)
+get_ipv4_addr = partial(get_iface_addr, inet_type='AF_INET')
+
+
+def get_iface_from_addr(addr):
+    """Work out on which interface the provided address is configured."""
+    for iface in netifaces.interfaces():
+        addresses = netifaces.ifaddresses(iface)
+        for inet_type in addresses:
+            for _addr in addresses[inet_type]:
+                _addr = _addr['addr']
+                # link local
+                ll_key = re.compile("(.+)%.*")
+                raw = re.match(ll_key, _addr)
+                if raw:
+                    _addr = raw.group(1)
+                if _addr == addr:
+                    log("Address '%s' is configured on iface '%s'" %
+                        (addr, iface))
+                    return iface
+
+    msg = "Unable to infer net iface on which '%s' is configured" % (addr)
+    raise Exception(msg)
+
+
+def sniff_iface(f):
+    """If no iface provided, inject net iface inferred from unit private
+    address.
+    """
+    def iface_sniffer(*args, **kwargs):
+        if not kwargs.get('iface', None):
+            kwargs['iface'] = get_iface_from_addr(unit_get('private-address'))
+
+        return f(*args, **kwargs)
+
+    return iface_sniffer
+
+
+@sniff_iface
+def get_ipv6_addr(iface=None, inc_aliases=False, fatal=True, exc_list=None,
+                  dynamic_only=True):
+    """Get assigned IPv6 address for a given interface.
+
+    Returns list of addresses found. If no address found, returns empty list.
+
+    If iface is None, we infer the current primary interface by doing a reverse
+    lookup on the unit private-address.
+
+    We currently only support scope global IPv6 addresses i.e. non-temporary
+    addresses. If no global IPv6 address is found, return the first one found
+    in the ipv6 address list.
+    """
+    addresses = get_iface_addr(iface=iface, inet_type='AF_INET6',
+                               inc_aliases=inc_aliases, fatal=fatal,
+                               exc_list=exc_list)
+
+    if addresses:
+        global_addrs = []
+        for addr in addresses:
+            key_scope_link_local = re.compile("^fe80::..(.+)%(.+)")
+            m = re.match(key_scope_link_local, addr)
+            if m:
+                eui_64_mac = m.group(1)
+                iface = m.group(2)
+            else:
+                global_addrs.append(addr)
+
+        if global_addrs:
+            # Make sure any found global addresses are not temporary
+            cmd = ['ip', 'addr', 'show', iface]
+            out = subprocess.check_output(cmd)
+            if dynamic_only:
+                key = re.compile("inet6 (.+)/[0-9]+ scope global dynamic.*")
+            else:
+                key = re.compile("inet6 (.+)/[0-9]+ scope global.*")
+
+            addrs = []
+            for line in out.split('\n'):
+                line = line.strip()
+                m = re.match(key, line)
+                if m and 'temporary' not in line:
+                    # Return the first valid address we find
+                    for addr in global_addrs:
+                        if m.group(1) == addr:
+                            if not dynamic_only or \
+                                    m.group(1).endswith(eui_64_mac):
+                                addrs.append(addr)
+
+            if addrs:
+                return addrs
+
+    if fatal:
+        raise Exception("Interface '%s' doesn't have a scope global "
+                        "non-temporary ipv6 address." % iface)
+
+    return []
+
+
+def get_bridges(vnic_dir='/sys/devices/virtual/net'):
+    """
+    Return a list of bridges on the system or []
+    """
+    b_rgex = vnic_dir + '/*/bridge'
+    return [x.replace(vnic_dir, '').split('/')[1] for x in glob.glob(b_rgex)]
+
+
+def get_bridge_nics(bridge, vnic_dir='/sys/devices/virtual/net'):
+    """
+    Return a list of nics comprising a given bridge on the system or []
+    """
+    brif_rgex = "%s/%s/brif/*" % (vnic_dir, bridge)
+    return [x.split('/')[-1] for x in glob.glob(brif_rgex)]
+
+
+def is_bridge_member(nic):
+    """
+    Check if a given nic is a member of a bridge
+    """
+    for bridge in get_bridges():
+        if nic in get_bridge_nics(bridge):
+            return True
+    return False
