@@ -115,4 +115,15 @@ options:
       192.168.0.0/24)
       .
       This network will be used for public endpoints.
-
+  prefer-ipv6:
+    type: boolean
+    default: False
+    description: |
+      If True enables IPv6 support. The charm will expect network interfaces
+      to be configured with an IPv6 address. If set to False (default) IPv4
+      is expected.
+      .
+      NOTE: these charms do not currently support IPv6 privacy extension. In
+      order for this charm to function correctly, the privacy extension must be
+      disabled and a non-temporary address must be configured/available on
+      your network interface.

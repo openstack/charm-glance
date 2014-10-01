@@ -1,3 +1,5 @@
+import os
+import yaml
 from charmhelpers.core import hookenv
 from charmhelpers.core import templating
 
@@ -19,15 +21,21 @@ class RelationContext(dict):
     the `name` attribute that are complete will used to populate the dictionary
     values (see `get_data`, below).
 
-    The generated context will be namespaced under the interface type, to prevent
-    potential naming conflicts.
+    The generated context will be namespaced under the relation :attr:`name`,
+    to prevent potential naming conflicts.
+
+    :param str name: Override the relation :attr:`name`, since it can vary from charm to charm
+    :param list additional_required_keys: Extend the list of :attr:`required_keys`
     """
     name = None
     interface = None
     required_keys = []
 
-    def __init__(self, *args, **kwargs):
-        super(RelationContext, self).__init__(*args, **kwargs)
+    def __init__(self, name=None, additional_required_keys=None):
+        if name is not None:
+            self.name = name
+        if additional_required_keys is not None:
+            self.required_keys.extend(additional_required_keys)
         self.get_data()
 
     def __bool__(self):
@@ -101,9 +109,115 @@ class RelationContext(dict):
         return {}
 
 
+class MysqlRelation(RelationContext):
+    """
+    Relation context for the `mysql` interface.
+
+    :param str name: Override the relation :attr:`name`, since it can vary from charm to charm
+    :param list additional_required_keys: Extend the list of :attr:`required_keys`
+    """
+    name = 'db'
+    interface = 'mysql'
+    required_keys = ['host', 'user', 'password', 'database']
+
+
+class HttpRelation(RelationContext):
+    """
+    Relation context for the `http` interface.
+
+    :param str name: Override the relation :attr:`name`, since it can vary from charm to charm
+    :param list additional_required_keys: Extend the list of :attr:`required_keys`
+    """
+    name = 'website'
+    interface = 'http'
+    required_keys = ['host', 'port']
+
+    def provide_data(self):
+        return {
+            'host': hookenv.unit_get('private-address'),
+            'port': 80,
+        }
+
+
+class RequiredConfig(dict):
+    """
+    Data context that loads config options with one or more mandatory options.
+
+    Once the required options have been changed from their default values, all
+    config options will be available, namespaced under `config` to prevent
+    potential naming conflicts (for example, between a config option and a
+    relation property).
+
+    :param list *args: List of options that must be changed from their default values.
+    """
+
+    def __init__(self, *args):
+        self.required_options = args
+        self['config'] = hookenv.config()
+        with open(os.path.join(hookenv.charm_dir(), 'config.yaml')) as fp:
+            self.config = yaml.load(fp).get('options', {})
+
+    def __bool__(self):
+        for option in self.required_options:
+            if option not in self['config']:
+                return False
+            current_value = self['config'][option]
+            default_value = self.config[option].get('default')
+            if current_value == default_value:
+                return False
+            if current_value in (None, '') and default_value in (None, ''):
+                return False
+        return True
+
+    def __nonzero__(self):
+        return self.__bool__()
+
+
+class StoredContext(dict):
+    """
+    A data context that always returns the data that it was first created with.
+
+    This is useful to do a one-time generation of things like passwords, that
+    will thereafter use the same value that was originally generated, instead
+    of generating a new value each time it is run.
+    """
+    def __init__(self, file_name, config_data):
+        """
+        If the file exists, populate `self` with the data from the file.
+        Otherwise, populate with the given data and persist it to the file.
+        """
+        if os.path.exists(file_name):
+            self.update(self.read_context(file_name))
+        else:
+            self.store_context(file_name, config_data)
+            self.update(config_data)
+
+    def store_context(self, file_name, config_data):
+        if not os.path.isabs(file_name):
+            file_name = os.path.join(hookenv.charm_dir(), file_name)
+        with open(file_name, 'w') as file_stream:
+            os.fchmod(file_stream.fileno(), 0600)
+            yaml.dump(config_data, file_stream)
+
+    def read_context(self, file_name):
+        if not os.path.isabs(file_name):
+            file_name = os.path.join(hookenv.charm_dir(), file_name)
+        with open(file_name, 'r') as file_stream:
+            data = yaml.load(file_stream)
+            if not data:
+                raise OSError("%s is empty" % file_name)
+            return data
+
+
 class TemplateCallback(ManagerCallback):
     """
-    Callback class that will render a template, for use as a ready action.
+    Callback class that will render a Jinja2 template, for use as a ready action.
+
+    :param str source: The template source file, relative to `$CHARM_DIR/templates`
+    :param str target: The target to write the rendered template to
+    :param str owner: The owner of the rendered file
+    :param str group: The group of the rendered file
+    :param int perms: The permissions of the rendered file
     """
     def __init__(self, source, target, owner='root', group='root', perms=0444):
         self.source = source

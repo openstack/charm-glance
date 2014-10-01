@@ -8,7 +8,6 @@ from subprocess import (
     check_call
 )
 
-
 from charmhelpers.fetch import (
     apt_install,
     filter_installed_packages,
@@ -28,6 +27,11 @@ from charmhelpers.core.hookenv import (
     INFO
 )
 
+from charmhelpers.core.host import (
+    mkdir,
+    write_file
+)
+
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
     determine_api_port,
@@ -38,6 +42,7 @@ from charmhelpers.contrib.hahelpers.cluster import (
 from charmhelpers.contrib.hahelpers.apache import (
     get_cert,
     get_ca_cert,
+    install_ca_cert,
 )
 
 from charmhelpers.contrib.openstack.neutron import (
@@ -47,6 +52,8 @@ from charmhelpers.contrib.openstack.neutron import (
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_ipv6_addr,
+    format_ipv6_addr,
+    is_address_in_network
 )
 
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
@@ -168,8 +175,10 @@ class SharedDBContext(OSContextGenerator):
         for rid in relation_ids('shared-db'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
+                host = rdata.get('db_host')
+                host = format_ipv6_addr(host) or host
                 ctxt = {
-                    'database_host': rdata.get('db_host'),
+                    'database_host': host,
                     'database': self.database,
                     'database_user': self.user,
                     'database_password': rdata.get(password_setting),
@@ -245,10 +254,15 @@ class IdentityServiceContext(OSContextGenerator):
         for rid in relation_ids('identity-service'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
+                serv_host = rdata.get('service_host')
+                serv_host = format_ipv6_addr(serv_host) or serv_host
+                auth_host = rdata.get('auth_host')
+                auth_host = format_ipv6_addr(auth_host) or auth_host
+
                 ctxt = {
                     'service_port': rdata.get('service_port'),
-                    'service_host': rdata.get('service_host'),
-                    'auth_host': rdata.get('auth_host'),
+                    'service_host': serv_host,
+                    'auth_host': auth_host,
                     'auth_port': rdata.get('auth_port'),
                     'admin_tenant_name': rdata.get('service_tenant'),
                     'admin_user': rdata.get('service_username'),
@@ -297,11 +311,13 @@ class AMQPContext(OSContextGenerator):
             for unit in related_units(rid):
                 if relation_get('clustered', rid=rid, unit=unit):
                     ctxt['clustered'] = True
-                    ctxt['rabbitmq_host'] = relation_get('vip', rid=rid,
-                                                         unit=unit)
+                    vip = relation_get('vip', rid=rid, unit=unit)
+                    vip = format_ipv6_addr(vip) or vip
+                    ctxt['rabbitmq_host'] = vip
                 else:
-                    ctxt['rabbitmq_host'] = relation_get('private-address',
-                                                         rid=rid, unit=unit)
+                    host = relation_get('private-address', rid=rid, unit=unit)
+                    host = format_ipv6_addr(host) or host
+                    ctxt['rabbitmq_host'] = host
                 ctxt.update({
                     'rabbitmq_user': username,
                     'rabbitmq_password': relation_get('password', rid=rid,
@@ -340,8 +356,9 @@ class AMQPContext(OSContextGenerator):
                     and len(related_units(rid)) > 1:
                 rabbitmq_hosts = []
                 for unit in related_units(rid):
-                    rabbitmq_hosts.append(relation_get('private-address',
-                                                       rid=rid, unit=unit))
+                    host = relation_get('private-address', rid=rid, unit=unit)
+                    host = format_ipv6_addr(host) or host
+                    rabbitmq_hosts.append(host)
                 ctxt['rabbitmq_hosts'] = ','.join(rabbitmq_hosts)
         if not context_complete(ctxt):
             return {}
@@ -370,6 +387,7 @@ class CephContext(OSContextGenerator):
                 ceph_addr = \
                     relation_get('ceph-public-address', rid=rid, unit=unit) or \
                     relation_get('private-address', rid=rid, unit=unit)
+                ceph_addr = format_ipv6_addr(ceph_addr) or ceph_addr
                 mon_hosts.append(ceph_addr)
 
         ctxt = {
@@ -404,10 +422,12 @@ class HAProxyContext(OSContextGenerator):
 
         cluster_hosts = {}
         l_unit = local_unit().replace('/', '-')
+
         if config('prefer-ipv6'):
-            addr = get_ipv6_addr()
+            addr = get_ipv6_addr(exc_list=[config('vip')])[0]
         else:
             addr = unit_get('private-address')
+
         cluster_hosts[l_unit] = get_address_in_network(config('os-internal-network'),
                                                        addr)
 
@@ -420,6 +440,11 @@ class HAProxyContext(OSContextGenerator):
         ctxt = {
             'units': cluster_hosts,
         }
+
+        if config('haproxy-server-timeout'):
+            ctxt['haproxy_server_timeout'] = config('haproxy-server-timeout')
+        if config('haproxy-client-timeout'):
+            ctxt['haproxy_client_timeout'] = config('haproxy-client-timeout')
 
         if config('prefer-ipv6'):
             ctxt['local_host'] = 'ip6-localhost'
@@ -490,22 +515,36 @@ class ApacheSSLContext(OSContextGenerator):
         cmd = ['a2enmod', 'ssl', 'proxy', 'proxy_http']
         check_call(cmd)
 
-    def configure_cert(self):
-        if not os.path.isdir('/etc/apache2/ssl'):
-            os.mkdir('/etc/apache2/ssl')
+    def configure_cert(self, cn=None):
         ssl_dir = os.path.join('/etc/apache2/ssl/', self.service_namespace)
-        if not os.path.isdir(ssl_dir):
-            os.mkdir(ssl_dir)
-        cert, key = get_cert()
-        with open(os.path.join(ssl_dir, 'cert'), 'w') as cert_out:
-            cert_out.write(b64decode(cert))
-        with open(os.path.join(ssl_dir, 'key'), 'w') as key_out:
-            key_out.write(b64decode(key))
+        mkdir(path=ssl_dir)
+        cert, key = get_cert(cn)
+        if cn:
+            cert_filename = 'cert_{}'.format(cn)
+            key_filename = 'key_{}'.format(cn)
+        else:
+            cert_filename = 'cert'
+            key_filename = 'key'
+        write_file(path=os.path.join(ssl_dir, cert_filename),
+                   content=b64decode(cert))
+        write_file(path=os.path.join(ssl_dir, key_filename),
+                   content=b64decode(key))
+
+    def configure_ca(self):
         ca_cert = get_ca_cert()
         if ca_cert:
-            with open(CA_CERT_PATH, 'w') as ca_out:
-                ca_out.write(b64decode(ca_cert))
-            check_call(['update-ca-certificates'])
+            install_ca_cert(b64decode(ca_cert))
+
+    def canonical_names(self):
+        '''Figure out which canonical names clients will access this service'''
+        cns = []
+        for r_id in relation_ids('identity-service'):
+            for unit in related_units(r_id):
+                rdata = relation_get(rid=r_id, unit=unit)
+                for k in rdata:
+                    if k.startswith('ssl_key_'):
+                        cns.append(k.lstrip('ssl_key_'))
+        return list(set(cns))
 
     def __call__(self):
         if isinstance(self.external_ports, basestring):
@@ -513,21 +552,47 @@ class ApacheSSLContext(OSContextGenerator):
         if (not self.external_ports or not https()):
             return {}
 
-        self.configure_cert()
+        self.configure_ca()
         self.enable_modules()
 
         ctxt = {
             'namespace': self.service_namespace,
-            'private_address': unit_get('private-address'),
-            'endpoints': []
+            'endpoints': [],
+            'ext_ports': []
         }
-        if is_clustered():
-            ctxt['private_address'] = config('vip')
-        for api_port in self.external_ports:
-            ext_port = determine_apache_port(api_port)
-            int_port = determine_api_port(api_port)
-            portmap = (int(ext_port), int(int_port))
-            ctxt['endpoints'].append(portmap)
+
+        for cn in self.canonical_names():
+            self.configure_cert(cn)
+
+        addresses = []
+        vips = []
+        if config('vip'):
+            vips = config('vip').split()
+
+        for network_type in ['os-internal-network',
+                             'os-admin-network',
+                             'os-public-network']:
+            address = get_address_in_network(config(network_type),
+                                             unit_get('private-address'))
+            if len(vips) > 0 and is_clustered():
+                for vip in vips:
+                    if is_address_in_network(config(network_type),
+                                             vip):
+                        addresses.append((address, vip))
+                        break
+            elif is_clustered():
+                addresses.append((address, config('vip')))
+            else:
+                addresses.append((address, address))
+
+        for address, endpoint in set(addresses):
+            for api_port in self.external_ports:
+                ext_port = determine_apache_port(api_port)
+                int_port = determine_api_port(api_port)
+                portmap = (address, endpoint, int(ext_port), int(int_port))
+                ctxt['endpoints'].append(portmap)
+                ctxt['ext_ports'].append(int(ext_port))
+        ctxt['ext_ports'] = list(set(ctxt['ext_ports']))
         return ctxt
 
 
@@ -787,3 +852,16 @@ class SyslogContext(OSContextGenerator):
             'use_syslog': config('use-syslog')
         }
         return ctxt
+
+
+class BindHostContext(OSContextGenerator):
+
+    def __call__(self):
+        if config('prefer-ipv6'):
+            return {
+                'bind_host': '::'
+            }
+        else:
+            return {
+                'bind_host': '0.0.0.0'
+            }

@@ -139,10 +139,9 @@ def https():
         return True
     for r_id in relation_ids('identity-service'):
         for unit in relation_list(r_id):
+            # TODO - needs fixing for new helper as ssl_cert/key suffixes with CN
             rel_state = [
                 relation_get('https_keystone', rid=r_id, unit=unit),
-                relation_get('ssl_cert', rid=r_id, unit=unit),
-                relation_get('ssl_key', rid=r_id, unit=unit),
                 relation_get('ca_cert', rid=r_id, unit=unit),
             ]
             # NOTE: works around (LP: #1203241)
