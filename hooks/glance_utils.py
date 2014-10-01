@@ -10,7 +10,8 @@ from collections import OrderedDict
 from charmhelpers.fetch import (
     apt_upgrade,
     apt_update,
-    apt_install, )
+    apt_install,
+    add_source)
 
 from charmhelpers.core.hookenv import (
     config,
@@ -21,7 +22,8 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.core.host import (
     mkdir,
     service_stop,
-    service_start
+    service_start,
+    lsb_release
 )
 
 from charmhelpers.contrib.openstack import (
@@ -80,7 +82,8 @@ CONFIG_FILES = OrderedDict([
                           context.PostgresqlDBContext(),
                           context.IdentityServiceContext(),
                           context.SyslogContext(),
-                          glance_contexts.LoggingConfigContext()],
+                          glance_contexts.LoggingConfigContext(),
+                          glance_contexts.GlanceIPv6Context()],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
@@ -92,7 +95,8 @@ CONFIG_FILES = OrderedDict([
                           glance_contexts.ObjectStoreContext(),
                           glance_contexts.HAProxyContext(),
                           context.SyslogContext(),
-                          glance_contexts.LoggingConfigContext()],
+                          glance_contexts.LoggingConfigContext(),
+                          glance_contexts.GlanceIPv6Context()],
         'services': ['glance-api']
     }),
     (GLANCE_API_PASTE_INI, {
@@ -236,3 +240,19 @@ def services():
     for v in restart_map().values():
         _services = _services + v
     return list(set(_services))
+
+
+def setup_ipv6():
+    ubuntu_rel = lsb_release()['DISTRIB_CODENAME'].lower()
+    if ubuntu_rel < "trusty":
+        raise Exception("IPv6 is not supported in the charms for Ubuntu "
+                        "versions less than Trusty 14.04")
+
+    # NOTE(xianghui): Need to install haproxy(1.5.3) from trusty-backports
+    # to support ipv6 address, so check is required to make sure not
+    # breaking other versions, IPv6 only support for >= Trusty
+    if ubuntu_rel == 'trusty':
+        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports'
+                   ' main')
+        apt_update()
+        apt_install('haproxy/trusty-backports', fatal=True)

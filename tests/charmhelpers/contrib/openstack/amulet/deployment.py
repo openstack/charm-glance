@@ -16,7 +16,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         self.openstack = openstack
         self.source = source
         self.stable = stable
-        # Note(coreycb): this needs to be changed when new next branches come out.
+        # Note(coreycb): this needs to be changed when new next branches come
+        # out.
         self.current_next = "trusty"
 
     def _determine_branch_locations(self, other_services):
@@ -51,7 +52,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         services = other_services
         services.append(this_service)
-        use_source = ['mysql', 'mongodb', 'rabbitmq-server', 'ceph']
+        use_source = ['mysql', 'mongodb', 'rabbitmq-server', 'ceph',
+                      'ceph-osd', 'ceph-radosgw']
 
         if self.openstack:
             for svc in services:

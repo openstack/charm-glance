@@ -16,7 +16,8 @@ from glance_utils import (
     GLANCE_API_CONF,
     GLANCE_API_PASTE_INI,
     HAPROXY_CONF,
-    ceph_config_file)
+    ceph_config_file,
+    setup_ipv6)
 
 from charmhelpers.core.hookenv import (
     config,
@@ -53,7 +54,8 @@ from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     get_os_codename_package,
     openstack_upgrade_available,
-    lsb_release, )
+    lsb_release,
+    sync_db_with_multi_ipv6_addresses)
 
 from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
 from charmhelpers.payload.execd import execd_preinstall
@@ -61,6 +63,8 @@ from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_netmask_for_address,
     get_iface_for_address,
+    get_ipv6_addr,
+    is_ipv6
 )
 from charmhelpers.contrib.openstack.ip import (
     canonical_url,
@@ -105,8 +109,14 @@ def db_joined():
         juju_log(e, level=ERROR)
         raise Exception(e)
 
-    relation_set(database=config('database'), username=config('database-user'),
-                 hostname=unit_get('private-address'))
+    if config('prefer-ipv6'):
+        sync_db_with_multi_ipv6_addresses(config('database'),
+                                          config('database-user'))
+    else:
+        host = unit_get('private-address')
+        relation_set(database=config('database'),
+                     username=config('database-user'),
+                     hostname=host)
 
 
 @hooks.hook('pgsql-db-relation-joined')
@@ -275,6 +285,11 @@ def keystone_changed():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
+    if config('prefer-ipv6'):
+        setup_ipv6()
+        sync_db_with_multi_ipv6_addresses(config('database'),
+                                          config('database-user'))
+
     if openstack_upgrade_available('glance-common'):
         juju_log('Upgrading OpenStack release')
         do_openstack_upgrade(CONFIGS)
@@ -300,6 +315,10 @@ def cluster_joined(relation_id=None):
                 relation_id=relation_id,
                 relation_settings={'{}-address'.format(addr_type): address}
             )
+    if config('prefer-ipv6'):
+        private_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
+        relation_set(relation_id=relation_id,
+                     relation_settings={'private-address': private_addr})
 
 
 @hooks.hook('cluster-relation-changed')
@@ -320,7 +339,7 @@ def upgrade_charm():
 
 @hooks.hook('ha-relation-joined')
 def ha_relation_joined():
-    config = get_hacluster_config()
+    cluster_config = get_hacluster_config()
 
     resources = {
         'res_glance_haproxy': 'lsb:haproxy'
@@ -331,14 +350,22 @@ def ha_relation_joined():
     }
 
     vip_group = []
-    for vip in config['vip'].split():
+    for vip in cluster_config['vip'].split():
+        if is_ipv6(vip):
+            res_ks_vip = 'ocf:heartbeat:IPv6addr'
+            vip_params = 'ipv6addr'
+        else:
+            res_ks_vip = 'ocf:heartbeat:IPaddr2'
+            vip_params = 'ip'
+
         iface = get_iface_for_address(vip)
         if iface is not None:
             vip_key = 'res_glance_{}_vip'.format(iface)
-            resources[vip_key] = 'ocf:heartbeat:IPaddr2'
+            resources[vip_key] = res_ks_vip
             resource_params[vip_key] = (
-                'params ip="{vip}" cidr_netmask="{netmask}"'
-                ' nic="{iface}"'.format(vip=vip,
+                'params {ip}="{vip}" cidr_netmask="{netmask}"'
+                ' nic="{iface}"'.format(ip=vip_params,
+                                        vip=vip,
                                         iface=iface,
                                         netmask=get_netmask_for_address(vip))
             )
@@ -356,8 +383,8 @@ def ha_relation_joined():
     }
 
     relation_set(init_services=init_services,
-                 corosync_bindiface=config['ha-bindiface'],
-                 corosync_mcastport=config['ha-mcastport'],
+                 corosync_bindiface=cluster_config['ha-bindiface'],
+                 corosync_mcastport=cluster_config['ha-mcastport'],
                  resources=resources,
                  resource_params=resource_params,
                  clones=clones)

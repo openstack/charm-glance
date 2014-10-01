@@ -60,7 +60,9 @@ TO_PATCH = [
     'filter_installed_packages',
     'get_hacluster_config',
     'get_netmask_for_address',
-    'get_iface_for_address'
+    'get_iface_for_address',
+    'get_ipv6_addr',
+    'sync_db_with_multi_ipv6_addresses',
 ]
 
 
@@ -87,7 +89,8 @@ class GlanceRelationTests(CharmTestCase):
 
     def test_install_hook_precise_distro(self):
         self.test_config.set('openstack-origin', 'distro')
-        self.lsb_release.return_value = {'DISTRIB_CODENAME': 'precise'}
+        self.lsb_release.return_value = {'DISTRIB_RELEASE': 12.04,
+                                         'DISTRIB_CODENAME': 'precise'}
         self.service_stop.return_value = True
         relations.install_hook()
         self.configure_installation_source.assert_called_with(
@@ -102,6 +105,25 @@ class GlanceRelationTests(CharmTestCase):
                                              username='glance',
                                              hostname='glance.foohost.com')
         self.unit_get.assert_called_with('private-address')
+
+    @patch.object(relations, 'sync_db_with_multi_ipv6_addresses')
+    @patch.object(relations, 'get_ipv6_addr')
+    def test_db_joined_with_ipv6(self, mock_get_ipv6_addr,
+                                 mock_sync_db):
+        self.test_config.set('prefer-ipv6', True)
+        mock_get_ipv6_addr.return_value = ['2001:db8:1::1']
+        mock_sync_db.return_value = MagicMock()
+        self.is_relation_made.return_value = False
+        relations.db_joined()
+        relation_data = {
+            'database': 'glance',
+            'username': 'glance',
+        }
+        relation_data['hostname'] = '2001:db8:1::1'
+
+        self.sync_db_with_multi_ipv6_addresses.assert_called_with_once(
+            'glance', 'glance')
+        self.get_ipv6_addr.assert_called_once()
 
     def test_postgresql_db_joined(self):
         self.unit_get.return_value = 'glance.foohost.com'
@@ -420,9 +442,24 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'CONFIGS')
     def test_cluster_changed(self, configs):
+        self.test_config.set('prefer-ipv6', False)
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['cluster']
         configs.write = MagicMock()
+        relations.cluster_changed()
+        self.assertEquals([call('/etc/glance/glance-api.conf'),
+                           call('/etc/haproxy/haproxy.cfg')],
+                          configs.write.call_args_list)
+
+    @patch.object(relations, 'relation_set')
+    @patch.object(relations, 'CONFIGS')
+    def test_cluster_changed_with_ipv6(self, configs, relation_set):
+        self.test_config.set('prefer-ipv6', True)
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['cluster']
+        configs.write = MagicMock()
+        self.get_ipv6_addr.return_value = '2001:db8:1::1'
+        self.relation_ids.return_value = ['cluster:0']
         relations.cluster_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
                            call('/etc/haproxy/haproxy.cfg')],
@@ -460,6 +497,30 @@ class GlanceRelationTests(CharmTestCase):
             call(groups={'grp_glance_vips': 'res_glance_eth1_vip'}),
             call(**args),
         ])
+
+    def test_ha_relation_joined_with_ipv6(self):
+        self.test_config.set('prefer-ipv6', True)
+        self.get_hacluster_config.return_value = {
+            'ha-bindiface': 'em0',
+            'ha-mcastport': '8080',
+            'vip': '2001:db8:1::1',
+        }
+        self.get_iface_for_address.return_value = 'eth1'
+        self.get_netmask_for_address.return_value = '64'
+        relations.ha_relation_joined()
+        args = {
+            'corosync_bindiface': 'em0',
+            'corosync_mcastport': '8080',
+            'init_services': {'res_glance_haproxy': 'haproxy'},
+            'resources': {'res_glance_eth1_vip': 'ocf:heartbeat:IPv6addr',
+                          'res_glance_haproxy': 'lsb:haproxy'},
+            'resource_params': {
+                'res_glance_eth1_vip': 'params ipv6addr="2001:db8:1::1"'
+                ' cidr_netmask="64" nic="eth1"',
+                'res_glance_haproxy': 'op monitor interval="5s"'},
+            'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
+        }
+        self.relation_set.assert_called_with(**args)
 
     def test_ha_relation_changed_not_clustered(self):
         self.relation_get.return_value = False
