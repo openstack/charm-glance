@@ -25,25 +25,30 @@ class AmuletDeployment(object):
 
            Add services to the deployment where this_service is the local charm
            that we're testing and other_services are the other services that
-           are being used in the amulet tests.
+           are being used in the local amulet tests.
            """
-        name, units, location = range(3)
-
-        if this_service[name] != os.path.basename(os.getcwd()):
-            s = this_service[name]
+        if this_service['name'] != os.path.basename(os.getcwd()):
+            s = this_service['name']
             msg = "The charm's root directory name needs to be {}".format(s)
             amulet.raise_status(amulet.FAIL, msg=msg)
 
-        self.d.add(this_service[name], units=this_service[units])
+        if 'units' not in this_service:
+            this_service['units'] = 1
+
+        self.d.add(this_service['name'], units=this_service['units'])
 
         for svc in other_services:
-            if len(svc) > 2:
-                branch_location = svc[location]
+            if 'location' in svc:
+                branch_location = svc['location']
             elif self.series:
-                branch_location = 'cs:{}/{}'.format(self.series, svc[name]),
+                branch_location = 'cs:{}/{}'.format(self.series, svc['name']),
             else:
                 branch_location = None
-            self.d.add(svc[name], charm=branch_location, units=svc[units])
+
+            if 'units' not in svc:
+                svc['units'] = 1
+
+            self.d.add(svc['name'], charm=branch_location, units=svc['units'])
 
     def _add_relations(self, relations):
         """Add all of the relations for the services."""
