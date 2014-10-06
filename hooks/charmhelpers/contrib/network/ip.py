@@ -57,6 +57,8 @@ def get_address_in_network(network, fallback=None, fatal=False):
         else:
             if fatal:
                 not_found_error_out()
+            else:
+                return None
 
     _validate_cidr(network)
     network = netaddr.IPNetwork(network)

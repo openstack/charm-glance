@@ -52,6 +52,7 @@ from charmhelpers.contrib.openstack.neutron import (
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_ipv6_addr,
+    get_netmask_for_address,
     format_ipv6_addr,
     is_address_in_network
 )
@@ -408,6 +409,9 @@ class CephContext(OSContextGenerator):
         return ctxt
 
 
+ADDRESS_TYPES = ['admin', 'internal', 'public']
+
+
 class HAProxyContext(OSContextGenerator):
     interfaces = ['cluster']
 
@@ -420,7 +424,6 @@ class HAProxyContext(OSContextGenerator):
         if not relation_ids('cluster'):
             return {}
 
-        cluster_hosts = {}
         l_unit = local_unit().replace('/', '-')
 
         if config('prefer-ipv6'):
@@ -428,17 +431,49 @@ class HAProxyContext(OSContextGenerator):
         else:
             addr = unit_get('private-address')
 
-        cluster_hosts[l_unit] = get_address_in_network(config('os-internal-network'),
-                                                       addr)
+        cluster_hosts = {}
 
-        for rid in relation_ids('cluster'):
-            for unit in related_units(rid):
-                _unit = unit.replace('/', '-')
-                addr = relation_get('private-address', rid=rid, unit=unit)
-                cluster_hosts[_unit] = addr
+        # NOTE(jamespage): build out map of configured network endpoints
+        # and associated backends
+        for addr_type in ADDRESS_TYPES:
+            laddr = get_address_in_network(
+                config('os-{}-network'.format(addr_type)))
+            if laddr:
+                cluster_hosts[laddr] = {}
+                cluster_hosts[laddr]['network'] = "{}/{}".format(
+                    laddr,
+                    get_netmask_for_address(laddr)
+                )
+                cluster_hosts[laddr]['backends'] = {}
+                cluster_hosts[laddr]['backends'][l_unit] = laddr
+                for rid in relation_ids('cluster'):
+                    for unit in related_units(rid):
+                        _unit = unit.replace('/', '-')
+                        _laddr = relation_get('{}-address'.format(addr_type),
+                                              rid=rid, unit=unit)
+                        if _laddr:
+                            cluster_hosts[laddr]['backends'][_unit] = _laddr
+
+        # NOTE(jamespage) no split configurations found, just use
+        # private addresses
+        if not cluster_hosts:
+            cluster_hosts[addr] = {}
+            cluster_hosts[addr]['network'] = "{}/{}".format(
+                addr,
+                get_netmask_for_address(addr)
+            )
+            cluster_hosts[addr]['backends'] = {}
+            cluster_hosts[addr]['backends'][l_unit] = addr
+            for rid in relation_ids('cluster'):
+                for unit in related_units(rid):
+                    _unit = unit.replace('/', '-')
+                    _laddr = relation_get('private-address',
+                                          rid=rid, unit=unit)
+                    if _laddr:
+                        cluster_hosts[addr]['backends'][_unit] = _laddr
 
         ctxt = {
-            'units': cluster_hosts,
+            'frontends': cluster_hosts,
         }
 
         if config('haproxy-server-timeout'):
@@ -455,12 +490,13 @@ class HAProxyContext(OSContextGenerator):
             ctxt['haproxy_host'] = '0.0.0.0'
             ctxt['stat_port'] = ':8888'
 
-        if len(cluster_hosts.keys()) > 1:
-            # Enable haproxy when we have enough peers.
-            log('Ensuring haproxy enabled in /etc/default/haproxy.')
-            with open('/etc/default/haproxy', 'w') as out:
-                out.write('ENABLED=1\n')
-            return ctxt
+        for frontend in cluster_hosts:
+            if len(cluster_hosts[frontend]['backends']) > 1:
+                # Enable haproxy when we have enough peers.
+                log('Ensuring haproxy enabled in /etc/default/haproxy.')
+                with open('/etc/default/haproxy', 'w') as out:
+                    out.write('ENABLED=1\n')
+                return ctxt
         log('HAProxy context is incomplete, this unit has no peers.')
         return {}
 
@@ -722,22 +758,22 @@ class NeutronContext(OSContextGenerator):
 
 class OSConfigFlagContext(OSContextGenerator):
 
-        """
-        Responsible for adding user-defined config-flags in charm config to a
-        template context.
+    """
+    Responsible for adding user-defined config-flags in charm config to a
+    template context.
 
-        NOTE: the value of config-flags may be a comma-separated list of
-              key=value pairs and some Openstack config files support
-              comma-separated lists as values.
-        """
+    NOTE: the value of config-flags may be a comma-separated list of
+          key=value pairs and some Openstack config files support
+          comma-separated lists as values.
+    """
 
-        def __call__(self):
-            config_flags = config('config-flags')
-            if not config_flags:
-                return {}
+    def __call__(self):
+        config_flags = config('config-flags')
+        if not config_flags:
+            return {}
 
-            flags = config_flags_parser(config_flags)
-            return {'user_config_flags': flags}
+        flags = config_flags_parser(config_flags)
+        return {'user_config_flags': flags}
 
 
 class SubordinateConfigContext(OSContextGenerator):
