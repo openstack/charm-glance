@@ -70,6 +70,18 @@ options:
     description: |
       Default multicast port number that will be used to communicate between
       HA Cluster nodes.
+  haproxy-server-timeout:
+    type: int
+    default:
+    description: |
+       Server timeout configuration in ms for haproxy, used in HA configurations.
+       If not provided, default value of 30000ms is used.
+  haproxy-client-timeout:
+    type: int
+    default:
+    description: |
+       Client timeout configuration in ms for haproxy, used in HA configurations.
+       If not provided, default value of 30000ms is used.
   ssl_cert:
     type: string
     default:
