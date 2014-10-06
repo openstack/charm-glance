@@ -52,6 +52,7 @@ options:
   # HA configuration settings
   vip:
     type: string
+    default:
     description: |
       Virtual IP(s) to use to front API services in HA configuration.
       .
@@ -71,6 +72,7 @@ options:
       HA Cluster nodes.
   ssl_cert:
     type: string
+    default:
     description: |
       SSL certificate to install and use for API ports.  Setting this value
       and ssl_key will enable reverse proxying, point Glance's entry in the
@@ -78,9 +80,11 @@ options:
       issued by Keystone (if it is configured to do so).
   ssl_key:
     type: string
+    default:
     description: SSL key to use with certificate specified as ssl_cert.
   ssl_ca:
     type: string
+    default:
     description: |
       SSL CA to use with the certificate and key provided - this is only
       required if you are providing a privately signed ssl_cert and ssl_key.
@@ -96,6 +100,7 @@ options:
   # by default all access is over 'private-address'
   os-admin-network:
     type: string
+    default:
     description: |
       The IP address and netmask of the OpenStack Admin network (e.g.,
       192.168.0.0/24)
@@ -103,6 +108,7 @@ options:
       This network will be used for admin endpoints.
   os-internal-network:
     type: string
+    default:
     description: |
       The IP address and netmask of the OpenStack Internal network (e.g.,
       192.168.0.0/24)
@@ -110,6 +116,7 @@ options:
       This network will be used for internal endpoints.
   os-public-network:
     type: string
+    default:
     description: |
       The IP address and netmask of the OpenStack Public network (e.g.,
       192.168.0.0/24)
