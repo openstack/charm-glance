@@ -50,6 +50,22 @@ class ObjectStoreContext(OSContextGenerator):
         }
 
 
+class MultiStoreContext(OSContextGenerator):
+
+    def __call__(self):
+        store_mapping = {
+            'ceph': 'glance.store.rbd.Store',
+            'object-store': 'glance.store.swift.Store',
+        }
+        stores = []
+        for store_relation, store_type in store_mapping.iteritems():
+            if relation_ids(store_relation):
+                stores.append(store_type)
+        return {
+            'known_stores': 'known_stores = ' + ','.join(stores)
+        }
+
+
 class HAProxyContext(OSContextGenerator):
     interfaces = ['cluster']
 
