@@ -41,6 +41,20 @@ class TestGlanceContexts(CharmTestCase):
             {'rbd_pool': service,
              'rbd_user': service})
 
+    def test_multistore(self):
+        self.relation_ids.return_value = ['random_rid']
+        self.assertEquals(contexts.MultiStoreContext()(),
+                          {'known_stores': "glance.store.filesystem.Store,"
+                                           "glance.store.http.Store,"
+                                           "glance.store.rbd.Store,"
+                                           "glance.store.swift.Store"})
+
+    def test_multistore_defaults(self):
+        self.relation_ids.return_value = []
+        self.assertEquals(contexts.MultiStoreContext()(),
+                          {'known_stores': "glance.store.filesystem.Store,"
+                                           "glance.store.http.Store"})
+
     mod_ch_context = 'charmhelpers.contrib.openstack.context'
 
     @patch('%s.ApacheSSLContext.canonical_names' % (mod_ch_context))
