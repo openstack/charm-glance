@@ -57,6 +57,8 @@ from charmhelpers.contrib.network.ip import (
     is_address_in_network
 )
 
+from charmhelpers.contrib.openstack.utils import get_host_ip
+
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 
 
@@ -429,7 +431,7 @@ class HAProxyContext(OSContextGenerator):
         if config('prefer-ipv6'):
             addr = get_ipv6_addr(exc_list=[config('vip')])[0]
         else:
-            addr = unit_get('private-address')
+            addr = get_host_ip(unit_get('private-address'))
 
         cluster_hosts = {}
 
