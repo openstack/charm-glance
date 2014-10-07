@@ -71,6 +71,8 @@ from charmhelpers.contrib.openstack.ip import (
     PUBLIC, INTERNAL, ADMIN
 )
 
+from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
+
 from subprocess import (
     check_call,
     call, )
@@ -188,9 +190,6 @@ def pgsql_db_changed():
 
 @hooks.hook('image-service-relation-joined')
 def image_service_joined(relation_id=None):
-    if not eligible_leader(CLUSTER_RES):
-        return
-
     relation_data = {
         'glance-api-server':
         "{}:9292".format(canonical_url(CONFIGS, INTERNAL))
@@ -248,10 +247,6 @@ def ceph_changed():
 
 @hooks.hook('identity-service-relation-joined')
 def keystone_joined(relation_id=None):
-    if not eligible_leader(CLUSTER_RES):
-        juju_log('Deferring keystone_joined() to service leader.')
-        return
-
     public_url = '{}:9292'.format(canonical_url(CONFIGS, PUBLIC))
     internal_url = '{}:9292'.format(canonical_url(CONFIGS, INTERNAL))
     admin_url = '{}:9292'.format(canonical_url(CONFIGS, ADMIN))
@@ -311,15 +306,19 @@ def config_changed():
 
 @hooks.hook('cluster-relation-joined')
 def cluster_joined(relation_id=None):
+    for addr_type in ADDRESS_TYPES:
+        address = get_address_in_network(
+            config('os-{}-network'.format(addr_type))
+        )
+        if address:
+            relation_set(
+                relation_id=relation_id,
+                relation_settings={'{}-address'.format(addr_type): address}
+            )
     if config('prefer-ipv6'):
         private_addr = get_ipv6_addr(exc_list=[config('vip')])[0]
-    else:
-        private_addr = unit_get('private-address')
-
-    address = get_address_in_network(config('os-internal-network'),
-                                     private_addr)
-    relation_set(relation_id=relation_id,
-                 relation_settings={'private-address': address})
+        relation_set(relation_id=relation_id,
+                     relation_settings={'private-address': private_addr})
 
 
 @hooks.hook('cluster-relation-changed')
@@ -396,9 +395,6 @@ def ha_relation_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
         juju_log('ha_changed: hacluster subordinate is not fully clustered.')
-        return
-    if not eligible_leader(CLUSTER_RES):
-        juju_log('ha_changed: hacluster complete but we are not leader.')
         return
 
     # reconfigure endpoint in keystone to point to clustered VIP.

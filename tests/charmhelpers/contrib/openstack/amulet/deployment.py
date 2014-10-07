@@ -1,6 +1,3 @@
-from bzrlib.branch import Branch
-import os
-import re
 from charmhelpers.contrib.amulet.deployment import (
     AmuletDeployment
 )
@@ -13,62 +10,62 @@ class OpenStackAmuletDeployment(AmuletDeployment):
        that is specifically for use by OpenStack charms.
        """
 
-    def __init__(self, series=None, openstack=None, source=None):
+    def __init__(self, series=None, openstack=None, source=None, stable=True):
         """Initialize the deployment environment."""
         super(OpenStackAmuletDeployment, self).__init__(series)
         self.openstack = openstack
         self.source = source
-
-    def _is_dev_branch(self):
-        """Determine if branch being tested is a dev (i.e. next) branch."""
-        branch = Branch.open(os.getcwd())
-        parent = branch.get_parent()
-        pattern = re.compile("^.*/next/$")
-        if (pattern.match(parent)):
-            return True
-        else:
-            return False
+        self.stable = stable
+        # Note(coreycb): this needs to be changed when new next branches come
+        # out.
+        self.current_next = "trusty"
 
     def _determine_branch_locations(self, other_services):
         """Determine the branch locations for the other services.
 
-           If the branch being tested is a dev branch, then determine the
-           development branch locations for the other services. Otherwise,
-           the default charm store branches will be used."""
-        name = 0
-        if self._is_dev_branch():
-            updated_services = []
+           Determine if the local branch being tested is derived from its
+           stable or next (dev) branch, and based on this, use the corresonding
+           stable or next branches for the other_services."""
+        base_charms = ['mysql', 'mongodb', 'rabbitmq-server']
+
+        if self.stable:
             for svc in other_services:
-                if svc[name] in ['mysql', 'mongodb', 'rabbitmq-server']:
-                    location = 'lp:charms/{}'.format(svc[name])
+                temp = 'lp:charms/{}'
+                svc['location'] = temp.format(svc['name'])
+        else:
+            for svc in other_services:
+                if svc['name'] in base_charms:
+                    temp = 'lp:charms/{}'
+                    svc['location'] = temp.format(svc['name'])
                 else:
-                    temp = 'lp:~openstack-charmers/charms/trusty/{}/next'
-                    location = temp.format(svc[name])
-                updated_services.append(svc + (location,))
-            other_services = updated_services
+                    temp = 'lp:~openstack-charmers/charms/{}/{}/next'
+                    svc['location'] = temp.format(self.current_next,
+                                                  svc['name'])
         return other_services
 
     def _add_services(self, this_service, other_services):
         """Add services to the deployment and set openstack-origin/source."""
-        name = 0
         other_services = self._determine_branch_locations(other_services)
+
         super(OpenStackAmuletDeployment, self)._add_services(this_service,
                                                              other_services)
+
         services = other_services
         services.append(this_service)
-        use_source = ['mysql', 'mongodb', 'rabbitmq-server', 'ceph']
+        use_source = ['mysql', 'mongodb', 'rabbitmq-server', 'ceph',
+                      'ceph-osd', 'ceph-radosgw']
 
         if self.openstack:
             for svc in services:
-                if svc[name] not in use_source:
+                if svc['name'] not in use_source:
                     config = {'openstack-origin': self.openstack}
-                    self.d.configure(svc[name], config)
+                    self.d.configure(svc['name'], config)
 
         if self.source:
             for svc in services:
-                if svc[name] in use_source:
+                if svc['name'] in use_source:
                     config = {'source': self.source}
-                    self.d.configure(svc[name], config)
+                    self.d.configure(svc['name'], config)
 
     def _configure_services(self, configs):
         """Configure all of the services."""

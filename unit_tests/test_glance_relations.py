@@ -14,6 +14,8 @@ utils.restart_map = MagicMock()
 
 import glance_relations as relations
 
+relations.hooks._config_save = False
+
 utils.register_configs = _reg
 utils.restart_map = _map
 
@@ -265,13 +267,7 @@ class GlanceRelationTests(CharmTestCase):
         )
         self.migrate_database.assert_called_with()
 
-    def test_image_service_joined_not_leader(self):
-        self.eligible_leader.return_value = False
-        relations.image_service_joined()
-        self.assertFalse(self.relation_set.called)
-
     def test_image_service_joined_leader(self):
-        self.eligible_leader.return_value = True
         self.canonical_url.return_value = 'http://glancehost'
         relations.image_service_joined()
         args = {
@@ -281,7 +277,6 @@ class GlanceRelationTests(CharmTestCase):
         self.relation_set.assert_called_with(**args)
 
     def test_image_service_joined_specified_interface(self):
-        self.eligible_leader.return_value = True
         self.canonical_url.return_value = 'http://glancehost'
         relations.image_service_joined(relation_id='image-service:1')
         args = {
@@ -361,14 +356,7 @@ class GlanceRelationTests(CharmTestCase):
         self.ensure_ceph_pool.assert_called_with(service=self.service_name(),
                                                  replicas=2)
 
-    def test_keystone_joined_not_leader(self):
-        self.ceph_config_file.return_value = '/var/lib/charm/glance/ceph.conf'
-        self.eligible_leader.return_value = False
-        relations.keystone_joined()
-        self.assertFalse(self.relation_set.called)
-
     def test_keystone_joined(self):
-        self.eligible_leader.return_value = True
         self.canonical_url.return_value = 'http://glancehost'
         relations.keystone_joined()
         ex = {
@@ -382,7 +370,6 @@ class GlanceRelationTests(CharmTestCase):
         self.relation_set.assert_called_with(**ex)
 
     def test_keystone_joined_with_relation_id(self):
-        self.eligible_leader.return_value = True
         self.canonical_url.return_value = 'http://glancehost'
         relations.keystone_joined(relation_id='identity-service:0')
         ex = {
@@ -617,19 +604,10 @@ class GlanceRelationTests(CharmTestCase):
                           configs.write.call_args_list)
         self.assertFalse(self.juju_log.called)
 
-    @patch.object(relations, 'keystone_joined')
-    def test_ha_relation_changed_not_leader(self, joined):
-        self.relation_get.return_value = True
-        self.eligible_leader.return_value = False
-        relations.ha_relation_changed()
-        self.assertTrue(self.juju_log.called)
-        self.assertFalse(joined.called)
-
     @patch.object(relations, 'image_service_joined')
     @patch.object(relations, 'keystone_joined')
-    def test_ha_relation_changed_leader(self, ks_joined, image_joined):
+    def test_ha_relation_changed(self, ks_joined, image_joined):
         self.relation_get.return_value = True
-        self.eligible_leader.return_value = True
         self.relation_ids.side_effect = [['identity:0'], ['image:1']]
         relations.ha_relation_changed()
         ks_joined.assert_called_with('identity:0')
