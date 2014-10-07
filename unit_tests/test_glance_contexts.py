@@ -41,6 +41,20 @@ class TestGlanceContexts(CharmTestCase):
             {'rbd_pool': service,
              'rbd_user': service})
 
+    def test_multistore(self):
+        self.relation_ids.return_value = ['random_rid']
+        self.assertEquals(contexts.MultiStoreContext()(),
+                          {'known_stores': "glance.store.filesystem.Store,"
+                                           "glance.store.http.Store,"
+                                           "glance.store.rbd.Store,"
+                                           "glance.store.swift.Store"})
+
+    def test_multistore_defaults(self):
+        self.relation_ids.return_value = []
+        self.assertEquals(contexts.MultiStoreContext()(),
+                          {'known_stores': "glance.store.filesystem.Store,"
+                                           "glance.store.http.Store"})
+
     @patch('charmhelpers.contrib.openstack.context.config')
     @patch('charmhelpers.contrib.openstack.context.is_clustered')
     @patch('charmhelpers.contrib.openstack.context.determine_apache_port')
