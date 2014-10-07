@@ -98,7 +98,8 @@ CONFIG_FILES = OrderedDict([
                           context.SyslogContext(),
                           glance_contexts.LoggingConfigContext(),
                           glance_contexts.GlanceIPv6Context(),
-                          context.WorkerConfigContext()],
+                          context.WorkerConfigContext(),
+                          glance_contexts.MultiStoreContext()],
         'services': ['glance-api']
     }),
     (GLANCE_API_PASTE_INI, {
