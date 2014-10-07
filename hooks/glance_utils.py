@@ -83,7 +83,8 @@ CONFIG_FILES = OrderedDict([
                           context.IdentityServiceContext(),
                           context.SyslogContext(),
                           glance_contexts.LoggingConfigContext(),
-                          glance_contexts.GlanceIPv6Context()],
+                          glance_contexts.GlanceIPv6Context(),
+                          context.WorkerConfigContext()],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
@@ -96,7 +97,8 @@ CONFIG_FILES = OrderedDict([
                           glance_contexts.HAProxyContext(),
                           context.SyslogContext(),
                           glance_contexts.LoggingConfigContext(),
-                          glance_contexts.GlanceIPv6Context()],
+                          glance_contexts.GlanceIPv6Context(),
+                          context.WorkerConfigContext()],
         'services': ['glance-api']
     }),
     (GLANCE_API_PASTE_INI, {
