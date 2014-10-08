@@ -354,7 +354,7 @@ class GlanceRelationTests(CharmTestCase):
                            call(self.ceph_config_file())],
                           configs.write.call_args_list)
         self.ensure_ceph_pool.assert_called_with(service=self.service_name(),
-                                                 replicas=2)
+                                                 replicas=3)
 
     def test_keystone_joined(self):
         self.canonical_url.return_value = 'http://glancehost'
