@@ -4,7 +4,7 @@ set -ex
 
 sudo add-apt-repository --yes ppa:juju/stable
 sudo apt-get update --yes
-sudo apt-get install --yes python-amulet
-sudo apt-get install --yes python-keystoneclient
-sudo apt-get install --yes python-glanceclient
-
+sudo apt-get install --yes python-amulet \
+                           python-keystoneclient \
+                           python-glanceclient \
+                           python-novaclient
