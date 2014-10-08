@@ -903,3 +903,22 @@ class BindHostContext(OSContextGenerator):
             return {
                 'bind_host': '0.0.0.0'
             }
+
+
+class WorkerConfigContext(OSContextGenerator):
+
+    @property
+    def num_cpus(self):
+        try:
+            from psutil import NUM_CPUS
+        except ImportError:
+            apt_install('python-psutil', fatal=True)
+            from psutil import NUM_CPUS
+        return NUM_CPUS
+
+    def __call__(self):
+        multiplier = config('worker-multiplier') or 1
+        ctxt = {
+            "workers": self.num_cpus * multiplier
+        }
+        return ctxt
