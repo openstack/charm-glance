@@ -1,6 +1,12 @@
 This directory provides Amulet tests that focus on verification of Glance
 deployments.
 
+In order to run tests, you'll need charm-tools installed (in addition to
+juju, of course):
+    sudo add-apt-repository ppa:juju/stable
+    sudo apt-get update
+    sudo apt-get install charm-tools
+
 If you use a web proxy server to access the web, you'll need to set the
 AMULET_HTTP_PROXY environment variable to the http URL of the proxy server.
 
