@@ -140,7 +140,8 @@ def _get_for_address(address, key):
         if address.version == 4 and netifaces.AF_INET in addresses:
             addr = addresses[netifaces.AF_INET][0]['addr']
             netmask = addresses[netifaces.AF_INET][0]['netmask']
-            cidr = netaddr.IPNetwork("%s/%s" % (addr, netmask))
+            network = netaddr.IPNetwork("%s/%s" % (addr, netmask))
+            cidr = network.cidr
             if address in cidr:
                 if key == 'iface':
                     return iface
@@ -149,11 +150,14 @@ def _get_for_address(address, key):
         if address.version == 6 and netifaces.AF_INET6 in addresses:
             for addr in addresses[netifaces.AF_INET6]:
                 if not addr['addr'].startswith('fe80'):
-                    cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
-                                                        addr['netmask']))
+                    network = netaddr.IPNetwork("%s/%s" % (addr['addr'],
+                                                           addr['netmask']))
+                    cidr = network.cidr
                     if address in cidr:
                         if key == 'iface':
                             return iface
+                        elif key == 'netmask' and cidr:
+                            return str(cidr).split('/')[1]
                         else:
                             return addr[key]
     return None
