@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import amulet
-import time
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
     OpenStackAmuletDeployment
@@ -24,9 +23,9 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 #    * Add tests with different storage back ends
 #    * Resolve Essex->Havana juju set charm bug
 
-    def __init__(self, series=None, openstack=None, source=None):
+    def __init__(self, series=None, openstack=None, source=None, stable=False):
         '''Deploy the entire test environment.'''
-        super(GlanceBasicDeployment, self).__init__(series, openstack, source)
+        super(GlanceBasicDeployment, self).__init__(series, openstack, source, stable)
         self._add_services()
         self._add_relations()
         self._configure_services()
@@ -34,11 +33,15 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         self._initialize_tests()
 
     def _add_services(self):
-        '''Add the service that we're testing, including the number of units,
-           where this charm is local, and the other charms are from
-           the charm store.'''
-        this_service = ('glance', 1)
-        other_services = [('mysql', 1), ('rabbitmq-server', 1), ('keystone', 1)]
+        '''Add services
+
+           Add the services that we're testing, where glance is local,
+           and the rest of the service are from lp branches that are
+           compatible with the local charm (e.g. stable or next).
+           '''
+        this_service = {'name': 'glance'}
+        other_services = [{'name': 'mysql'}, {'name': 'rabbitmq-server'},
+                          {'name': 'keystone'}]
         super(GlanceBasicDeployment, self)._add_services(this_service,
                                                          other_services)
 
@@ -377,7 +380,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             # Section and directive for this config changed in icehouse
             expected = {'sql_connection': db_uri, 'sql_idle_timeout': '3600'}
             section = 'DEFAULT'
- 
+
         ret = u.validate_config_data(unit, conf, section, expected) 
         if ret:
             message = "glance db config error: {}".format(ret)
@@ -438,42 +441,51 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             amulet.raise_status(amulet.FAIL,
                                 msg='keystone endpoint: {}'.format(ret))
 
-    def test_glance_restart_on_config_change(self):
-        '''Verify that glance is restarted when the config is changed.'''
-
-        # Make config change to trigger a service restart
+    def _change_config(self):
         if self._get_openstack_release() > self.precise_havana:
-            self.d.configure('glance', {'verbose': 'True'})
             self.d.configure('glance', {'debug': 'True'})
-        elif self._get_openstack_release() <= self.precise_havana:
+        else:
+            self.d.configure('glance', {'debug': 'False'})
+
+    def _restore_config(self):
+        if self._get_openstack_release() > self.precise_havana:
+            self.d.configure('glance', {'debug': 'False'})
+        else:
+            self.d.configure('glance', {'debug': 'True'})
+
+    def test_z_glance_restart_on_config_change(self):
+        '''Verify that glance is restarted when the config is changed.
+
+           Note(coreycb): The method name with the _z_ is a little odd
+           but it forces the test to run last.  It just makes things
+           easier because restarting services requires re-authorization.
+           '''
+        if self._get_openstack_release() <= self.precise_havana:
             # /!\ NOTE(beisner): Glance charm before Icehouse doesn't respond
             # to attempted config changes via juju / juju set.
             # https://bugs.launchpad.net/charms/+source/glance/+bug/1340307
-
             u.log.error('NOTE(beisner): skipping glance restart on config ' +
                         'change check due to bug 1340307.')
             return
-            self.d.configure('glance', {'verbose': 'False'})
-            self.d.configure('glance', {'debug': 'False'})
+
+        # Make config change to trigger a service restart
+        self._change_config()
 
         if not u.service_restarted(self.glance_sentry, 'glance-api',
                                    '/etc/glance/glance-api.conf'):
+            self._restore_config()
             message = "glance service didn't restart after config change"
             amulet.raise_status(amulet.FAIL, msg=message)
 
         if not u.service_restarted(self.glance_sentry, 'glance-registry',
                                    '/etc/glance/glance-registry.conf',
                                    sleep_time=0):
+            self._restore_config()
             message = "glance service didn't restart after config change"
             amulet.raise_status(amulet.FAIL, msg=message)
-        
+
         # Return to original config
-        if self._get_openstack_release() > self.precise_havana:
-            self.d.configure('glance', {'verbose': 'False'})
-            self.d.configure('glance', {'debug': 'False'})
-        else:
-            self.d.configure('glance', {'verbose': 'True'})
-            self.d.configure('glance', {'debug': 'True'})
+        self._restore_config()
 
     def test_users(self):
         '''Verify expected users.'''
