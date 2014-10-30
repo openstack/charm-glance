@@ -1,0 +1,72 @@
+#!/usr/bin/python
+
+#
+# Copyright 2012, 2013 Canonical Ltd.
+#
+# Author: Paul Collins <paul.collins@canonical.com>
+#
+# Based on http://www.eurion.net/python-snippets/snippet/Upstart%20service%20status.html
+#
+
+import sys
+
+import dbus
+
+
+class Upstart(object):
+    def __init__(self):
+        self._bus = dbus.SystemBus()
+        self._upstart = self._bus.get_object('com.ubuntu.Upstart',
+                                             '/com/ubuntu/Upstart')
+    def get_job(self, job_name):
+        path = self._upstart.GetJobByName(job_name,
+                                          dbus_interface='com.ubuntu.Upstart0_6')
+        return self._bus.get_object('com.ubuntu.Upstart', path)
+
+    def get_properties(self, job):
+        path = job.GetInstance([], dbus_interface='com.ubuntu.Upstart0_6.Job')
+        instance = self._bus.get_object('com.ubuntu.Upstart', path)
+        return instance.GetAll('com.ubuntu.Upstart0_6.Instance',
+                               dbus_interface=dbus.PROPERTIES_IFACE)
+
+    def get_job_instances(self, job_name):
+        job = self.get_job(job_name)
+        paths = job.GetAllInstances([], dbus_interface='com.ubuntu.Upstart0_6.Job')
+        return [self._bus.get_object('com.ubuntu.Upstart', path) for path in paths]
+
+    def get_job_instance_properties(self, job):
+        return job.GetAll('com.ubuntu.Upstart0_6.Instance',
+                          dbus_interface=dbus.PROPERTIES_IFACE)
+
+try:
+    upstart = Upstart()
+    try:
+        job = upstart.get_job(sys.argv[1])        
+        props = upstart.get_properties(job)
+
+        if props['state'] == 'running':
+            print 'OK: %s is running' % sys.argv[1]
+            sys.exit(0)
+        else:
+            print 'CRITICAL: %s is not running' % sys.argv[1]
+            sys.exit(2)
+
+    except dbus.DBusException as e:
+        instances = upstart.get_job_instances(sys.argv[1])
+        propses = [upstart.get_job_instance_properties(instance) for instance in instances]
+        states = dict([(props['name'], props['state']) for props in propses])
+        if len(states) != states.values().count('running'):
+            not_running = []
+            for name in states.keys():
+                if states[name] != 'running':
+                    not_running.append(name)
+            print 'CRITICAL: %d instances of %s not running: %s' % \
+                (len(not_running), sys.argv[1], not_running.join(', '))
+            sys.exit(2)
+        else:
+            print 'OK: %d instances of %s running' % (len(states), sys.argv[1])
+
+except dbus.DBusException as e:
+    print 'CRITICAL: failed to get properties of \'%s\' from upstart' % sys.argv[1]
+    sys.exit(2)
+

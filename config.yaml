@@ -153,3 +153,14 @@ options:
       The CPU core multiplier to use when configuring worker processes for
       Glance.  By default, the number of workers for each daemon is set to
       twice the number of CPU cores a service unit has.
+  nagios_context:
+    default: "juju"
+    type: string
+    description: |
+      Used by the nrpe-external-master subordinate charm.
+      A string that will be prepended to instance name to set the host name
+      in nagios. So for instance the hostname would be something like:
+          juju-myservice-0
+      If you're running multiple environments with the same services in them
+      this allows you to differentiate between them.
+

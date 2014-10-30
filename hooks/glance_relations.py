@@ -73,6 +73,8 @@ from charmhelpers.contrib.openstack.ip import (
 
 from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
 
+from charmhelpers.contrib.charmsupport.nrpe import NRPE
+
 from subprocess import (
     check_call,
     call, )
@@ -297,6 +299,8 @@ def config_changed():
     open_port(9292)
     configure_https()
 
+    update_nrpe_config()
+
     # Pickup and changes due to network reference architecture
     # configuration
     [keystone_joined(rid) for rid in relation_ids('identity-service')]
@@ -334,6 +338,7 @@ def cluster_changed():
 def upgrade_charm():
     apt_install(filter_installed_packages(PACKAGES), fatal=True)
     configure_https()
+    update_nrpe_config()
     CONFIGS.write_all()
 
 
@@ -445,6 +450,25 @@ def amqp_changed():
         juju_log('amqp relation incomplete. Peer not ready?')
         return
     CONFIGS.write(GLANCE_API_CONF)
+
+@hooks.hook('nrpe-external-master-relation-joined', 'nrpe-external-master-relation-changed')
+def update_nrpe_config():
+    nrpe = NRPE()
+    apt_install('python-dbus')
+    
+    nrpe.add_check(
+        shortname='glance-api',
+        description='glance-api process',
+        check_cmd = 'check_upstart_job glance-api',
+        )
+    nrpe.add_check(
+        shortname='glance-registry',
+        description='glance-registry process',
+        check_cmd = 'check_upstart_job glance-registry',
+        )
+
+    nrpe.write()
+
 
 if __name__ == '__main__':
     try:
