@@ -459,18 +459,21 @@ def update_nrpe_config():
     for rel in relations_of_type('nrpe-external-master'):
         if 'nagios_hostname' in rel:
             hostname = rel['nagios_hostname']
+            host_context = rel['nagios_host_context']
             break
     nrpe = NRPE(hostname=hostname)
     apt_install('python-dbus')
-    
+
+    current_unit = "%s:%s" % (host_context, local_unit())
+
     nrpe.add_check(
         shortname='glance-api',
-        description='glance-api process',
+        description='process check {%s}' % current_unit,
         check_cmd = 'check_upstart_job glance-api',
         )
     nrpe.add_check(
         shortname='glance-registry',
-        description='glance-registry process',
+        description='process check {%s}' % current_unit,
         check_cmd = 'check_upstart_job glance-registry',
         )
 
