@@ -34,7 +34,6 @@ from charmhelpers.core.hookenv import (
     local_unit,
     relation_get,
     relation_set,
-    relation_id,
     relation_ids,
     service_name,
     unit_get,
@@ -228,7 +227,7 @@ def ceph_joined():
 
 @hooks.hook('ceph-relation-changed')
 @restart_on_change(restart_map())
-def ceph_changed():
+def ceph_changed(relation_id=None):
     if 'ceph' not in CONFIGS.complete_contexts():
         juju_log('ceph relation incomplete. Peer not ready?')
         return
