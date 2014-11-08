@@ -15,6 +15,7 @@ from charmhelpers.fetch import (
 
 from charmhelpers.core.hookenv import (
     config,
+    is_relation_made,
     local_unit,
     log,
     relation_get,
@@ -24,7 +25,7 @@ from charmhelpers.core.hookenv import (
     unit_get,
     unit_private_ip,
     ERROR,
-    INFO
+    DEBUG
 )
 
 from charmhelpers.core.host import (
@@ -57,8 +58,9 @@ from charmhelpers.contrib.network.ip import (
     is_address_in_network
 )
 
-from charmhelpers.contrib.openstack.utils import get_host_ip
-
+from charmhelpers.contrib.openstack.utils import (
+    get_host_ip,
+)
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 
 
@@ -700,6 +702,7 @@ class NeutronContext(OSContextGenerator):
                                           self.network_manager)
         n1kv_config = neutron_plugin_attribute(self.plugin, 'config',
                                                self.network_manager)
+        n1kv_user_config_flags = config('n1kv-config-flags')
         n1kv_ctxt = {
             'core_plugin': driver,
             'neutron_plugin': 'n1kv',
@@ -710,10 +713,28 @@ class NeutronContext(OSContextGenerator):
             'vsm_username': config('n1kv-vsm-username'),
             'vsm_password': config('n1kv-vsm-password'),
             'restrict_policy_profiles': config(
-                'n1kv_restrict_policy_profiles'),
+                'n1kv-restrict-policy-profiles'),
         }
+        if n1kv_user_config_flags:
+            flags = config_flags_parser(n1kv_user_config_flags)
+            n1kv_ctxt['user_config_flags'] = flags
 
         return n1kv_ctxt
+
+    def calico_ctxt(self):
+        driver = neutron_plugin_attribute(self.plugin, 'driver',
+                                          self.network_manager)
+        config = neutron_plugin_attribute(self.plugin, 'config',
+                                          self.network_manager)
+        calico_ctxt = {
+            'core_plugin': driver,
+            'neutron_plugin': 'Calico',
+            'neutron_security_groups': self.neutron_security_groups,
+            'local_ip': unit_private_ip(),
+            'config': config
+        }
+
+        return calico_ctxt
 
     def neutron_ctxt(self):
         if https():
@@ -748,6 +769,8 @@ class NeutronContext(OSContextGenerator):
             ctxt.update(self.nvp_ctxt())
         elif self.plugin == 'n1kv':
             ctxt.update(self.n1kv_ctxt())
+        elif self.plugin == 'Calico':
+            ctxt.update(self.calico_ctxt())
 
         alchemy_flags = config('neutron-alchemy-flags')
         if alchemy_flags:
@@ -867,7 +890,7 @@ class SubordinateConfigContext(OSContextGenerator):
                         else:
                             ctxt[k] = v
 
-        log("%d section(s) found" % (len(ctxt['sections'])), level=INFO)
+        log("%d section(s) found" % (len(ctxt['sections'])), level=DEBUG)
 
         return ctxt
 
@@ -921,4 +944,35 @@ class WorkerConfigContext(OSContextGenerator):
         ctxt = {
             "workers": self.num_cpus * multiplier
         }
+        return ctxt
+
+
+class ZeroMQContext(OSContextGenerator):
+    interfaces = ['zeromq-configuration']
+
+    def __call__(self):
+        ctxt = {}
+        if is_relation_made('zeromq-configuration', 'host'):
+            for rid in relation_ids('zeromq-configuration'):
+                    for unit in related_units(rid):
+                        ctxt['zmq_nonce'] = relation_get('nonce', unit, rid)
+                        ctxt['zmq_host'] = relation_get('host', unit, rid)
+        return ctxt
+
+
+class NotificationDriverContext(OSContextGenerator):
+
+    def __init__(self, zmq_relation='zeromq-configuration', amqp_relation='amqp'):
+        """
+        :param zmq_relation   : Name of Zeromq relation to check
+        """
+        self.zmq_relation = zmq_relation
+        self.amqp_relation = amqp_relation
+
+    def __call__(self):
+        ctxt = {
+            'notifications': 'False',
+        }
+        if is_relation_made(self.amqp_relation):
+            ctxt['notifications'] = "True"
         return ctxt
