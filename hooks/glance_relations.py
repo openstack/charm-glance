@@ -1,9 +1,13 @@
 #!/usr/bin/python
+import json
+from subprocess import (
+    check_call,
+    call
+)
 import sys
 
 from glance_utils import (
     do_openstack_upgrade,
-    ensure_ceph_pool,
     migrate_database,
     register_configs,
     restart_map,
@@ -17,48 +21,52 @@ from glance_utils import (
     GLANCE_API_PASTE_INI,
     HAPROXY_CONF,
     ceph_config_file,
-    setup_ipv6)
-
+    setup_ipv6
+)
 from charmhelpers.core.hookenv import (
     config,
     Hooks,
     log as juju_log,
+    INFO,
     ERROR,
     open_port,
     is_relation_made,
     local_unit,
     relation_get,
     relation_set,
+    relation_id,
     relation_ids,
     service_name,
     unit_get,
-    UnregisteredHookError, )
-
+    UnregisteredHookError
+)
 from charmhelpers.core.host import (
     restart_on_change,
+    service_start,
     service_stop
 )
-
 from charmhelpers.fetch import (
     apt_install,
     apt_update,
     filter_installed_packages
 )
-
 from charmhelpers.contrib.hahelpers.cluster import (
     eligible_leader,
     get_hacluster_config
 )
-
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     get_os_codename_package,
     openstack_upgrade_available,
     lsb_release,
-    sync_db_with_multi_ipv6_addresses)
-
-from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
-from charmhelpers.payload.execd import execd_preinstall
+    sync_db_with_multi_ipv6_addresses
+)
+from charmhelpers.contrib.storage.linux.ceph import (
+    ensure_ceph_keyring
+)
+from charmhelpers.payload.execd import (
+    execd_preinstall
+)
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_netmask_for_address,
@@ -70,15 +78,11 @@ from charmhelpers.contrib.openstack.ip import (
     canonical_url,
     PUBLIC, INTERNAL, ADMIN
 )
-
-from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
-
-from subprocess import (
-    check_call,
-    call, )
+from charmhelpers.contrib.openstack.context import (
+    ADDRESS_TYPES
+)
 
 hooks = Hooks()
-
 CONFIGS = register_configs()
 
 
@@ -230,19 +234,34 @@ def ceph_changed():
         return
 
     service = service_name()
-
     if not ensure_ceph_keyring(service=service,
                                user='glance', group='glance'):
         juju_log('Could not create ceph keyring: peer not ready?')
         return
 
-    CONFIGS.write(GLANCE_API_CONF)
-    CONFIGS.write(ceph_config_file())
+    settings = relation_get(rid=relation_id)
+    if settings and 'broker_rsp' in settings:
+        rsp = json.loads(settings['broker_rsp'])
+        # Non-zero return code implies failure
+        if rsp['exit_code']:
+            juju_log("Ceph broker request failed (rsp=%s)" % (rsp),
+                     level=ERROR)
+            return
 
-    if eligible_leader(CLUSTER_RES):
-        _config = config()
-        ensure_ceph_pool(service=service,
-                         replicas=_config['ceph-osd-replication-count'])
+        juju_log("Ceph broker request succeeded (rsp=%s)" % (rsp), level=INFO)
+        CONFIGS.write(GLANCE_API_CONF)
+        CONFIGS.write(ceph_config_file())
+        juju_log("Starting glance-api")
+        service_start('glance-api')
+    else:
+        broker_ops = [{'op': 'create_pool', 'pool': service,
+                       'replicas': config('ceph-osd-replication-count')}]
+        for rid in relation_ids('ceph'):
+            relation_set(relation_id=rid, broker_req=json.dumps(broker_ops))
+            juju_log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
+
+        juju_log("Stopping glance-api until successful response from broker")
+        service_stop('glance-api')
 
 
 @hooks.hook('identity-service-relation-joined')
