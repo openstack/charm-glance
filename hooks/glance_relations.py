@@ -254,7 +254,7 @@ def ceph_changed():
         juju_log("Starting glance-api")
         service_start('glance-api')
     else:
-        broker_ops = [{'op': 'create_pool', 'pool': service,
+        broker_ops = [{'op': 'create_pool', 'name': service,
                        'replicas': config('ceph-osd-replication-count')}]
         for rid in relation_ids('ceph'):
             relation_set(relation_id=rid, broker_req=json.dumps(broker_ops))
