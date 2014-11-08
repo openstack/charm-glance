@@ -356,7 +356,7 @@ class GlanceRelationTests(CharmTestCase):
         self.ensure_ceph_keyring.assert_called_with(service='glance',
                                                     user='glance',
                                                     group='glance')
-        broker_dict = json.dumps([{"op": "create_pool", "pool": "glance",
+        broker_dict = json.dumps([{"op": "create_pool", "name": "glance",
                                    "replicas": 3}])
         mock_relation_set.assert_called_with(broker_req=broker_dict,
                                              relation_id='ceph:0')
