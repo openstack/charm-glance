@@ -242,7 +242,7 @@ def ceph_changed(relation_id=None):
     if settings and 'broker_rsp' in settings:
         rsp = json.loads(settings['broker_rsp'])
         # Non-zero return code implies failure
-        if rsp['exit_code']:
+        if rsp['exit-code']:
             juju_log("Ceph broker request failed (rsp=%s)" % (rsp),
                      level=ERROR)
             return
@@ -253,10 +253,11 @@ def ceph_changed(relation_id=None):
         juju_log("Starting glance-api")
         service_start('glance-api')
     else:
-        broker_ops = [{'op': 'create_pool', 'name': service,
-                       'replicas': config('ceph-osd-replication-count')}]
+        broker_req = {'api-version': 1, 'ops':
+                      [{'op': 'create-pool', 'name': service,
+                        'replicas': config('ceph-osd-replication-count')}]}
         for rid in relation_ids('ceph'):
-            relation_set(relation_id=rid, broker_req=json.dumps(broker_ops))
+            relation_set(relation_id=rid, broker_req=json.dumps(broker_req))
             juju_log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
 
         juju_log("Stopping glance-api until successful response from broker")
