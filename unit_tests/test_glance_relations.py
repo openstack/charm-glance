@@ -356,8 +356,9 @@ class GlanceRelationTests(CharmTestCase):
         self.ensure_ceph_keyring.assert_called_with(service='glance',
                                                     user='glance',
                                                     group='glance')
-        broker_dict = json.dumps([{"op": "create_pool", "name": "glance",
-                                   "replicas": 3}])
+        req = {'api-version': 1,
+               'ops': [{"op": "create-pool", "name": "glance", "replicas": 3}]}
+        broker_dict = json.dumps(req)
         mock_relation_set.assert_called_with(broker_req=broker_dict,
                                              relation_id='ceph:0')
         for c in [call('/etc/glance/glance.conf')]:
@@ -372,7 +373,7 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         self.ensure_ceph_keyring.return_value = True
         mock_relation_get.return_value = {'broker_rsp':
-                                          json.dumps({'exit_code': 0})}
+                                          json.dumps({'exit-code': 0})}
         relations.ceph_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
                            call(self.ceph_config_file())],
