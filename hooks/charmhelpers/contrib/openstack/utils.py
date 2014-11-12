@@ -2,6 +2,7 @@
 
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict
+from functools import wraps
 
 import subprocess
 import json
@@ -468,6 +469,14 @@ def get_hostname(address, fqdn=True):
         return result.split('.')[0]
 
 
+def get_matchmaker_map(mm_file='/etc/oslo/matchmaker_ring.json'):
+    mm_map = {}
+    if os.path.isfile(mm_file):
+        with open(mm_file, 'r') as f:
+            mm_map = json.load(f)
+    return mm_map
+
+
 def sync_db_with_multi_ipv6_addresses(database, database_user,
                                       relation_prefix=None):
     hosts = get_ipv6_addr(dynamic_only=False)
@@ -484,3 +493,18 @@ def sync_db_with_multi_ipv6_addresses(database, database_user,
 
     for rid in relation_ids('shared-db'):
         relation_set(relation_id=rid, **kwargs)
+
+
+def os_requires_version(ostack_release, pkg):
+    """
+    Decorator for hook to specify minimum supported release
+    """
+    def wrap(f):
+        @wraps(f)
+        def wrapped_f(*args):
+            if os_release(pkg) < ostack_release:
+                raise Exception("This hook is not supported on releases"
+                                " before %s" % ostack_release)
+            f(*args)
+        return wrapped_f
+    return wrap
