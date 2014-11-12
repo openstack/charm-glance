@@ -761,21 +761,39 @@ class NeutronContext(OSContextGenerator):
 class OSConfigFlagContext(OSContextGenerator):
 
     """
-    Responsible for adding user-defined config-flags in charm config to a
-    template context.
+    Provides support for user-defined config flags.
+
+    Users can define a comma-seperated list of key=value pairs
+    in the charm configuration and apply them at any point in
+    any file by using a template flag.
+
+    Sometimes users might want config flags inserted within a
+    specific section so this class allows users to specify the
+    template flag name, allowing for multiple template flags
+    (sections) within the same context.
 
     NOTE: the value of config-flags may be a comma-separated list of
           key=value pairs and some Openstack config files support
           comma-separated lists as values.
     """
 
+    def __init__(self, charm_flag='config-flags',
+                 template_flag='user_config_flags'):
+        """
+        charm_flag: config flags in charm configuration.
+        template_flag: insert point for user-defined flags template file.
+        """
+        super(OSConfigFlagContext, self).__init__()
+        self._charm_flag = charm_flag
+        self._template_flag = template_flag
+
     def __call__(self):
-        config_flags = config('config-flags')
+        config_flags = config(self._charm_flag)
         if not config_flags:
             return {}
 
-        flags = config_flags_parser(config_flags)
-        return {'user_config_flags': flags}
+        return {self._template_flag:
+                config_flags_parser(config_flags)}
 
 
 class SubordinateConfigContext(OSContextGenerator):
