@@ -113,7 +113,7 @@ def get_osds(service):
         return None
 
 
-def create_pool(service, name, replicas=2):
+def create_pool(service, name, replicas=3):
     ''' Create a new RADOS pool '''
     if pool_exists(service, name):
         log("Ceph pool {} already exists, skipping creation".format(name),
@@ -300,7 +300,8 @@ def copy_files(src, dst, symlinks=False, ignore=None):
 
 
 def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
-                        blk_device, fstype, system_services=[]):
+                        blk_device, fstype, system_services=[],
+                        replicas=3):
     """
     NOTE: This function must only be called from a single service unit for
     the same rbd_img otherwise data loss will occur.
@@ -317,7 +318,7 @@ def ensure_ceph_storage(service, pool, rbd_img, sizemb, mount_point,
     # Ensure pool, RBD image, RBD mappings are in place.
     if not pool_exists(service, pool):
         log('ceph: Creating new pool {}.'.format(pool))
-        create_pool(service, pool)
+        create_pool(service, pool, replicas=replicas)
 
     if not rbd_exists(service, pool, rbd_img):
         log('ceph: Creating RBD image ({}).'.format(rbd_img))
