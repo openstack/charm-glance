@@ -84,7 +84,10 @@ CONFIG_FILES = OrderedDict([
                           context.SyslogContext(),
                           glance_contexts.LoggingConfigContext(),
                           glance_contexts.GlanceIPv6Context(),
-                          context.WorkerConfigContext()],
+                          context.WorkerConfigContext(),
+                          context.OSConfigFlagContext(
+                          charm_flag='registry-config-flags',
+                          template_flag='registry_config_flags')],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
@@ -99,7 +102,10 @@ CONFIG_FILES = OrderedDict([
                           glance_contexts.LoggingConfigContext(),
                           glance_contexts.GlanceIPv6Context(),
                           context.WorkerConfigContext(),
-                          glance_contexts.MultiStoreContext()],
+                          glance_contexts.MultiStoreContext(),
+                          context.OSConfigFlagContext(
+                          charm_flag='api-config-flags',
+                          template_flag='api_config_flags')],
         'services': ['glance-api']
     }),
     (GLANCE_API_PASTE_INI, {
