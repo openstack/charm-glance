@@ -1,4 +1,4 @@
-branch: lp:charm-helpers
+branch: lp:~james-page/charm-helpers/lp.1391784
 destination: hooks/charmhelpers
 include:
     - core

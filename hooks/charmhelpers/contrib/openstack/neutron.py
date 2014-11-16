@@ -138,9 +138,24 @@ def neutron_plugins():
                                         relation_prefix='neutron',
                                         ssl_dir=NEUTRON_CONF_DIR)],
             'services': [],
-            'packages': [['neutron-plugin-cisco']],
+            'packages': [[headers_package()] + determine_dkms_package(),
+                         ['neutron-plugin-cisco']],
             'server_packages': ['neutron-server',
                                 'neutron-plugin-cisco'],
+            'server_services': ['neutron-server']
+        },
+        'Calico': {
+            'config': '/etc/neutron/plugins/ml2/ml2_conf.ini',
+            'driver': 'neutron.plugins.ml2.plugin.Ml2Plugin',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
+            'services': ['calico-compute', 'bird', 'neutron-dhcp-agent'],
+            'packages': [[headers_package()] + determine_dkms_package(),
+                         ['calico-compute', 'bird', 'neutron-dhcp-agent']],
+            'server_packages': ['neutron-server', 'calico-control'],
             'server_services': ['neutron-server']
         }
     }
