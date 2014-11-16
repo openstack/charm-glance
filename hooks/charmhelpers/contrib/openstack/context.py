@@ -15,6 +15,7 @@ from charmhelpers.fetch import (
 
 from charmhelpers.core.hookenv import (
     config,
+    is_relation_made,
     local_unit,
     log,
     relation_get,
@@ -24,7 +25,7 @@ from charmhelpers.core.hookenv import (
     unit_get,
     unit_private_ip,
     ERROR,
-    INFO
+    DEBUG
 )
 
 from charmhelpers.core.host import (
@@ -57,8 +58,9 @@ from charmhelpers.contrib.network.ip import (
     is_address_in_network
 )
 
-from charmhelpers.contrib.openstack.utils import get_host_ip
-
+from charmhelpers.contrib.openstack.utils import (
+    get_host_ip,
+)
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 
 
@@ -456,26 +458,27 @@ class HAProxyContext(OSContextGenerator):
                         if _laddr:
                             cluster_hosts[laddr]['backends'][_unit] = _laddr
 
-        # NOTE(jamespage) no split configurations found, just use
-        # private addresses
-        if not cluster_hosts:
-            cluster_hosts[addr] = {}
-            cluster_hosts[addr]['network'] = "{}/{}".format(
-                addr,
-                get_netmask_for_address(addr)
-            )
-            cluster_hosts[addr]['backends'] = {}
-            cluster_hosts[addr]['backends'][l_unit] = addr
-            for rid in relation_ids('cluster'):
-                for unit in related_units(rid):
-                    _unit = unit.replace('/', '-')
-                    _laddr = relation_get('private-address',
-                                          rid=rid, unit=unit)
-                    if _laddr:
-                        cluster_hosts[addr]['backends'][_unit] = _laddr
+        # NOTE(jamespage) add backend based on private address - this
+        # with either be the only backend or the fallback if no acls
+        # match in the frontend
+        cluster_hosts[addr] = {}
+        cluster_hosts[addr]['network'] = "{}/{}".format(
+            addr,
+            get_netmask_for_address(addr)
+        )
+        cluster_hosts[addr]['backends'] = {}
+        cluster_hosts[addr]['backends'][l_unit] = addr
+        for rid in relation_ids('cluster'):
+            for unit in related_units(rid):
+                _unit = unit.replace('/', '-')
+                _laddr = relation_get('private-address',
+                                      rid=rid, unit=unit)
+                if _laddr:
+                    cluster_hosts[addr]['backends'][_unit] = _laddr
 
         ctxt = {
             'frontends': cluster_hosts,
+            'default_backend': addr
         }
 
         if config('haproxy-server-timeout'):
@@ -584,6 +587,49 @@ class ApacheSSLContext(OSContextGenerator):
                         cns.append(k.lstrip('ssl_key_'))
         return list(set(cns))
 
+    def get_network_addresses(self):
+        """For each network configured, return corresponding address and vip
+           (if available).
+
+        Returns a list of tuples of the form:
+
+            [(address_in_net_a, vip_in_net_a),
+             (address_in_net_b, vip_in_net_b),
+             ...]
+
+            or, if no vip(s) available:
+
+            [(address_in_net_a, address_in_net_a),
+             (address_in_net_b, address_in_net_b),
+             ...]
+        """
+        addresses = []
+        vips = []
+        if config('vip'):
+            vips = config('vip').split()
+
+        for net_type in ['os-internal-network', 'os-admin-network',
+                         'os-public-network']:
+            addr = get_address_in_network(config(net_type),
+                                          unit_get('private-address'))
+            if len(vips) > 1 and is_clustered():
+                if not config(net_type):
+                    log("Multiple networks configured but net_type "
+                        "is None (%s)." % net_type, level='WARNING')
+                    continue
+
+                for vip in vips:
+                    if is_address_in_network(config(net_type), vip):
+                        addresses.append((addr, vip))
+                        break
+
+            elif is_clustered() and config('vip'):
+                addresses.append((addr, config('vip')))
+            else:
+                addresses.append((addr, addr))
+
+        return addresses
+
     def __call__(self):
         if isinstance(self.external_ports, basestring):
             self.external_ports = [self.external_ports]
@@ -602,27 +648,7 @@ class ApacheSSLContext(OSContextGenerator):
         for cn in self.canonical_names():
             self.configure_cert(cn)
 
-        addresses = []
-        vips = []
-        if config('vip'):
-            vips = config('vip').split()
-
-        for network_type in ['os-internal-network',
-                             'os-admin-network',
-                             'os-public-network']:
-            address = get_address_in_network(config(network_type),
-                                             unit_get('private-address'))
-            if len(vips) > 0 and is_clustered():
-                for vip in vips:
-                    if is_address_in_network(config(network_type),
-                                             vip):
-                        addresses.append((address, vip))
-                        break
-            elif is_clustered():
-                addresses.append((address, config('vip')))
-            else:
-                addresses.append((address, address))
-
+        addresses = self.get_network_addresses()
         for address, endpoint in set(addresses):
             for api_port in self.external_ports:
                 ext_port = determine_apache_port(api_port)
@@ -700,6 +726,7 @@ class NeutronContext(OSContextGenerator):
                                           self.network_manager)
         n1kv_config = neutron_plugin_attribute(self.plugin, 'config',
                                                self.network_manager)
+        n1kv_user_config_flags = config('n1kv-config-flags')
         n1kv_ctxt = {
             'core_plugin': driver,
             'neutron_plugin': 'n1kv',
@@ -710,10 +737,28 @@ class NeutronContext(OSContextGenerator):
             'vsm_username': config('n1kv-vsm-username'),
             'vsm_password': config('n1kv-vsm-password'),
             'restrict_policy_profiles': config(
-                'n1kv_restrict_policy_profiles'),
+                'n1kv-restrict-policy-profiles'),
         }
+        if n1kv_user_config_flags:
+            flags = config_flags_parser(n1kv_user_config_flags)
+            n1kv_ctxt['user_config_flags'] = flags
 
         return n1kv_ctxt
+
+    def calico_ctxt(self):
+        driver = neutron_plugin_attribute(self.plugin, 'driver',
+                                          self.network_manager)
+        config = neutron_plugin_attribute(self.plugin, 'config',
+                                          self.network_manager)
+        calico_ctxt = {
+            'core_plugin': driver,
+            'neutron_plugin': 'Calico',
+            'neutron_security_groups': self.neutron_security_groups,
+            'local_ip': unit_private_ip(),
+            'config': config
+        }
+
+        return calico_ctxt
 
     def neutron_ctxt(self):
         if https():
@@ -748,6 +793,8 @@ class NeutronContext(OSContextGenerator):
             ctxt.update(self.nvp_ctxt())
         elif self.plugin == 'n1kv':
             ctxt.update(self.n1kv_ctxt())
+        elif self.plugin == 'Calico':
+            ctxt.update(self.calico_ctxt())
 
         alchemy_flags = config('neutron-alchemy-flags')
         if alchemy_flags:
@@ -761,21 +808,39 @@ class NeutronContext(OSContextGenerator):
 class OSConfigFlagContext(OSContextGenerator):
 
     """
-    Responsible for adding user-defined config-flags in charm config to a
-    template context.
+    Provides support for user-defined config flags.
+
+    Users can define a comma-seperated list of key=value pairs
+    in the charm configuration and apply them at any point in
+    any file by using a template flag.
+
+    Sometimes users might want config flags inserted within a
+    specific section so this class allows users to specify the
+    template flag name, allowing for multiple template flags
+    (sections) within the same context.
 
     NOTE: the value of config-flags may be a comma-separated list of
           key=value pairs and some Openstack config files support
           comma-separated lists as values.
     """
 
+    def __init__(self, charm_flag='config-flags',
+                 template_flag='user_config_flags'):
+        """
+        charm_flag: config flags in charm configuration.
+        template_flag: insert point for user-defined flags template file.
+        """
+        super(OSConfigFlagContext, self).__init__()
+        self._charm_flag = charm_flag
+        self._template_flag = template_flag
+
     def __call__(self):
-        config_flags = config('config-flags')
+        config_flags = config(self._charm_flag)
         if not config_flags:
             return {}
 
-        flags = config_flags_parser(config_flags)
-        return {'user_config_flags': flags}
+        return {self._template_flag:
+                config_flags_parser(config_flags)}
 
 
 class SubordinateConfigContext(OSContextGenerator):
@@ -867,7 +932,7 @@ class SubordinateConfigContext(OSContextGenerator):
                         else:
                             ctxt[k] = v
 
-        log("%d section(s) found" % (len(ctxt['sections'])), level=INFO)
+        log("%d section(s) found" % (len(ctxt['sections'])), level=DEBUG)
 
         return ctxt
 
@@ -921,4 +986,35 @@ class WorkerConfigContext(OSContextGenerator):
         ctxt = {
             "workers": self.num_cpus * multiplier
         }
+        return ctxt
+
+
+class ZeroMQContext(OSContextGenerator):
+    interfaces = ['zeromq-configuration']
+
+    def __call__(self):
+        ctxt = {}
+        if is_relation_made('zeromq-configuration', 'host'):
+            for rid in relation_ids('zeromq-configuration'):
+                    for unit in related_units(rid):
+                        ctxt['zmq_nonce'] = relation_get('nonce', unit, rid)
+                        ctxt['zmq_host'] = relation_get('host', unit, rid)
+        return ctxt
+
+
+class NotificationDriverContext(OSContextGenerator):
+
+    def __init__(self, zmq_relation='zeromq-configuration', amqp_relation='amqp'):
+        """
+        :param zmq_relation   : Name of Zeromq relation to check
+        """
+        self.zmq_relation = zmq_relation
+        self.amqp_relation = amqp_relation
+
+    def __call__(self):
+        ctxt = {
+            'notifications': 'False',
+        }
+        if is_relation_made(self.amqp_relation):
+            ctxt['notifications'] = "True"
         return ctxt
