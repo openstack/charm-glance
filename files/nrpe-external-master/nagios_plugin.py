@@ -1,13 +1,4 @@
 #!/usr/bin/env python
-#                                       m
-#  mmmm   m   m  mmmm   mmmm    mmm   mm#mm
-#  #" "#  #   #  #" "#  #" "#  #"  #    #
-#  #   #  #   #  #   #  #   #  #""""    #
-#  ##m#"  "mm"#  ##m#"  ##m#"  "#mm"    "mm
-#  #             #      #
-#  "             "      "
-# This file is managed by puppet.  Do not make local changes.
-
 # Copyright (C) 2005, 2006, 2007, 2012  James Troup <james.troup@canonical.com>
 
 import os
