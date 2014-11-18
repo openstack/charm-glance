@@ -488,12 +488,9 @@ def update_nrpe_config():
                 )
         elif os.path.exists(sysv_init):
             cronpath = '/etc/cron.d/nagios-service-check-%s' % service
-            checkpath = os.path.join(os.environ['CHARM_DIR'],
-                                     'files/nrpe-external-master',
-                                     'check_exit_status.pl'),
             cron_template = '*/5 * * * * root \
-%s -s /etc/init.d/%s status > /var/lib/nagios/service-check-%s.txt\n' \
-                % (checkpath[0], service, service)
+/usr/local/lib/nagios/plugins/check_exit_status.pl -s /etc/init.d/%s \
+status > /var/lib/nagios/service-check-%s.txt\n' % (service, service)
             f = open(cronpath, 'w')
             f.write(cron_template)
             f.close()
