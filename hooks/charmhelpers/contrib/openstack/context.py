@@ -586,6 +586,49 @@ class ApacheSSLContext(OSContextGenerator):
                         cns.append(k.lstrip('ssl_key_'))
         return list(set(cns))
 
+    def get_network_addresses(self):
+        """For each network configured, return corresponding address and vip
+           (if available).
+
+        Returns a list of tuples of the form:
+
+            [(address_in_net_a, vip_in_net_a),
+             (address_in_net_b, vip_in_net_b),
+             ...]
+
+            or, if no vip(s) available:
+
+            [(address_in_net_a, address_in_net_a),
+             (address_in_net_b, address_in_net_b),
+             ...]
+        """
+        addresses = []
+        vips = []
+        if config('vip'):
+            vips = config('vip').split()
+
+        for net_type in ['os-internal-network', 'os-admin-network',
+                         'os-public-network']:
+            addr = get_address_in_network(config(net_type),
+                                          unit_get('private-address'))
+            if len(vips) > 1 and is_clustered():
+                if not config(net_type):
+                    log("Multiple networks configured but net_type "
+                        "is None (%s)." % net_type, level='WARNING')
+                    continue
+
+                for vip in vips:
+                    if is_address_in_network(config(net_type), vip):
+                        addresses.append((addr, vip))
+                        break
+
+            elif is_clustered() and config('vip'):
+                addresses.append((addr, config('vip')))
+            else:
+                addresses.append((addr, addr))
+
+        return addresses
+
     def __call__(self):
         if isinstance(self.external_ports, basestring):
             self.external_ports = [self.external_ports]
@@ -604,27 +647,7 @@ class ApacheSSLContext(OSContextGenerator):
         for cn in self.canonical_names():
             self.configure_cert(cn)
 
-        addresses = []
-        vips = []
-        if config('vip'):
-            vips = config('vip').split()
-
-        for network_type in ['os-internal-network',
-                             'os-admin-network',
-                             'os-public-network']:
-            address = get_address_in_network(config(network_type),
-                                             unit_get('private-address'))
-            if len(vips) > 0 and is_clustered():
-                for vip in vips:
-                    if is_address_in_network(config(network_type),
-                                             vip):
-                        addresses.append((address, vip))
-                        break
-            elif is_clustered():
-                addresses.append((address, config('vip')))
-            else:
-                addresses.append((address, address))
-
+        addresses = self.get_network_addresses()
         for address, endpoint in set(addresses):
             for api_port in self.external_ports:
                 ext_port = determine_apache_port(api_port)
@@ -784,21 +807,39 @@ class NeutronContext(OSContextGenerator):
 class OSConfigFlagContext(OSContextGenerator):
 
     """
-    Responsible for adding user-defined config-flags in charm config to a
-    template context.
+    Provides support for user-defined config flags.
+
+    Users can define a comma-seperated list of key=value pairs
+    in the charm configuration and apply them at any point in
+    any file by using a template flag.
+
+    Sometimes users might want config flags inserted within a
+    specific section so this class allows users to specify the
+    template flag name, allowing for multiple template flags
+    (sections) within the same context.
 
     NOTE: the value of config-flags may be a comma-separated list of
           key=value pairs and some Openstack config files support
           comma-separated lists as values.
     """
 
+    def __init__(self, charm_flag='config-flags',
+                 template_flag='user_config_flags'):
+        """
+        charm_flag: config flags in charm configuration.
+        template_flag: insert point for user-defined flags template file.
+        """
+        super(OSConfigFlagContext, self).__init__()
+        self._charm_flag = charm_flag
+        self._template_flag = template_flag
+
     def __call__(self):
-        config_flags = config('config-flags')
+        config_flags = config(self._charm_flag)
         if not config_flags:
             return {}
 
-        flags = config_flags_parser(config_flags)
-        return {'user_config_flags': flags}
+        return {self._template_flag:
+                config_flags_parser(config_flags)}
 
 
 class SubordinateConfigContext(OSContextGenerator):
