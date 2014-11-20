@@ -40,8 +40,7 @@ from charmhelpers.core.hookenv import (
 )
 from charmhelpers.core.host import (
     restart_on_change,
-    service_start,
-    service_stop
+    service_stop,
 )
 from charmhelpers.fetch import (
     apt_install,
@@ -252,8 +251,6 @@ def ceph_changed(relation_id=None):
                  (rsp.exit_code, rsp.exit_msg), level=INFO)
         CONFIGS.write(GLANCE_API_CONF)
         CONFIGS.write(ceph_config_file())
-        juju_log("Starting glance-api")
-        service_start('glance-api')
     else:
         rq = CephBrokerRq()
         replicas = config('ceph-osd-replication-count')
@@ -261,9 +258,6 @@ def ceph_changed(relation_id=None):
         for rid in relation_ids('ceph'):
             relation_set(relation_id=rid, broker_req=rq.request)
             juju_log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
-
-        juju_log("Stopping glance-api until successful response from broker")
-        service_stop('glance-api')
 
 
 @hooks.hook('identity-service-relation-joined')
