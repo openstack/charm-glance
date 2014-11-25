@@ -14,11 +14,12 @@ import string
 import subprocess
 import hashlib
 from contextlib import contextmanager
-
 from collections import OrderedDict
 
-from hookenv import log
-from fstab import Fstab
+import six
+
+from .hookenv import log
+from .fstab import Fstab
 
 
 def service_start(service_name):
@@ -130,7 +131,7 @@ def symlink(source, destination):
     subprocess.check_call(cmd)
 
 
-def mkdir(path, owner='root', group='root', perms=0555, force=False):
+def mkdir(path, owner='root', group='root', perms=0o555, force=False):
     """Create a directory"""
     log("Making dir {} {}:{} {:o}".format(path, owner, group,
                                           perms))
@@ -146,7 +147,7 @@ def mkdir(path, owner='root', group='root', perms=0555, force=False):
     os.chown(realpath, uid, gid)
 
 
-def write_file(path, content, owner='root', group='root', perms=0444):
+def write_file(path, content, owner='root', group='root', perms=0o444):
     """Create or overwrite a file with the contents of a string"""
     log("Writing file {} {}:{} {:o}".format(path, owner, group, perms))
     uid = pwd.getpwnam(owner).pw_uid
@@ -177,7 +178,7 @@ def mount(device, mountpoint, options=None, persist=False, filesystem="ext3"):
     cmd_args.extend([device, mountpoint])
     try:
         subprocess.check_output(cmd_args)
-    except subprocess.CalledProcessError, e:
+    except subprocess.CalledProcessError as e:
         log('Error mounting {} at {}\n{}'.format(device, mountpoint, e.output))
         return False
 
@@ -191,7 +192,7 @@ def umount(mountpoint, persist=False):
     cmd_args = ['umount', mountpoint]
     try:
         subprocess.check_output(cmd_args)
-    except subprocess.CalledProcessError, e:
+    except subprocess.CalledProcessError as e:
         log('Error unmounting {}\n{}'.format(mountpoint, e.output))
         return False
 
@@ -218,8 +219,8 @@ def file_hash(path, hash_type='md5'):
     """
     if os.path.exists(path):
         h = getattr(hashlib, hash_type)()
-        with open(path, 'r') as source:
-            h.update(source.read())  # IGNORE:E1101 - it does have update
+        with open(path, 'rb') as source:
+            h.update(source.read())
         return h.hexdigest()
     else:
         return None
@@ -297,7 +298,7 @@ def pwgen(length=None):
     if length is None:
         length = random.choice(range(35, 45))
     alphanumeric_chars = [
-        l for l in (string.letters + string.digits)
+        l for l in (string.ascii_letters + string.digits)
         if l not in 'l0QD1vAEIOUaeiou']
     random_chars = [
         random.choice(alphanumeric_chars) for _ in range(length)]
@@ -306,7 +307,7 @@ def pwgen(length=None):
 
 def list_nics(nic_type):
     '''Return a list of nics of given type(s)'''
-    if isinstance(nic_type, basestring):
+    if isinstance(nic_type, six.string_types):
         int_types = [nic_type]
     else:
         int_types = nic_type
