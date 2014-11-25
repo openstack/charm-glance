@@ -121,7 +121,7 @@ CONFIG_FILES = OrderedDict([
         'services': ['glance-api', 'glance-registry']
     }),
     (HAPROXY_CONF, {
-        'hook_contexts': [context.HAProxyContext(),
+        'hook_contexts': [context.HAProxyContext(singlenode_mode=True),
                           glance_contexts.HAProxyContext()],
         'services': ['haproxy'],
     }),

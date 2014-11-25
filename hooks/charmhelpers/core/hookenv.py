@@ -9,8 +9,10 @@ import json
 import yaml
 import subprocess
 import sys
-import UserDict
 from subprocess import CalledProcessError
+
+import six
+from six.moves import UserDict
 
 CRITICAL = "CRITICAL"
 ERROR = "ERROR"
@@ -67,12 +69,12 @@ def log(message, level=None):
     subprocess.call(command)
 
 
-class Serializable(UserDict.IterableUserDict):
+class Serializable(UserDict):
     """Wrapper, an object that can be serialized to yaml or json"""
 
     def __init__(self, obj):
         # wrap the object
-        UserDict.IterableUserDict.__init__(self)
+        UserDict.__init__(self)
         self.data = obj
 
     def __getattr__(self, attr):
@@ -218,7 +220,7 @@ class Config(dict):
         prev_keys = []
         if self._prev_dict is not None:
             prev_keys = self._prev_dict.keys()
-        return list(set(prev_keys + dict.keys(self)))
+        return list(set(prev_keys + list(dict.keys(self))))
 
     def load_previous(self, path=None):
         """Load previous copy of config from disk.
@@ -269,7 +271,7 @@ class Config(dict):
 
         """
         if self._prev_dict:
-            for k, v in self._prev_dict.iteritems():
+            for k, v in six.iteritems(self._prev_dict):
                 if k not in self:
                     self[k] = v
         with open(self.path, 'w') as f:
@@ -306,7 +308,7 @@ def relation_get(attribute=None, unit=None, rid=None):
         return json.loads(subprocess.check_output(_args))
     except ValueError:
         return None
-    except CalledProcessError, e:
+    except CalledProcessError as e:
         if e.returncode == 2:
             return None
         raise
@@ -318,7 +320,7 @@ def relation_set(relation_id=None, relation_settings=None, **kwargs):
     relation_cmd_line = ['relation-set']
     if relation_id is not None:
         relation_cmd_line.extend(('-r', relation_id))
-    for k, v in (relation_settings.items() + kwargs.items()):
+    for k, v in (list(relation_settings.items()) + list(kwargs.items())):
         if v is None:
             relation_cmd_line.append('{}='.format(k))
         else:

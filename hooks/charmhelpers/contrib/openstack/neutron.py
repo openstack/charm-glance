@@ -177,7 +177,8 @@ def neutron_plugin_attribute(plugin, attr, net_manager=None):
     elif manager == 'neutron':
         plugins = neutron_plugins()
     else:
-        log('Error: Network manager does not support plugins.')
+        log("Network manager '%s' does not support plugins." % (manager),
+            level=ERROR)
         raise Exception
 
     try:

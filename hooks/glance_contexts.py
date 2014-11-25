@@ -75,8 +75,8 @@ class HAProxyContext(OSContextGenerator):
         Also used to extend glance-api.conf context with correct bind_port
         '''
         haproxy_port = 9292
-        apache_port = determine_apache_port(9292)
-        api_port = determine_api_port(9292)
+        apache_port = determine_apache_port(9292, singlenode_mode=True)
+        api_port = determine_api_port(9292, singlenode_mode=True)
 
         ctxt = {
             'service_ports': {'glance_api': [haproxy_port, apache_port]},
