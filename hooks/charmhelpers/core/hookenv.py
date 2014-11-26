@@ -12,7 +12,10 @@ import sys
 from subprocess import CalledProcessError
 
 import six
-from six.moves import UserDict
+if not six.PY3:
+    from UserDict import UserDict
+else:
+    from collections import UserDict
 
 CRITICAL = "CRITICAL"
 ERROR = "ERROR"
@@ -286,7 +289,8 @@ def config(scope=None):
         config_cmd_line.append(scope)
     config_cmd_line.append('--format=json')
     try:
-        config_data = json.loads(subprocess.check_output(config_cmd_line))
+        config_data = json.loads(
+            subprocess.check_output(config_cmd_line).decode('UTF-8'))
         if scope is not None:
             return config_data
         return Config(config_data)
@@ -305,7 +309,7 @@ def relation_get(attribute=None, unit=None, rid=None):
     if unit:
         _args.append(unit)
     try:
-        return json.loads(subprocess.check_output(_args))
+        return json.loads(subprocess.check_output(_args).decode('UTF-8'))
     except ValueError:
         return None
     except CalledProcessError as e:
@@ -337,7 +341,8 @@ def relation_ids(reltype=None):
     relid_cmd_line = ['relation-ids', '--format=json']
     if reltype is not None:
         relid_cmd_line.append(reltype)
-        return json.loads(subprocess.check_output(relid_cmd_line)) or []
+        return json.loads(
+            subprocess.check_output(relid_cmd_line).decode('UTF-8')) or []
     return []
 
 
@@ -348,7 +353,8 @@ def related_units(relid=None):
     units_cmd_line = ['relation-list', '--format=json']
     if relid is not None:
         units_cmd_line.extend(('-r', relid))
-    return json.loads(subprocess.check_output(units_cmd_line)) or []
+    return json.loads(
+        subprocess.check_output(units_cmd_line).decode('UTF-8')) or []
 
 
 @cached
@@ -457,7 +463,7 @@ def unit_get(attribute):
     """Get the unit ID for the remote unit"""
     _args = ['unit-get', '--format=json', attribute]
     try:
-        return json.loads(subprocess.check_output(_args))
+        return json.loads(subprocess.check_output(_args).decode('UTF-8'))
     except ValueError:
         return None
 

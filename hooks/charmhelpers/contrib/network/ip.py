@@ -302,7 +302,7 @@ def get_ipv6_addr(iface=None, inc_aliases=False, fatal=True, exc_list=None,
         if global_addrs:
             # Make sure any found global addresses are not temporary
             cmd = ['ip', 'addr', 'show', iface]
-            out = subprocess.check_output(cmd)
+            out = subprocess.check_output(cmd).decode('UTF-8')
             if dynamic_only:
                 key = re.compile("inet6 (.+)/[0-9]+ scope global dynamic.*")
             else:
