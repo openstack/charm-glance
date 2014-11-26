@@ -1,4 +1,4 @@
-branch: lp:~gnuoy/charm-helpers/haproxy-singlenode-mode
+branch: lp:charm-helpers
 destination: hooks/charmhelpers
 include:
     - core
