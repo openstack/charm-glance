@@ -3,12 +3,21 @@ import hashlib
 import re
 
 import six
-from six.moves.urllib.request import (
-    build_opener, install_opener, urlopen, urlretrieve,
-    HTTPPasswordMgrWithDefaultRealm, HTTPBasicAuthHandler,
-)
-from six.moves.urllib.parse import urlparse, urlunparse, parse_qs
-from six.moves.urllib.error import URLError
+if six.PY3:
+    from urllib.request import (
+        build_opener, install_opener, urlopen, urlretrieve,
+        HTTPPasswordMgrWithDefaultRealm, HTTPBasicAuthHandler,
+    )
+    from urllib.parse import urlparse, urlunparse, parse_qs
+    from urllib.error import URLError
+else:
+    from urllib import urlretrieve
+    from urllib2 import (
+        build_opener, install_opener, urlopen,
+        HTTPPasswordMgrWithDefaultRealm, HTTPBasicAuthHandler,
+        URLError
+    )
+    from urlparse import urlparse, urlunparse, parse_qs
 
 from charmhelpers.fetch import (
     BaseFetchHandler,
@@ -125,7 +134,7 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
             raise UnhandledSource(e.strerror)
         options = parse_qs(url_parts.fragment)
         for key, value in options.items():
-            if six.PY2:
+            if not six.PY3:
                 algorithms = hashlib.algorithms
             else:
                 algorithms = hashlib.algorithms_available

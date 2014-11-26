@@ -78,7 +78,7 @@ def is_crm_leader(resource):
         "show", resource
     ]
     try:
-        status = subprocess.check_output(cmd)
+        status = subprocess.check_output(cmd).decode('UTF-8')
     except subprocess.CalledProcessError:
         return False
     else:

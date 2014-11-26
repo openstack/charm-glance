@@ -5,7 +5,6 @@ from base64 import b64decode
 from subprocess import check_call
 
 import six
-from six.moves import xrange
 
 from charmhelpers.fetch import (
     apt_install,
@@ -99,7 +98,7 @@ def config_flags_parser(config_flags):
     split = config_flags.strip(' =').split('=')
     limit = len(split)
     flags = {}
-    for i in xrange(0, limit - 1):
+    for i in range(0, limit - 1):
         current = split[i]
         next = split[i + 1]
         vindex = next.rfind(',')

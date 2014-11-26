@@ -65,7 +65,8 @@ def install():
 def rbd_exists(service, pool, rbd_img):
     """Check to see if a RADOS block device exists."""
     try:
-        out = check_output(['rbd', 'list', '--id', service, '--pool', pool])
+        out = check_output(['rbd', 'list', '--id',
+                            service, '--pool', pool]).decode('UTF-8')
     except CalledProcessError:
         return False
 
@@ -82,7 +83,8 @@ def create_rbd_image(service, pool, image, sizemb):
 def pool_exists(service, name):
     """Check to see if a RADOS pool already exists."""
     try:
-        out = check_output(['rados', '--id', service, 'lspools'])
+        out = check_output(['rados', '--id', service,
+                            'lspools']).decode('UTF-8')
     except CalledProcessError:
         return False
 
@@ -96,7 +98,8 @@ def get_osds(service):
     version = ceph_version()
     if version and version >= '0.56':
         return json.loads(check_output(['ceph', '--id', service,
-                                        'osd', 'ls', '--format=json']))
+                                        'osd', 'ls',
+                                        '--format=json']).decode('UTF-8'))
 
     return None
 
@@ -193,7 +196,7 @@ def configure(service, key, auth, use_syslog):
 def image_mapped(name):
     """Determine whether a RADOS block device is mapped locally."""
     try:
-        out = check_output(['rbd', 'showmapped'])
+        out = check_output(['rbd', 'showmapped']).decode('UTF-8')
     except CalledProcessError:
         return False
 
@@ -361,7 +364,7 @@ def ceph_version():
     """Retrieve the local version of ceph."""
     if os.path.exists('/usr/bin/ceph'):
         cmd = ['ceph', '-v']
-        output = check_output(cmd)
+        output = check_output(cmd).decode('US-ASCII')
         output = output.split()
         if len(output) > 3:
             return output[2]
