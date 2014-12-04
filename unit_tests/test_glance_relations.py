@@ -81,7 +81,7 @@ class GlanceRelationTests(CharmTestCase):
         self.apt_update.assert_called_with(fatal=True)
         self.apt_install.assert_called_with(['apache2', 'glance',
                                              'python-mysqldb',
-                                             'python-swift',
+                                             'python-swiftclient',
                                              'python-psycopg2',
                                              'python-keystone',
                                              'uuid', 'haproxy'], fatal=True)
