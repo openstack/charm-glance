@@ -13,8 +13,9 @@ clustering-related helpers.
 
 import subprocess
 import os
-
 from socket import gethostname as get_unit_hostname
+
+import six
 
 from charmhelpers.core.hookenv import (
     log,
@@ -77,7 +78,7 @@ def is_crm_leader(resource):
         "show", resource
     ]
     try:
-        status = subprocess.check_output(cmd)
+        status = subprocess.check_output(cmd).decode('UTF-8')
     except subprocess.CalledProcessError:
         return False
     else:
@@ -150,34 +151,42 @@ def https():
     return False
 
 
-def determine_api_port(public_port):
+def determine_api_port(public_port, singlenode_mode=False):
     '''
     Determine correct API server listening port based on
     existence of HTTPS reverse proxy and/or haproxy.
 
     public_port: int: standard public port for given service
 
+    singlenode_mode: boolean: Shuffle ports when only a single unit is present
+
     returns: int: the correct listening port for the API service
     '''
     i = 0
-    if len(peer_units()) > 0 or is_clustered():
+    if singlenode_mode:
+        i += 1
+    elif len(peer_units()) > 0 or is_clustered():
         i += 1
     if https():
         i += 1
     return public_port - (i * 10)
 
 
-def determine_apache_port(public_port):
+def determine_apache_port(public_port, singlenode_mode=False):
     '''
     Description: Determine correct apache listening port based on public IP +
     state of the cluster.
 
     public_port: int: standard public port for given service
 
+    singlenode_mode: boolean: Shuffle ports when only a single unit is present
+
     returns: int: the correct listening port for the HAProxy service
     '''
     i = 0
-    if len(peer_units()) > 0 or is_clustered():
+    if singlenode_mode:
+        i += 1
+    elif len(peer_units()) > 0 or is_clustered():
         i += 1
     return public_port - (i * 10)
 
@@ -197,7 +206,7 @@ def get_hacluster_config():
     for setting in settings:
         conf[setting] = config_get(setting)
     missing = []
-    [missing.append(s) for s, v in conf.iteritems() if v is None]
+    [missing.append(s) for s, v in six.iteritems(conf) if v is None]
     if missing:
         log('Insufficient config data to configure hacluster.', level=ERROR)
         raise HAIncompleteConfig

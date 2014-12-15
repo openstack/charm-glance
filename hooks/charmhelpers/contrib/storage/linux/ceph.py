@@ -65,7 +65,8 @@ def install():
 def rbd_exists(service, pool, rbd_img):
     """Check to see if a RADOS block device exists."""
     try:
-        out = check_output(['rbd', 'list', '--id', service, '--pool', pool])
+        out = check_output(['rbd', 'list', '--id',
+                            service, '--pool', pool]).decode('UTF-8')
     except CalledProcessError:
         return False
 
@@ -82,7 +83,8 @@ def create_rbd_image(service, pool, image, sizemb):
 def pool_exists(service, name):
     """Check to see if a RADOS pool already exists."""
     try:
-        out = check_output(['rados', '--id', service, 'lspools'])
+        out = check_output(['rados', '--id', service,
+                            'lspools']).decode('UTF-8')
     except CalledProcessError:
         return False
 
@@ -96,7 +98,8 @@ def get_osds(service):
     version = ceph_version()
     if version and version >= '0.56':
         return json.loads(check_output(['ceph', '--id', service,
-                                        'osd', 'ls', '--format=json']))
+                                        'osd', 'ls',
+                                        '--format=json']).decode('UTF-8'))
 
     return None
 
@@ -112,7 +115,7 @@ def create_pool(service, name, replicas=3):
     # on upstream recommended best practices.
     osds = get_osds(service)
     if osds:
-        pgnum = (len(osds) * 100 / replicas)
+        pgnum = (len(osds) * 100 // replicas)
     else:
         # NOTE(james-page): Default to 200 for older ceph versions
         # which don't support OSD query from cli
@@ -193,7 +196,7 @@ def configure(service, key, auth, use_syslog):
 def image_mapped(name):
     """Determine whether a RADOS block device is mapped locally."""
     try:
-        out = check_output(['rbd', 'showmapped'])
+        out = check_output(['rbd', 'showmapped']).decode('UTF-8')
     except CalledProcessError:
         return False
 
@@ -361,7 +364,7 @@ def ceph_version():
     """Retrieve the local version of ceph."""
     if os.path.exists('/usr/bin/ceph'):
         cmd = ['ceph', '-v']
-        output = check_output(cmd)
+        output = check_output(cmd).decode('US-ASCII')
         output = output.split()
         if len(output) > 3:
             return output[2]
@@ -369,46 +372,3 @@ def ceph_version():
             return None
     else:
         return None
-
-
-class CephBrokerRq(object):
-    """Ceph broker request.
-
-    Multiple operations can be added to a request and sent to the Ceph broker
-    to be executed.
-
-    Request is json-encoded for sending over the wire.
-
-    The API is versioned and defaults to version 1.
-    """
-    def __init__(self, api_version=1):
-        self.api_version = api_version
-        self.ops = []
-
-    def add_op_create_pool(self, name, replica_count=3):
-        self.ops.append({'op': 'create-pool', 'name': name,
-                         'replicas': replica_count})
-
-    @property
-    def request(self):
-        return json.dumps({'api-version': self.api_version, 'ops': self.ops})
-
-
-class CephBrokerRsp(object):
-    """Ceph broker response.
-
-    Response is json-decoded and contents provided as methods/properties.
-
-    The API is versioned and defaults to version 1.
-    """
-    def __init__(self, encoded_rsp):
-        self.api_version = None
-        self.rsp = json.loads(encoded_rsp)
-
-    @property
-    def exit_code(self):
-        return self.rsp.get('exit-code')
-
-    @property
-    def exit_msg(self):
-        return self.rsp.get('stderr')

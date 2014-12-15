@@ -1,6 +1,6 @@
 import amulet
-
 import os
+import six
 
 
 class AmuletDeployment(object):
@@ -52,12 +52,12 @@ class AmuletDeployment(object):
 
     def _add_relations(self, relations):
         """Add all of the relations for the services."""
-        for k, v in relations.iteritems():
+        for k, v in six.iteritems(relations):
             self.d.relate(k, v)
 
     def _configure_services(self, configs):
         """Configure all of the services."""
-        for service, config in configs.iteritems():
+        for service, config in six.iteritems(configs):
             self.d.configure(service, config)
 
     def _deploy(self):
