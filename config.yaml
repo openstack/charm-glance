@@ -24,12 +24,14 @@ options:
     description: Glance database name.
   api-config-flags:
     type: string
+    default:
     description: |
       Comma-separated list of key=value pairs to be added to glance-api.conf
       where 'value' may itself be a comma-separated list of values to be
       assigned to the 'key'.
   registry-config-flags:
     type: string
+    default:
     description: |
       Comma-separated list of key=value pairs to be added to glance-registry.conf
       where 'value' may itself be a comma-separated list of values to be
