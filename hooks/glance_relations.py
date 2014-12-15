@@ -227,7 +227,7 @@ def ceph_joined():
 
 @hooks.hook('ceph-relation-changed')
 @restart_on_change(restart_map())
-def ceph_changed(relation_id=None):
+def ceph_changed():
     if 'ceph' not in CONFIGS.complete_contexts():
         juju_log('ceph relation incomplete. Peer not ready?')
         return
@@ -238,7 +238,7 @@ def ceph_changed(relation_id=None):
         juju_log('Could not create ceph keyring: peer not ready?')
         return
 
-    settings = relation_get(rid=relation_id)
+    settings = relation_get()
     if settings and 'broker_rsp' in settings:
         rsp = CephBrokerRsp(settings['broker_rsp'])
         # Non-zero return code implies failure
