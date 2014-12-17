@@ -84,6 +84,7 @@ class GlanceRelationTests(CharmTestCase):
                                              'python-swiftclient',
                                              'python-psycopg2',
                                              'python-keystone',
+                                             'python-six',
                                              'uuid', 'haproxy'], fatal=True)
         self.assertTrue(self.execd_preinstall.called)
 
