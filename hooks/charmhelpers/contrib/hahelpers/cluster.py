@@ -13,6 +13,7 @@ clustering-related helpers.
 
 import subprocess
 import os
+
 from socket import gethostname as get_unit_hostname
 
 import six
@@ -28,9 +29,16 @@ from charmhelpers.core.hookenv import (
     WARNING,
     unit_get,
 )
+from charmhelpers.core.decorators import (
+    retry_on_exception,
+)
 
 
 class HAIncompleteConfig(Exception):
+    pass
+
+
+class CRMResourceNotFound(Exception):
     pass
 
 
@@ -68,24 +76,30 @@ def is_clustered():
     return False
 
 
-def is_crm_leader(resource):
+@retry_on_exception(5, base_delay=2, exc_type=CRMResourceNotFound)
+def is_crm_leader(resource, retry=False):
     """
     Returns True if the charm calling this is the elected corosync leader,
     as returned by calling the external "crm" command.
+
+    We allow this operation to be retried to avoid the possibility of getting a
+    false negative. See LP #1396246 for more info.
     """
-    cmd = [
-        "crm", "resource",
-        "show", resource
-    ]
+    cmd = ['crm', 'resource', 'show', resource]
     try:
-        status = subprocess.check_output(cmd).decode('UTF-8')
+        status = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        if not isinstance(status, six.text_type):
+            status = six.text_type(status, "utf-8")
     except subprocess.CalledProcessError:
-        return False
-    else:
-        if get_unit_hostname() in status:
-            return True
-        else:
-            return False
+        status = None
+
+    if status and get_unit_hostname() in status:
+        return True
+
+    if status and "resource %s is NOT running" % (resource) in status:
+        raise CRMResourceNotFound("CRM resource %s not found" % (resource))
+
+    return False
 
 
 def is_leader(resource):
