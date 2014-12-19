@@ -47,8 +47,8 @@ from charmhelpers.contrib.openstack.utils import (
 CLUSTER_RES = "grp_glance_vips"
 
 PACKAGES = [
-    "apache2", "glance", "python-mysqldb", "python-swift",
-    "python-psycopg2", "python-keystone", "uuid", "haproxy", ]
+    "apache2", "glance", "python-mysqldb", "python-swiftclient",
+    "python-psycopg2", "python-keystone", "python-six", "uuid", "haproxy", ]
 
 SERVICES = [
     "glance-api", "glance-registry", ]
