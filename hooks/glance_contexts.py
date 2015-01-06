@@ -29,7 +29,7 @@ class CephGlanceContext(OSContextGenerator):
             return {}
         service = service_name()
         return {
-            # ensure_ceph_pool() creates pool based on service name.
+            # pool created based on service name.
             'rbd_pool': service,
             'rbd_user': service,
         }

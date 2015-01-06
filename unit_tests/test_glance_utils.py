@@ -13,8 +13,6 @@ from test_utils import (
 TO_PATCH = [
     'config',
     'log',
-    'ceph_create_pool',
-    'ceph_pool_exists',
     'relation_ids',
     'get_os_codename_package',
     'get_os_codename_install_source',
@@ -48,18 +46,6 @@ class TestGlanceUtils(CharmTestCase):
         "It migrates database with cinder-manage"
         utils.migrate_database()
         check_call.assert_called_with(['glance-manage', 'db_sync'])
-
-    def test_ensure_ceph_pool(self):
-        self.ceph_pool_exists.return_value = False
-        utils.ensure_ceph_pool(service='glance', replicas=3)
-        self.ceph_create_pool.assert_called_with(service='glance',
-                                                 name='glance',
-                                                 replicas=3)
-
-    def test_ensure_ceph_pool_already_exists(self):
-        self.ceph_pool_exists.return_value = True
-        utils.ensure_ceph_pool(service='glance', replicas=3)
-        self.assertFalse(self.ceph_create_pool.called)
 
     @patch('os.path.exists')
     def test_register_configs_apache(self, exists):
