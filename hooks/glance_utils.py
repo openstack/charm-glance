@@ -34,10 +34,6 @@ from charmhelpers.contrib.hahelpers.cluster import (
     eligible_leader,
 )
 
-from charmhelpers.contrib.storage.linux.ceph import (
-    create_pool as ceph_create_pool,
-    pool_exists as ceph_pool_exists)
-
 from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
@@ -183,15 +179,6 @@ def migrate_database():
     '''
     cmd = ['glance-manage', 'db_sync']
     subprocess.check_call(cmd)
-
-
-def ensure_ceph_pool(service, replicas):
-    '''Creates a ceph pool for service
-    if one does not exist
-    '''
-    # TODO(Ditto about moving somewhere sharable.)
-    if not ceph_pool_exists(service=service, name=service):
-        ceph_create_pool(service=service, name=service, replicas=replicas)
 
 
 def do_openstack_upgrade(configs):
