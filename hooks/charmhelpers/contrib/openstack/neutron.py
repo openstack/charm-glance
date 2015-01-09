@@ -14,7 +14,7 @@ from charmhelpers.contrib.openstack.utils import os_release
 def headers_package():
     """Ensures correct linux-headers for running kernel are installed,
     for building DKMS package"""
-    kver = check_output(['uname', '-r']).strip()
+    kver = check_output(['uname', '-r']).decode('UTF-8').strip()
     return 'linux-headers-%s' % kver
 
 QUANTUM_CONF_DIR = '/etc/quantum'
@@ -22,7 +22,7 @@ QUANTUM_CONF_DIR = '/etc/quantum'
 
 def kernel_version():
     """ Retrieve the current major kernel version as a tuple e.g. (3, 13) """
-    kver = check_output(['uname', '-r']).strip()
+    kver = check_output(['uname', '-r']).decode('UTF-8').strip()
     kver = kver.split('.')
     return (int(kver[0]), int(kver[1]))
 
@@ -138,9 +138,30 @@ def neutron_plugins():
                                         relation_prefix='neutron',
                                         ssl_dir=NEUTRON_CONF_DIR)],
             'services': [],
-            'packages': [['neutron-plugin-cisco']],
+            'packages': [[headers_package()] + determine_dkms_package(),
+                         ['neutron-plugin-cisco']],
             'server_packages': ['neutron-server',
                                 'neutron-plugin-cisco'],
+            'server_services': ['neutron-server']
+        },
+        'Calico': {
+            'config': '/etc/neutron/plugins/ml2/ml2_conf.ini',
+            'driver': 'neutron.plugins.ml2.plugin.Ml2Plugin',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
+            'services': ['calico-felix',
+                         'bird',
+                         'neutron-dhcp-agent',
+                         'nova-api-metadata'],
+            'packages': [[headers_package()] + determine_dkms_package(),
+                         ['calico-compute',
+                          'bird',
+                          'neutron-dhcp-agent',
+                          'nova-api-metadata']],
+            'server_packages': ['neutron-server', 'calico-control'],
             'server_services': ['neutron-server']
         }
     }
@@ -162,7 +183,8 @@ def neutron_plugin_attribute(plugin, attr, net_manager=None):
     elif manager == 'neutron':
         plugins = neutron_plugins()
     else:
-        log('Error: Network manager does not support plugins.')
+        log("Network manager '%s' does not support plugins." % (manager),
+            level=ERROR)
         raise Exception
 
     try:

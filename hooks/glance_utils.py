@@ -34,10 +34,6 @@ from charmhelpers.contrib.hahelpers.cluster import (
     eligible_leader,
 )
 
-from charmhelpers.contrib.storage.linux.ceph import (
-    create_pool as ceph_create_pool,
-    pool_exists as ceph_pool_exists)
-
 from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
@@ -47,8 +43,8 @@ from charmhelpers.contrib.openstack.utils import (
 CLUSTER_RES = "grp_glance_vips"
 
 PACKAGES = [
-    "apache2", "glance", "python-mysqldb", "python-swift",
-    "python-psycopg2", "python-keystone", "uuid", "haproxy", ]
+    "apache2", "glance", "python-mysqldb", "python-swiftclient",
+    "python-psycopg2", "python-keystone", "python-six", "uuid", "haproxy", ]
 
 SERVICES = [
     "glance-api", "glance-registry", ]
@@ -84,7 +80,10 @@ CONFIG_FILES = OrderedDict([
                           context.SyslogContext(),
                           glance_contexts.LoggingConfigContext(),
                           glance_contexts.GlanceIPv6Context(),
-                          context.WorkerConfigContext()],
+                          context.WorkerConfigContext(),
+                          context.OSConfigFlagContext(
+                              charm_flag='registry-config-flags',
+                              template_flag='registry_config_flags')],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
@@ -99,7 +98,10 @@ CONFIG_FILES = OrderedDict([
                           glance_contexts.LoggingConfigContext(),
                           glance_contexts.GlanceIPv6Context(),
                           context.WorkerConfigContext(),
-                          glance_contexts.MultiStoreContext()],
+                          glance_contexts.MultiStoreContext(),
+                          context.OSConfigFlagContext(
+                              charm_flag='api-config-flags',
+                              template_flag='api_config_flags')],
         'services': ['glance-api']
     }),
     (GLANCE_API_PASTE_INI, {
@@ -115,7 +117,7 @@ CONFIG_FILES = OrderedDict([
         'services': ['glance-api', 'glance-registry']
     }),
     (HAPROXY_CONF, {
-        'hook_contexts': [context.HAProxyContext(),
+        'hook_contexts': [context.HAProxyContext(singlenode_mode=True),
                           glance_contexts.HAProxyContext()],
         'services': ['haproxy'],
     }),
@@ -177,15 +179,6 @@ def migrate_database():
     '''
     cmd = ['glance-manage', 'db_sync']
     subprocess.check_call(cmd)
-
-
-def ensure_ceph_pool(service, replicas):
-    '''Creates a ceph pool for service
-    if one does not exist
-    '''
-    # TODO(Ditto about moving somewhere sharable.)
-    if not ceph_pool_exists(service=service, name=service):
-        ceph_create_pool(service=service, name=service, replicas=replicas)
 
 
 def do_openstack_upgrade(configs):
