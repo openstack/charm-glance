@@ -82,6 +82,7 @@ from charmhelpers.contrib.openstack.ip import (
 )
 from charmhelpers.contrib.openstack.context import (
     ADDRESS_TYPES
+)
 from charmhelpers.contrib.charmsupport.nrpe import NRPE
 
 
