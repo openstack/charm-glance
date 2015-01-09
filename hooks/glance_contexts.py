@@ -29,7 +29,7 @@ class CephGlanceContext(OSContextGenerator):
             return {}
         service = service_name()
         return {
-            # ensure_ceph_pool() creates pool based on service name.
+            # pool created based on service name.
             'rbd_pool': service,
             'rbd_user': service,
         }
@@ -75,8 +75,8 @@ class HAProxyContext(OSContextGenerator):
         Also used to extend glance-api.conf context with correct bind_port
         '''
         haproxy_port = 9292
-        apache_port = determine_apache_port(9292)
-        api_port = determine_api_port(9292)
+        apache_port = determine_apache_port(9292, singlenode_mode=True)
+        api_port = determine_api_port(9292, singlenode_mode=True)
 
         ctxt = {
             'service_ports': {'glance_api': [haproxy_port, apache_port]},
