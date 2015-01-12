@@ -663,8 +663,9 @@ class ApacheSSLContext(OSContextGenerator):
         addresses = self.get_network_addresses()
         for address, endpoint in sorted(set(addresses)):
             for api_port in self.external_ports:
-                ext_port = determine_apache_port(api_port)
-                int_port = determine_api_port(api_port)
+                ext_port = determine_apache_port(api_port,
+                                                 singlenode_mode=True)
+                int_port = determine_api_port(api_port, singlenode_mode=True)
                 portmap = (address, endpoint, int(ext_port), int(int_port))
                 ctxt['endpoints'].append(portmap)
                 ctxt['ext_ports'].append(int(ext_port))
