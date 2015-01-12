@@ -52,6 +52,7 @@ TO_PATCH = [
     'migrate_database',
     'ensure_ceph_keyring',
     'ceph_config_file',
+    'update_nrpe_config',
     # other
     'call',
     'check_call',

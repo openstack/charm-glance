@@ -9,6 +9,9 @@ description: |
 categories:
   - miscellaneous
 provides:
+  nrpe-external-master:
+    interface: nrpe-external-master
+    scope: container
   image-service:
     interface: glance
 requires:
