@@ -53,6 +53,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('saucy', 'havana'),
     ('trusty', 'icehouse'),
     ('utopic', 'juno'),
+    ('vivid', 'kilo'),
 ])
 
 
@@ -64,6 +65,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2013.2', 'havana'),
     ('2014.1', 'icehouse'),
     ('2014.2', 'juno'),
+    ('2015.1', 'kilo'),
 ])
 
 # The ugly duckling
@@ -84,6 +86,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('2.0.0', 'juno'),
     ('2.1.0', 'juno'),
     ('2.2.0', 'juno'),
+    ('2.2.1', 'kilo'),
 ])
 
 DEFAULT_LOOPBACK_SIZE = '5G'
@@ -289,6 +292,9 @@ def configure_installation_source(rel):
             'juno': 'trusty-updates/juno',
             'juno/updates': 'trusty-updates/juno',
             'juno/proposed': 'trusty-proposed/juno',
+            'kilo': 'trusty-updates/kilo',
+            'kilo/updates': 'trusty-updates/kilo',
+            'kilo/proposed': 'trusty-proposed/kilo',
         }
 
         try:

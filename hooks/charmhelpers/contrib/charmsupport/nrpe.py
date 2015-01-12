@@ -18,6 +18,7 @@ from charmhelpers.core.hookenv import (
     log,
     relation_ids,
     relation_set,
+    relations_of_type,
 )
 
 from charmhelpers.core.host import service
@@ -54,6 +55,12 @@ from charmhelpers.core.host import service
 #            juju-myservice-0
 #        If you're running multiple environments with the same services in them
 #        this allows you to differentiate between them.
+#    nagios_servicegroups:
+#      default: ""
+#      type: string
+#      description: |
+#        A comma-separated list of nagios servicegroups.
+#        If left empty, the nagios_context will be used as the servicegroup
 #
 # 3. Add custom checks (Nagios plugins) to files/nrpe-external-master
 #
@@ -125,9 +132,6 @@ define service {{
 
     def _locate_cmd(self, check_cmd):
         search_path = (
-            '/',
-            os.path.join(os.environ['CHARM_DIR'],
-                         'files/nrpe-external-master'),
             '/usr/lib/nagios/plugins',
             '/usr/local/lib/nagios/plugins',
         )
@@ -141,7 +145,7 @@ define service {{
         log('Check command not found: {}'.format(parts[0]))
         return ''
 
-    def write(self, nagios_context, hostname):
+    def write(self, nagios_context, hostname, nagios_servicegroups=None):
         nrpe_check_file = '/etc/nagios/nrpe.d/{}.cfg'.format(
             self.command)
         with open(nrpe_check_file, 'w') as nrpe_check_config:
@@ -153,16 +157,21 @@ define service {{
             log('Not writing service config as {} is not accessible'.format(
                 NRPE.nagios_exportdir))
         else:
-            self.write_service_config(nagios_context, hostname)
+            self.write_service_config(nagios_context, hostname,
+                                      nagios_servicegroups)
 
-    def write_service_config(self, nagios_context, hostname):
+    def write_service_config(self, nagios_context, hostname,
+                             nagios_servicegroups=None):
         for f in os.listdir(NRPE.nagios_exportdir):
             if re.search('.*{}.cfg'.format(self.command), f):
                 os.remove(os.path.join(NRPE.nagios_exportdir, f))
 
+        if not nagios_servicegroups:
+            nagios_servicegroups = nagios_context
+
         templ_vars = {
             'nagios_hostname': hostname,
-            'nagios_servicegroup': nagios_context,
+            'nagios_servicegroup': nagios_servicegroups,
             'description': self.description,
             'shortname': self.shortname,
             'command': self.command,
@@ -186,6 +195,10 @@ class NRPE(object):
         super(NRPE, self).__init__()
         self.config = config()
         self.nagios_context = self.config['nagios_context']
+        if 'nagios_servicegroups' in self.config:
+            self.nagios_servicegroups = self.config['nagios_servicegroups']
+        else:
+            self.nagios_servicegroups = 'juju'
         self.unit_name = local_unit().replace('/', '-')
         if hostname:
             self.hostname = hostname
@@ -211,7 +224,8 @@ class NRPE(object):
         nrpe_monitors = {}
         monitors = {"monitors": {"remote": {"nrpe": nrpe_monitors}}}
         for nrpecheck in self.checks:
-            nrpecheck.write(self.nagios_context, self.hostname)
+            nrpecheck.write(self.nagios_context, self.hostname,
+                            self.nagios_servicegroups)
             nrpe_monitors[nrpecheck.shortname] = {
                 "command": nrpecheck.command,
             }
@@ -220,3 +234,75 @@ class NRPE(object):
 
         for rid in relation_ids("local-monitors"):
             relation_set(relation_id=rid, monitors=yaml.dump(monitors))
+
+
+def get_nagios_hostcontext(relation_name='nrpe-external-master'):
+    """
+    Query relation with nrpe subordinate, return the nagios_host_context
+
+    :param str relation_name: Name of relation nrpe sub joined to
+    """
+    for rel in relations_of_type(relation_name):
+        if 'nagios_hostname' in rel:
+            return rel['nagios_host_context']
+
+
+def get_nagios_hostname(relation_name='nrpe-external-master'):
+    """
+    Query relation with nrpe subordinate, return the nagios_hostname
+
+    :param str relation_name: Name of relation nrpe sub joined to
+    """
+    for rel in relations_of_type(relation_name):
+        if 'nagios_hostname' in rel:
+            return rel['nagios_hostname']
+
+
+def get_nagios_unit_name(relation_name='nrpe-external-master'):
+    """
+    Return the nagios unit name prepended with host_context if needed
+
+    :param str relation_name: Name of relation nrpe sub joined to
+    """
+    host_context = get_nagios_hostcontext(relation_name)
+    if host_context:
+        unit = "%s:%s" % (host_context, local_unit())
+    else:
+        unit = local_unit()
+    return unit
+
+
+def add_init_service_checks(nrpe, services, unit_name):
+    """
+    Add checks for each service in list
+
+    :param NRPE nrpe: NRPE object to add check to
+    :param list services: List of services to check
+    :param str unit_name: Unit name to use in check description
+    """
+    for svc in services:
+        upstart_init = '/etc/init/%s.conf' % svc
+        sysv_init = '/etc/init.d/%s' % svc
+        if os.path.exists(upstart_init):
+            nrpe.add_check(
+                shortname=svc,
+                description='process check {%s}' % unit_name,
+                check_cmd='check_upstart_job %s' % svc
+            )
+        elif os.path.exists(sysv_init):
+            cronpath = '/etc/cron.d/nagios-service-check-%s' % svc
+            cron_file = ('*/5 * * * * root '
+                         '/usr/local/lib/nagios/plugins/check_exit_status.pl '
+                         '-s /etc/init.d/%s status > '
+                         '/var/lib/nagios/service-check-%s.txt\n' % (svc,
+                                                                     svc)
+                         )
+            f = open(cronpath, 'w')
+            f.write(cron_file)
+            f.close()
+            nrpe.add_check(
+                shortname=svc,
+                description='process check {%s}' % unit_name,
+                check_cmd='check_status_file.py -f '
+                          '/var/lib/nagios/service-check-%s.txt' % svc,
+            )

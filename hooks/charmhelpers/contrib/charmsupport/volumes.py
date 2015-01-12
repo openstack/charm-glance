@@ -2,7 +2,8 @@
 Functions for managing volumes in juju units. One volume is supported per unit.
 Subordinates may have their own storage, provided it is on its own partition.
 
-Configuration stanzas:
+Configuration stanzas::
+
   volume-ephemeral:
     type: boolean
     default: true
@@ -20,7 +21,8 @@ Configuration stanzas:
       is 'true' and no volume-map value is set. Use 'juju set' to set a
       value and 'juju resolved' to complete configuration.
 
-Usage:
+Usage::
+
     from charmsupport.volumes import configure_volume, VolumeConfigurationError
     from charmsupport.hookenv import log, ERROR
     def post_mount_hook():
@@ -34,6 +36,7 @@ Usage:
                              after_change=post_mount_hook)
         except VolumeConfigurationError:
             log('Storage could not be configured', ERROR)
+
 '''
 
 # XXX: Known limitations
