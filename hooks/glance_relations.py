@@ -379,7 +379,11 @@ def ha_relation_joined():
             res_ks_vip = 'ocf:heartbeat:IPaddr2'
             vip_params = 'ip'
 
-        iface = get_iface_for_address(vip)
+        iface = (get_iface_for_address(vip) or
+                 config('vip_iface'))
+        netmask = (get_netmask_for_address(vip) or
+                   config('vip_cidr'))
+
         if iface is not None:
             vip_key = 'res_glance_{}_vip'.format(iface)
             resources[vip_key] = res_ks_vip
@@ -388,7 +392,7 @@ def ha_relation_joined():
                 ' nic="{iface}"'.format(ip=vip_params,
                                         vip=vip,
                                         iface=iface,
-                                        netmask=get_netmask_for_address(vip))
+                                        netmask=netmask)
             )
             vip_group.append(vip_key)
 

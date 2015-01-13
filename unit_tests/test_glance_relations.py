@@ -523,6 +523,34 @@ class GlanceRelationTests(CharmTestCase):
             call(**args),
         ])
 
+    def test_ha_relation_joined_no_bound_ip(self):
+        self.get_hacluster_config.return_value = {
+            'ha-bindiface': 'em0',
+            'ha-mcastport': '8080',
+            'vip': '10.10.10.10',
+        }
+        self.test_config.set('vip_iface', 'eth120')
+        self.test_config.set('vip_cidr', '21')
+        self.get_iface_for_address.return_value = None
+        self.get_netmask_for_address.return_value = None
+        relations.ha_relation_joined()
+        args = {
+            'corosync_bindiface': 'em0',
+            'corosync_mcastport': '8080',
+            'init_services': {'res_glance_haproxy': 'haproxy'},
+            'resources': {'res_glance_eth120_vip': 'ocf:heartbeat:IPaddr2',
+                          'res_glance_haproxy': 'lsb:haproxy'},
+            'resource_params': {
+                'res_glance_eth120_vip': 'params ip="10.10.10.10"'
+                ' cidr_netmask="21" nic="eth120"',
+                'res_glance_haproxy': 'op monitor interval="5s"'},
+            'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
+        }
+        self.relation_set.assert_has_calls([
+            call(groups={'grp_glance_vips': 'res_glance_eth120_vip'}),
+            call(**args),
+        ])
+
     def test_ha_relation_joined_with_ipv6(self):
         self.test_config.set('prefer-ipv6', True)
         self.get_hacluster_config.return_value = {
