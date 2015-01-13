@@ -8,3 +8,5 @@ include:
     - contrib.storage.linux.ceph
     - payload.execd
     - contrib.network.ip
+    - contrib.python.packages
+    - contrib.charmsupport

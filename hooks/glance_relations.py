@@ -1,12 +1,16 @@
 #!/usr/bin/python
+from subprocess import (
+    check_call,
+    call
+)
 import sys
 
 from glance_utils import (
     do_openstack_upgrade,
-    ensure_ceph_pool,
     migrate_database,
     register_configs,
     restart_map,
+    services,
     CLUSTER_RES,
     PACKAGES,
     SERVICES,
@@ -17,12 +21,13 @@ from glance_utils import (
     GLANCE_API_PASTE_INI,
     HAPROXY_CONF,
     ceph_config_file,
-    setup_ipv6)
-
+    setup_ipv6
+)
 from charmhelpers.core.hookenv import (
     config,
     Hooks,
     log as juju_log,
+    INFO,
     ERROR,
     open_port,
     is_relation_made,
@@ -32,33 +37,36 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     service_name,
     unit_get,
-    UnregisteredHookError, )
-
+    UnregisteredHookError
+)
 from charmhelpers.core.host import (
     restart_on_change,
-    service_stop
+    service_stop,
 )
-
 from charmhelpers.fetch import (
     apt_install,
     apt_update,
     filter_installed_packages
 )
-
 from charmhelpers.contrib.hahelpers.cluster import (
     eligible_leader,
     get_hacluster_config
 )
-
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     get_os_codename_package,
     openstack_upgrade_available,
     lsb_release,
-    sync_db_with_multi_ipv6_addresses)
-
-from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
-from charmhelpers.payload.execd import execd_preinstall
+    sync_db_with_multi_ipv6_addresses
+)
+from charmhelpers.contrib.storage.linux.ceph import (
+    ensure_ceph_keyring,
+    CephBrokerRq,
+    CephBrokerRsp,
+)
+from charmhelpers.payload.execd import (
+    execd_preinstall
+)
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_netmask_for_address,
@@ -70,15 +78,13 @@ from charmhelpers.contrib.openstack.ip import (
     canonical_url,
     PUBLIC, INTERNAL, ADMIN
 )
+from charmhelpers.contrib.openstack.context import (
+    ADDRESS_TYPES
+)
+from charmhelpers.contrib.charmsupport import nrpe
 
-from charmhelpers.contrib.openstack.context import ADDRESS_TYPES
-
-from subprocess import (
-    check_call,
-    call, )
 
 hooks = Hooks()
-
 CONFIGS = register_configs()
 
 
@@ -230,19 +236,31 @@ def ceph_changed():
         return
 
     service = service_name()
-
     if not ensure_ceph_keyring(service=service,
                                user='glance', group='glance'):
         juju_log('Could not create ceph keyring: peer not ready?')
         return
 
-    CONFIGS.write(GLANCE_API_CONF)
-    CONFIGS.write(ceph_config_file())
+    settings = relation_get()
+    if settings and 'broker_rsp' in settings:
+        rsp = CephBrokerRsp(settings['broker_rsp'])
+        # Non-zero return code implies failure
+        if rsp.exit_code:
+            juju_log("Ceph broker request failed (rc=%s, msg=%s)" %
+                     (rsp.exit_code, rsp.exit_msg), level=ERROR)
+            return
 
-    if eligible_leader(CLUSTER_RES):
-        _config = config()
-        ensure_ceph_pool(service=service,
-                         replicas=_config['ceph-osd-replication-count'])
+        juju_log("Ceph broker request succeeded (rc=%s, msg=%s)" %
+                 (rsp.exit_code, rsp.exit_msg), level=INFO)
+        CONFIGS.write(GLANCE_API_CONF)
+        CONFIGS.write(ceph_config_file())
+    else:
+        rq = CephBrokerRq()
+        replicas = config('ceph-osd-replication-count')
+        rq.add_op_create_pool(name=service, replica_count=replicas)
+        for rid in relation_ids('ceph'):
+            relation_set(relation_id=rid, broker_req=rq.request)
+            juju_log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
 
 
 @hooks.hook('identity-service-relation-joined')
@@ -297,6 +315,8 @@ def config_changed():
     open_port(9292)
     configure_https()
 
+    update_nrpe_config()
+
     # Pickup and changes due to network reference architecture
     # configuration
     [keystone_joined(rid) for rid in relation_ids('identity-service')]
@@ -334,6 +354,7 @@ def cluster_changed():
 def upgrade_charm():
     apt_install(filter_installed_packages(PACKAGES), fatal=True)
     configure_https()
+    update_nrpe_config()
     CONFIGS.write_all()
 
 
@@ -449,6 +470,19 @@ def amqp_changed():
         juju_log('amqp relation incomplete. Peer not ready?')
         return
     CONFIGS.write(GLANCE_API_CONF)
+
+
+@hooks.hook('nrpe-external-master-relation-joined',
+            'nrpe-external-master-relation-changed')
+def update_nrpe_config():
+    # python-dbus is used by check_upstart_job
+    apt_install('python-dbus')
+    hostname = nrpe.get_nagios_hostname()
+    current_unit = nrpe.get_nagios_unit_name()
+    nrpe_setup = nrpe.NRPE(hostname=hostname)
+    nrpe.add_init_service_checks(nrpe_setup, services(), current_unit)
+    nrpe_setup.write()
+
 
 if __name__ == '__main__':
     try:

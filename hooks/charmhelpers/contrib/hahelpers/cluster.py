@@ -16,6 +16,8 @@ import os
 
 from socket import gethostname as get_unit_hostname
 
+import six
+
 from charmhelpers.core.hookenv import (
     log,
     relation_ids,
@@ -27,9 +29,16 @@ from charmhelpers.core.hookenv import (
     WARNING,
     unit_get,
 )
+from charmhelpers.core.decorators import (
+    retry_on_exception,
+)
 
 
 class HAIncompleteConfig(Exception):
+    pass
+
+
+class CRMResourceNotFound(Exception):
     pass
 
 
@@ -67,24 +76,30 @@ def is_clustered():
     return False
 
 
-def is_crm_leader(resource):
+@retry_on_exception(5, base_delay=2, exc_type=CRMResourceNotFound)
+def is_crm_leader(resource, retry=False):
     """
     Returns True if the charm calling this is the elected corosync leader,
     as returned by calling the external "crm" command.
+
+    We allow this operation to be retried to avoid the possibility of getting a
+    false negative. See LP #1396246 for more info.
     """
-    cmd = [
-        "crm", "resource",
-        "show", resource
-    ]
+    cmd = ['crm', 'resource', 'show', resource]
     try:
-        status = subprocess.check_output(cmd)
+        status = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        if not isinstance(status, six.text_type):
+            status = six.text_type(status, "utf-8")
     except subprocess.CalledProcessError:
-        return False
-    else:
-        if get_unit_hostname() in status:
-            return True
-        else:
-            return False
+        status = None
+
+    if status and get_unit_hostname() in status:
+        return True
+
+    if status and "resource %s is NOT running" % (resource) in status:
+        raise CRMResourceNotFound("CRM resource %s not found" % (resource))
+
+    return False
 
 
 def is_leader(resource):
@@ -150,34 +165,42 @@ def https():
     return False
 
 
-def determine_api_port(public_port):
+def determine_api_port(public_port, singlenode_mode=False):
     '''
     Determine correct API server listening port based on
     existence of HTTPS reverse proxy and/or haproxy.
 
     public_port: int: standard public port for given service
 
+    singlenode_mode: boolean: Shuffle ports when only a single unit is present
+
     returns: int: the correct listening port for the API service
     '''
     i = 0
-    if len(peer_units()) > 0 or is_clustered():
+    if singlenode_mode:
+        i += 1
+    elif len(peer_units()) > 0 or is_clustered():
         i += 1
     if https():
         i += 1
     return public_port - (i * 10)
 
 
-def determine_apache_port(public_port):
+def determine_apache_port(public_port, singlenode_mode=False):
     '''
     Description: Determine correct apache listening port based on public IP +
     state of the cluster.
 
     public_port: int: standard public port for given service
 
+    singlenode_mode: boolean: Shuffle ports when only a single unit is present
+
     returns: int: the correct listening port for the HAProxy service
     '''
     i = 0
-    if len(peer_units()) > 0 or is_clustered():
+    if singlenode_mode:
+        i += 1
+    elif len(peer_units()) > 0 or is_clustered():
         i += 1
     return public_port - (i * 10)
 
@@ -197,7 +220,7 @@ def get_hacluster_config():
     for setting in settings:
         conf[setting] = config_get(setting)
     missing = []
-    [missing.append(s) for s, v in conf.iteritems() if v is None]
+    [missing.append(s) for s, v in six.iteritems(conf) if v is None]
     if missing:
         log('Insufficient config data to configure hacluster.', level=ERROR)
         raise HAIncompleteConfig
