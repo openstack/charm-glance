@@ -157,6 +157,17 @@ def create_keyring(service, key):
     log('Created new ceph keyring at %s.' % keyring, level=DEBUG)
 
 
+def delete_keyring(service):
+    """Delete an existing Ceph keyring."""
+    keyring = _keyring_path(service)
+    if not os.path.exists(keyring):
+        log('Keyring does not exist at %s' % keyring, level=WARNING)
+        return
+
+    os.remove(keyring)
+    log('Deleted ring at %s.' % keyring, level=INFO)
+
+
 def create_key_file(service, key):
     """Create a file containing key."""
     keyfile = _keyfile_path(service)

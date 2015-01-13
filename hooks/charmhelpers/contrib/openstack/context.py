@@ -468,21 +468,25 @@ class HAProxyContext(OSContextGenerator):
                             _unit = unit.replace('/', '-')
                             cluster_hosts[laddr]['backends'][_unit] = _laddr
 
-        # NOTE(jamespage) no split configurations found, just use
-        # private addresses
-        if not cluster_hosts:
-            netmask = get_netmask_for_address(addr)
-            cluster_hosts[addr] = {'network': "{}/{}".format(addr, netmask),
-                                   'backends': {l_unit: addr}}
-            for rid in relation_ids('cluster'):
-                for unit in related_units(rid):
-                    _laddr = relation_get('private-address',
-                                          rid=rid, unit=unit)
-                    if _laddr:
-                        _unit = unit.replace('/', '-')
-                        cluster_hosts[addr]['backends'][_unit] = _laddr
+        # NOTE(jamespage) add backend based on private address - this
+        # with either be the only backend or the fallback if no acls
+        # match in the frontend
+        cluster_hosts[addr] = {}
+        netmask = get_netmask_for_address(addr)
+        cluster_hosts[addr] = {'network': "{}/{}".format(addr, netmask),
+                               'backends': {l_unit: addr}}
+        for rid in relation_ids('cluster'):
+            for unit in related_units(rid):
+                _laddr = relation_get('private-address',
+                                      rid=rid, unit=unit)
+                if _laddr:
+                    _unit = unit.replace('/', '-')
+                    cluster_hosts[addr]['backends'][_unit] = _laddr
 
-        ctxt = {'frontends': cluster_hosts}
+        ctxt = {
+            'frontends': cluster_hosts,
+            'default_backend': addr
+        }
 
         if config('haproxy-server-timeout'):
             ctxt['haproxy_server_timeout'] = config('haproxy-server-timeout')
