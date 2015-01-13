@@ -1,4 +1,5 @@
 from mock import call, patch, MagicMock
+import json
 import os
 
 from test_utils import CharmTestCase
@@ -50,8 +51,8 @@ TO_PATCH = [
     'do_openstack_upgrade',
     'migrate_database',
     'ensure_ceph_keyring',
-    'ensure_ceph_pool',
     'ceph_config_file',
+    'update_nrpe_config',
     # other
     'call',
     'check_call',
@@ -81,9 +82,10 @@ class GlanceRelationTests(CharmTestCase):
         self.apt_update.assert_called_with(fatal=True)
         self.apt_install.assert_called_with(['apache2', 'glance',
                                              'python-mysqldb',
-                                             'python-swift',
+                                             'python-swiftclient',
                                              'python-psycopg2',
                                              'python-keystone',
+                                             'python-six',
                                              'uuid', 'haproxy'], fatal=True)
         self.assertTrue(self.execd_preinstall.called)
 
@@ -343,18 +345,41 @@ class GlanceRelationTests(CharmTestCase):
             'Could not create ceph keyring: peer not ready?'
         )
 
+    @patch("glance_relations.relation_set")
+    @patch("glance_relations.relation_get")
     @patch.object(relations, 'CONFIGS')
-    def test_ceph_changed_with_key_and_relation_data(self, configs):
+    def test_ceph_changed_broker_send_rq(self, configs, mock_relation_get,
+                                         mock_relation_set):
+        configs.complete_contexts.return_value = ['ceph']
+        self.service_name.return_value = 'glance'
+        self.ensure_ceph_keyring.return_value = True
+        self.relation_ids.return_value = ['ceph:0']
+        relations.hooks.execute(['hooks/ceph-relation-changed'])
+        self.ensure_ceph_keyring.assert_called_with(service='glance',
+                                                    user='glance',
+                                                    group='glance')
+        req = {'api-version': 1,
+               'ops': [{"op": "create-pool", "name": "glance", "replicas": 3}]}
+        broker_dict = json.dumps(req)
+        mock_relation_set.assert_called_with(broker_req=broker_dict,
+                                             relation_id='ceph:0')
+        for c in [call('/etc/glance/glance.conf')]:
+            self.assertNotIn(c, configs.write.call_args_list)
+
+    @patch("glance_relations.relation_get", autospec=True)
+    @patch.object(relations, 'CONFIGS')
+    def test_ceph_changed_with_key_and_relation_data(self, configs,
+                                                     mock_relation_get):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['ceph']
         configs.write = MagicMock()
         self.ensure_ceph_keyring.return_value = True
+        mock_relation_get.return_value = {'broker_rsp':
+                                          json.dumps({'exit-code': 0})}
         relations.ceph_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
                            call(self.ceph_config_file())],
                           configs.write.call_args_list)
-        self.ensure_ceph_pool.assert_called_with(service=self.service_name(),
-                                                 replicas=3)
 
     def test_keystone_joined(self):
         self.canonical_url.return_value = 'http://glancehost'
