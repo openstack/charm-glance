@@ -14,6 +14,22 @@ options:
       Note that updating this setting to a source that is known to
       provide a later version of OpenStack will trigger a software
       upgrade.
+
+      Note that when openstack-origin-git is specified, the packages
+      configured for that option will be installed from git rather
+      than from the openstack-origin repository.
+  openstack-origin-git:
+    default: None
+    type: "string"
+    description: |
+      Specifies a YAML file which lists the git repositories and branches
+      from which to install OpenStack.  See config/git-*.yaml for a
+      starting point.
+
+      Note that the config files that are installed will be determined
+      based on the OpenStack release in the openstack-origin option.
+
+      Note that updating this setting after deployment will do nothing.
   database-user:
     default: glance
     type: string

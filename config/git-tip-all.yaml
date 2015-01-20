@@ -1,0 +1,57 @@
+glance:
+  repository: git://git.openstack.org/openstack/glance.git
+  branch: master
+glance-store:
+  repository: git://git.openstack.org/openstack/glance_store.git
+  branch: master
+keystonemiddleware:
+  repository: git://git.openstack.org/openstack/keystonemiddleware.git
+  branch: master
+oslo-config:
+  repository: git://git.openstack.org/openstack/oslo.config.git
+  branch: master
+oslo-concurrency:
+  repository: git://git.openstack.org/openstack/oslo.concurrency.git
+  branch: master
+oslo-db:
+  repository: git://git.openstack.org/openstack/oslo.db.git
+  branch: master
+oslo-i18n:
+  repository: git://git.openstack.org/openstack/oslo.i18n.git
+  branch: master
+oslo-messaging:
+  repository: git://git.openstack.org/openstack/oslo.messaging.git
+  branch: master
+oslo-serialization:
+  repository: git://git.openstack.org/openstack/oslo.serialization.git
+  branch: master
+oslo-utils:
+  repository: git://git.openstack.org/openstack/oslo.utils.git
+  branch: master
+oslo-vmware:
+  repository: git://git.openstack.org/openstack/oslo.vmware.git
+  branch: master
+osprofiler:
+  repository: git://git.openstack.org/stackforge/osprofiler.git
+  branch: master
+pbr:
+  repository: git://git.openstack.org/openstack-dev/pbr.git
+  branch: master
+python-keystoneclient:
+  repository: git://git.openstack.org/openstack/python-keystoneclient.git
+  branch: master
+python-swiftclient:
+  repository: git://git.openstack.org/openstack/python-swiftclient.git
+  branch: master
+requirements:
+  repository: git://git.openstack.org/openstack/requirements.git
+  branch: master
+stevedore:
+  repository: git://git.openstack.org/openstack/stevedore.git
+  branch: master
+sqlalchemy-migrate:
+  repository: git://git.openstack.org/stackforge/sqlalchemy-migrate.git
+  branch: master
+wsme:
+  repository: git://git.openstack.org/stackforge/wsme.git
+  branch: master
