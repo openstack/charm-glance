@@ -322,6 +322,8 @@ def config_changed():
     [keystone_joined(rid) for rid in relation_ids('identity-service')]
     [image_service_joined(rid) for rid in relation_ids('image-service')]
     [cluster_joined(rid) for rid in relation_ids('cluster')]
+    for r_id in relation_ids('ha'):
+        ha_relation_joined(relation_id=r_id)
 
 
 @hooks.hook('cluster-relation-joined')
@@ -359,7 +361,7 @@ def upgrade_charm():
 
 
 @hooks.hook('ha-relation-joined')
-def ha_relation_joined():
+def ha_relation_joined(relation_id=None):
     cluster_config = get_hacluster_config()
 
     resources = {
@@ -397,7 +399,8 @@ def ha_relation_joined():
             vip_group.append(vip_key)
 
     if len(vip_group) >= 1:
-        relation_set(groups={'grp_glance_vips': ' '.join(vip_group)})
+        relation_set(relation_id=relation_id,
+                     groups={'grp_glance_vips': ' '.join(vip_group)})
 
     init_services = {
         'res_glance_haproxy': 'haproxy',
@@ -407,7 +410,8 @@ def ha_relation_joined():
         'cl_glance_haproxy': 'res_glance_haproxy',
     }
 
-    relation_set(init_services=init_services,
+    relation_set(relation_id=relation_id,
+                 init_services=init_services,
                  corosync_bindiface=cluster_config['ha-bindiface'],
                  corosync_mcastport=cluster_config['ha-mcastport'],
                  resources=resources,
