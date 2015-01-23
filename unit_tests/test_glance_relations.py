@@ -507,6 +507,7 @@ class GlanceRelationTests(CharmTestCase):
         self.get_netmask_for_address.return_value = '255.255.0.0'
         relations.ha_relation_joined()
         args = {
+            'relation_id': None,
             'corosync_bindiface': 'em0',
             'corosync_mcastport': '8080',
             'init_services': {'res_glance_haproxy': 'haproxy'},
@@ -519,7 +520,8 @@ class GlanceRelationTests(CharmTestCase):
             'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
         }
         self.relation_set.assert_has_calls([
-            call(groups={'grp_glance_vips': 'res_glance_eth1_vip'}),
+            call(relation_id=None,
+                 groups={'grp_glance_vips': 'res_glance_eth1_vip'}),
             call(**args),
         ])
 
@@ -535,6 +537,7 @@ class GlanceRelationTests(CharmTestCase):
         self.get_netmask_for_address.return_value = None
         relations.ha_relation_joined()
         args = {
+            'relation_id': None,
             'corosync_bindiface': 'em0',
             'corosync_mcastport': '8080',
             'init_services': {'res_glance_haproxy': 'haproxy'},
@@ -547,7 +550,8 @@ class GlanceRelationTests(CharmTestCase):
             'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
         }
         self.relation_set.assert_has_calls([
-            call(groups={'grp_glance_vips': 'res_glance_eth120_vip'}),
+            call(relation_id=None,
+                 groups={'grp_glance_vips': 'res_glance_eth120_vip'}),
             call(**args),
         ])
 
@@ -562,6 +566,7 @@ class GlanceRelationTests(CharmTestCase):
         self.get_netmask_for_address.return_value = '64'
         relations.ha_relation_joined()
         args = {
+            'relation_id': None,
             'corosync_bindiface': 'em0',
             'corosync_mcastport': '8080',
             'init_services': {'res_glance_haproxy': 'haproxy'},
