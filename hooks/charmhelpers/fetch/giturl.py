@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
 from charmhelpers.fetch import (
     BaseFetchHandler,
@@ -15,6 +31,8 @@ except ImportError:
     from charmhelpers.fetch import apt_install
     apt_install("python-git")
     from git import Repo
+
+from git.exc import GitCommandError
 
 
 class GitUrlFetchHandler(BaseFetchHandler):
@@ -46,6 +64,8 @@ class GitUrlFetchHandler(BaseFetchHandler):
             mkdir(dest_dir, perms=0o755)
         try:
             self.clone(source, dest_dir, branch)
+        except GitCommandError as e:
+            raise UnhandledSource(e.message)
         except OSError as e:
             raise UnhandledSource(e.strerror)
         return dest_dir
