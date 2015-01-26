@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 #
 # Copyright 2012 Canonical Ltd.
 #
@@ -205,19 +221,23 @@ def determine_apache_port(public_port, singlenode_mode=False):
     return public_port - (i * 10)
 
 
-def get_hacluster_config():
+def get_hacluster_config(exclude_keys=None):
     '''
     Obtains all relevant configuration from charm configuration required
     for initiating a relation to hacluster:
 
         ha-bindiface, ha-mcastport, vip
 
+    param: exclude_keys: list of setting key(s) to be excluded.
     returns: dict: A dict containing settings keyed by setting name.
     raises: HAIncompleteConfig if settings are missing.
     '''
     settings = ['ha-bindiface', 'ha-mcastport', 'vip']
     conf = {}
     for setting in settings:
+        if exclude_keys and setting in exclude_keys:
+            continue
+
         conf[setting] = config_get(setting)
     missing = []
     [missing.append(s) for s, v in six.iteritems(conf) if v is None]

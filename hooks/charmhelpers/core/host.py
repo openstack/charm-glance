@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 """Tools for working with the host system"""
 # Copyright 2012 Canonical Ltd.
 #
@@ -168,10 +184,10 @@ def mkdir(path, owner='root', group='root', perms=0o555, force=False):
             log("Removing non-directory file {} prior to mkdir()".format(path))
             os.unlink(realpath)
             os.makedirs(realpath, perms)
-        os.chown(realpath, uid, gid)
     elif not path_exists:
         os.makedirs(realpath, perms)
-        os.chown(realpath, uid, gid)
+    os.chown(realpath, uid, gid)
+    os.chmod(realpath, perms)
 
 
 def write_file(path, content, owner='root', group='root', perms=0o444):
@@ -389,6 +405,9 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
     *  0 => Installed revno is the same as supplied arg
     * -1 => Installed revno is less than supplied arg
 
+    This function imports apt_cache function from charmhelpers.fetch if
+    the pkgcache argument is None. Be sure to add charmhelpers.fetch if
+    you call this function, or pass an apt_pkg.Cache() instance.
     '''
     import apt_pkg
     if not pkgcache:
@@ -407,13 +426,21 @@ def chdir(d):
         os.chdir(cur)
 
 
-def chownr(path, owner, group):
+def chownr(path, owner, group, follow_links=True):
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
+    if follow_links:
+        chown = os.chown
+    else:
+        chown = os.lchown
 
     for root, dirs, files in os.walk(path):
         for name in dirs + files:
             full = os.path.join(root, name)
             broken_symlink = os.path.lexists(full) and not os.path.exists(full)
             if not broken_symlink:
-                os.chown(full, uid, gid)
+                chown(full, uid, gid)
+
+
+def lchownr(path, owner, group):
+    chownr(path, owner, group, follow_links=False)
