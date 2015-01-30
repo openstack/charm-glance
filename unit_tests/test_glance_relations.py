@@ -64,6 +64,7 @@ TO_PATCH = [
     'get_iface_for_address',
     'get_ipv6_addr',
     'sync_db_with_multi_ipv6_addresses',
+    'delete_keyring',
 ]
 
 
@@ -380,6 +381,13 @@ class GlanceRelationTests(CharmTestCase):
         self.assertEquals([call('/etc/glance/glance-api.conf'),
                            call(self.ceph_config_file())],
                           configs.write.call_args_list)
+
+    @patch.object(relations, 'CONFIGS')
+    def test_ceph_broken(self, configs):
+        self.service_name.return_value = 'glance'
+        relations.ceph_broken()
+        self.delete_keyring.assert_called_with(service='glance')
+        self.assertTrue(configs.write_all.called)
 
     def test_keystone_joined(self):
         self.canonical_url.return_value = 'http://glancehost'
