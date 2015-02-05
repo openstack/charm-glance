@@ -23,7 +23,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 #    * Add tests with different storage back ends
 #    * Resolve Essex->Havana juju set charm bug
 
-    def __init__(self, series=None, openstack=None, source=None, stable=False):
+    def __init__(self, series=None, openstack=None, source=None, stable=True):
         '''Deploy the entire test environment.'''
         super(GlanceBasicDeployment, self).__init__(series, openstack, source, stable)
         self._add_services()
