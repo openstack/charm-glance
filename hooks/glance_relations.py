@@ -63,6 +63,7 @@ from charmhelpers.contrib.storage.linux.ceph import (
     ensure_ceph_keyring,
     CephBrokerRq,
     CephBrokerRsp,
+    delete_keyring,
 )
 from charmhelpers.payload.execd import (
     execd_preinstall
@@ -263,6 +264,13 @@ def ceph_changed():
             juju_log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
 
 
+@hooks.hook('ceph-relation-broken')
+def ceph_broken():
+    service = service_name()
+    delete_keyring(service=service)
+    CONFIGS.write_all()
+
+
 @hooks.hook('identity-service-relation-joined')
 def keystone_joined(relation_id=None):
     public_url = '{}:9292'.format(canonical_url(CONFIGS, PUBLIC))
@@ -433,8 +441,7 @@ def ha_relation_changed():
     [image_service_joined(rid) for rid in relation_ids('image-service')]
 
 
-@hooks.hook('ceph-relation-broken',
-            'identity-service-relation-broken',
+@hooks.hook('identity-service-relation-broken',
             'object-store-relation-broken',
             'shared-db-relation-broken',
             'pgsql-db-relation-broken')
