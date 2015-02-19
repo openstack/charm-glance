@@ -103,6 +103,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('2.1.0', 'juno'),
     ('2.2.0', 'juno'),
     ('2.2.1', 'kilo'),
+    ('2.2.2', 'kilo'),
 ])
 
 DEFAULT_LOOPBACK_SIZE = '5G'

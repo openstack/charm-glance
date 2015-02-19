@@ -279,9 +279,25 @@ def db_ssl(rdata, ctxt, ssl_dir):
 class IdentityServiceContext(OSContextGenerator):
     interfaces = ['identity-service']
 
+    def __init__(self, service=None, service_user=None):
+        self.service = service
+        self.service_user = service_user
+
     def __call__(self):
         log('Generating template context for identity-service', level=DEBUG)
         ctxt = {}
+
+        if self.service and self.service_user:
+            # This is required for pki token signing if we don't want /tmp to
+            # be used.
+            cachedir = '/var/cache/%s' % (self.service)
+            if not os.path.isdir(cachedir):
+                log("Creating service cache dir %s" % (cachedir), level=DEBUG)
+                mkdir(path=cachedir, owner=self.service_user,
+                      group=self.service_user, perms=0o700)
+
+            ctxt['signing_dir'] = cachedir
+
         for rid in relation_ids('identity-service'):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
@@ -291,15 +307,16 @@ class IdentityServiceContext(OSContextGenerator):
                 auth_host = format_ipv6_addr(auth_host) or auth_host
                 svc_protocol = rdata.get('service_protocol') or 'http'
                 auth_protocol = rdata.get('auth_protocol') or 'http'
-                ctxt = {'service_port': rdata.get('service_port'),
-                        'service_host': serv_host,
-                        'auth_host': auth_host,
-                        'auth_port': rdata.get('auth_port'),
-                        'admin_tenant_name': rdata.get('service_tenant'),
-                        'admin_user': rdata.get('service_username'),
-                        'admin_password': rdata.get('service_password'),
-                        'service_protocol': svc_protocol,
-                        'auth_protocol': auth_protocol}
+                ctxt.update({'service_port': rdata.get('service_port'),
+                             'service_host': serv_host,
+                             'auth_host': auth_host,
+                             'auth_port': rdata.get('auth_port'),
+                             'admin_tenant_name': rdata.get('service_tenant'),
+                             'admin_user': rdata.get('service_username'),
+                             'admin_password': rdata.get('service_password'),
+                             'service_protocol': svc_protocol,
+                             'auth_protocol': auth_protocol})
+
                 if context_complete(ctxt):
                     # NOTE(jamespage) this is required for >= icehouse
                     # so a missing value just indicates keystone needs
