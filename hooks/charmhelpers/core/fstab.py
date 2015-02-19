@@ -17,10 +17,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-__author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
-
 import io
 import os
+
+__author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
 
 class Fstab(io.FileIO):
@@ -77,7 +77,7 @@ class Fstab(io.FileIO):
         for line in self.readlines():
             line = line.decode('us-ascii')
             try:
-                if line.strip() and not line.startswith("#"):
+                if line.strip() and not line.strip().startswith("#"):
                     yield self._hydrate_entry(line)
             except ValueError:
                 pass
@@ -104,7 +104,7 @@ class Fstab(io.FileIO):
 
         found = False
         for index, line in enumerate(lines):
-            if not line.startswith("#"):
+            if line.strip() and not line.strip().startswith("#"):
                 if self._hydrate_entry(line) == entry:
                     found = True
                     break
