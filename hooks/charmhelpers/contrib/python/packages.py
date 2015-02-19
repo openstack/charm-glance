@@ -17,8 +17,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
-
 from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.hookenv import log
 
@@ -28,6 +26,8 @@ except ImportError:
     apt_update()
     apt_install('python-pip')
     from pip import main as pip_execute
+
+__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
 
 def parse_options(given, available):

@@ -17,8 +17,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-__author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
-
 import yaml
 
 from subprocess import check_call
@@ -26,25 +24,33 @@ from subprocess import check_call
 from charmhelpers.core.hookenv import (
     log,
     DEBUG,
+    ERROR,
 )
+
+__author__ = 'Jorge Niedbalski R. <jorge.niedbalski@canonical.com>'
 
 
 def create(sysctl_dict, sysctl_file):
     """Creates a sysctl.conf file from a YAML associative array
 
-    :param sysctl_dict: a dict of sysctl options eg { 'kernel.max_pid': 1337 }
-    :type sysctl_dict: dict
+    :param sysctl_dict: a YAML-formatted string of sysctl options eg "{ 'kernel.max_pid': 1337 }"
+    :type sysctl_dict: str
     :param sysctl_file: path to the sysctl file to be saved
     :type sysctl_file: str or unicode
     :returns: None
     """
-    sysctl_dict = yaml.load(sysctl_dict)
+    try:
+        sysctl_dict_parsed = yaml.safe_load(sysctl_dict)
+    except yaml.YAMLError:
+        log("Error parsing YAML sysctl_dict: {}".format(sysctl_dict),
+            level=ERROR)
+        return
 
     with open(sysctl_file, "w") as fd:
-        for key, value in sysctl_dict.items():
+        for key, value in sysctl_dict_parsed.items():
             fd.write("{}={}\n".format(key, value))
 
-    log("Updating sysctl_file: %s values: %s" % (sysctl_file, sysctl_dict),
+    log("Updating sysctl_file: %s values: %s" % (sysctl_file, sysctl_dict_parsed),
         level=DEBUG)
 
     check_call(["sysctl", "-p", sysctl_file])

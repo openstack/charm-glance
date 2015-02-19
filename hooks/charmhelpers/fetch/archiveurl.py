@@ -18,6 +18,16 @@ import os
 import hashlib
 import re
 
+from charmhelpers.fetch import (
+    BaseFetchHandler,
+    UnhandledSource
+)
+from charmhelpers.payload.archive import (
+    get_archive_handler,
+    extract,
+)
+from charmhelpers.core.host import mkdir, check_hash
+
 import six
 if six.PY3:
     from urllib.request import (
@@ -34,16 +44,6 @@ else:
         URLError
     )
     from urlparse import urlparse, urlunparse, parse_qs
-
-from charmhelpers.fetch import (
-    BaseFetchHandler,
-    UnhandledSource
-)
-from charmhelpers.payload.archive import (
-    get_archive_handler,
-    extract,
-)
-from charmhelpers.core.host import mkdir, check_hash
 
 
 def splituser(host):
