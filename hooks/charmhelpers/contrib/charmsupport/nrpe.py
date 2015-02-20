@@ -210,7 +210,7 @@ class NRPE(object):
         super(NRPE, self).__init__()
         self.config = config()
         self.nagios_context = self.config['nagios_context']
-        if 'nagios_servicegroups' in self.config:
+        if 'nagios_servicegroups' in self.config and self.config['nagios_servicegroups']:
             self.nagios_servicegroups = self.config['nagios_servicegroups']
         else:
             self.nagios_servicegroups = self.nagios_context
