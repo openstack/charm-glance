@@ -169,8 +169,13 @@ class AmuletUtils(object):
             cmd = 'pgrep -o -f {}'.format(service)
         else:
             cmd = 'pgrep -o {}'.format(service)
-        proc_dir = '/proc/{}'.format(sentry_unit.run(cmd)[0].strip())
-        return self._get_dir_mtime(sentry_unit, proc_dir)
+        cmd = cmd + '  | grep  -v pgrep || exit 0'
+        cmd_out = sentry_unit.run(cmd)
+        self.log.debug('CMDout: ' + str(cmd_out))
+        if cmd_out[0]:
+            self.log.debug('Pid for %s %s' % (service, str(cmd_out[0])))
+            proc_dir = '/proc/{}'.format(cmd_out[0].strip())
+            return self._get_dir_mtime(sentry_unit, proc_dir)
 
     def service_restarted(self, sentry_unit, service, filename,
                           pgrep_full=False, sleep_time=20):
@@ -186,6 +191,121 @@ class AmuletUtils(object):
             return True
         else:
             return False
+
+    def service_restarted_since(self, sentry_unit, mtime, service,
+                                pgrep_full=False, sleep_time=20,
+                                retry_count=2):
+        """Check if service was been started after a given time.
+
+        Args:
+          sentry_unit (sentry): The sentry unit to check for the service on
+          mtime (float): The epoch time to check against
+          service (string): service name to look for in process table
+          pgrep_full (boolean): Use full command line search mode with pgrep
+          sleep_time (int): Seconds to sleep before looking for process
+          retry_count (int): If service is not found, how many times to retry
+
+        Returns:
+          bool: True if service found and its start time it newer than mtime,
+                False if service is older than mtime or if service was
+                not found.
+        """
+        self.log.debug('Checking %s restarted since %s' % (service, mtime))
+        time.sleep(sleep_time)
+        proc_start_time = self._get_proc_start_time(sentry_unit, service,
+                                                    pgrep_full)
+        while retry_count > 0 and not proc_start_time:
+            self.log.debug('No pid file found for service %s, will retry %i '
+                           'more times' % (service, retry_count))
+            time.sleep(30)
+            proc_start_time = self._get_proc_start_time(sentry_unit, service,
+                                                        pgrep_full)
+            retry_count = retry_count - 1
+
+        if not proc_start_time:
+            self.log.warn('No proc start time found, assuming service did '
+                          'not start')
+            return False
+        if proc_start_time >= mtime:
+            self.log.debug('proc start time is newer than provided mtime'
+                           '(%s >= %s)' % (proc_start_time, mtime))
+            return True
+        else:
+            self.log.warn('proc start time (%s) is older than provided mtime '
+                          '(%s), service did not restart' % (proc_start_time,
+                                                             mtime))
+            return False
+
+    def config_updated_since(self, sentry_unit, filename, mtime,
+                             sleep_time=20):
+        """Check if file was modified after a given time.
+
+        Args:
+          sentry_unit (sentry): The sentry unit to check the file mtime on
+          filename (string): The file to check mtime of
+          mtime (float): The epoch time to check against
+          sleep_time (int): Seconds to sleep before looking for process
+
+        Returns:
+          bool: True if file was modified more recently than mtime, False if
+                file was modified before mtime,
+        """
+        self.log.debug('Checking %s updated since %s' % (filename, mtime))
+        time.sleep(sleep_time)
+        file_mtime = self._get_file_mtime(sentry_unit, filename)
+        if file_mtime >= mtime:
+            self.log.debug('File mtime is newer than provided mtime '
+                           '(%s >= %s)' % (file_mtime, mtime))
+            return True
+        else:
+            self.log.warn('File mtime %s is older than provided mtime %s'
+                          % (file_mtime, mtime))
+            return False
+
+    def validate_service_config_changed(self, sentry_unit, mtime, service,
+                                        filename, pgrep_full=False,
+                                        sleep_time=20, retry_count=2):
+        """Check service and file were updated after mtime
+
+        Args:
+          sentry_unit (sentry): The sentry unit to check for the service on
+          mtime (float): The epoch time to check against
+          service (string): service name to look for in process table
+          filename (string): The file to check mtime of
+          pgrep_full (boolean): Use full command line search mode with pgrep
+          sleep_time (int): Seconds to sleep before looking for process
+          retry_count (int): If service is not found, how many times to retry
+
+        Typical Usage:
+            u = OpenStackAmuletUtils(ERROR)
+            ...
+            mtime = u.get_sentry_time(self.cinder_sentry)
+            self.d.configure('cinder', {'verbose': 'True', 'debug': 'True'})
+            if not u.validate_service_config_changed(self.cinder_sentry,
+                                                     mtime,
+                                                     'cinder-api',
+                                                     '/etc/cinder/cinder.conf')
+                amulet.raise_status(amulet.FAIL, msg='update failed')
+        Returns:
+          bool: True if both service and file where updated/restarted after
+                mtime, False if service is older than mtime or if service was
+                not found or if filename was modified before mtime.
+        """
+        self.log.debug('Checking %s restarted since %s' % (service, mtime))
+        time.sleep(sleep_time)
+        service_restart = self.service_restarted_since(sentry_unit, mtime,
+                                                       service,
+                                                       pgrep_full=pgrep_full,
+                                                       sleep_time=0,
+                                                       retry_count=retry_count)
+        config_update = self.config_updated_since(sentry_unit, filename, mtime,
+                                                  sleep_time=0)
+        return service_restart and config_update
+
+    def get_sentry_time(self, sentry_unit):
+        """Return current epoch time on a sentry"""
+        cmd = "date +'%s'"
+        return float(sentry_unit.run(cmd)[0])
 
     def relation_error(self, name, data):
         return 'unexpected relation data in {} - {}'.format(name, data)

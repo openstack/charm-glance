@@ -71,16 +71,19 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         services.append(this_service)
         use_source = ['mysql', 'mongodb', 'rabbitmq-server', 'ceph',
                       'ceph-osd', 'ceph-radosgw']
+        # Openstack subordinate charms do not expose an origin option as that
+        # is controlled by the principle
+        ignore = ['neutron-openvswitch']
 
         if self.openstack:
             for svc in services:
-                if svc['name'] not in use_source:
+                if svc['name'] not in use_source + ignore:
                     config = {'openstack-origin': self.openstack}
                     self.d.configure(svc['name'], config)
 
         if self.source:
             for svc in services:
-                if svc['name'] in use_source:
+                if svc['name'] in use_source and svc['name'] not in ignore:
                     config = {'source': self.source}
                     self.d.configure(svc['name'], config)
 

@@ -48,6 +48,9 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.core.decorators import (
     retry_on_exception,
 )
+from charmhelpers.core.strutils import (
+    bool_from_string,
+)
 
 
 class HAIncompleteConfig(Exception):
@@ -164,7 +167,8 @@ def https():
     .
     returns: boolean
     '''
-    if config_get('use-https') == "yes":
+    use_https = config_get('use-https')
+    if use_https and bool_from_string(use_https):
         return True
     if config_get('ssl_cert') and config_get('ssl_key'):
         return True
