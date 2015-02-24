@@ -32,7 +32,7 @@ except ImportError:
     apt_install("python-git")
     from git import Repo
 
-from git.exc import GitCommandError
+from git.exc import GitCommandError  # noqa E402
 
 
 class GitUrlFetchHandler(BaseFetchHandler):
