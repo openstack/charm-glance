@@ -1038,6 +1038,8 @@ class ZeroMQContext(OSContextGenerator):
                     for unit in related_units(rid):
                         ctxt['zmq_nonce'] = relation_get('nonce', unit, rid)
                         ctxt['zmq_host'] = relation_get('host', unit, rid)
+                        ctxt['zmq_redis_address'] = relation_get(
+                            'zmq_redis_address', unit, rid)
 
         return ctxt
 
