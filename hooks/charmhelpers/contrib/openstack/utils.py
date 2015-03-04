@@ -23,11 +23,12 @@ from functools import wraps
 import subprocess
 import json
 import os
-import socket
 import sys
 
 import six
 import yaml
+
+from charmhelpers.contrib.network import ip
 
 from charmhelpers.core.hookenv import (
     config,
@@ -421,77 +422,10 @@ def clean_storage(block_device):
     else:
         zap_disk(block_device)
 
-
-def is_ip(address):
-    """
-    Returns True if address is a valid IP address.
-    """
-    try:
-        # Test to see if already an IPv4 address
-        socket.inet_aton(address)
-        return True
-    except socket.error:
-        return False
-
-
-def ns_query(address):
-    try:
-        import dns.resolver
-    except ImportError:
-        apt_install('python-dnspython')
-        import dns.resolver
-
-    if isinstance(address, dns.name.Name):
-        rtype = 'PTR'
-    elif isinstance(address, six.string_types):
-        rtype = 'A'
-    else:
-        return None
-
-    answers = dns.resolver.query(address, rtype)
-    if answers:
-        return str(answers[0])
-    return None
-
-
-def get_host_ip(hostname):
-    """
-    Resolves the IP for a given hostname, or returns
-    the input if it is already an IP.
-    """
-    if is_ip(hostname):
-        return hostname
-
-    return ns_query(hostname)
-
-
-def get_hostname(address, fqdn=True):
-    """
-    Resolves hostname for given IP, or returns the input
-    if it is already a hostname.
-    """
-    if is_ip(address):
-        try:
-            import dns.reversename
-        except ImportError:
-            apt_install('python-dnspython')
-            import dns.reversename
-
-        rev = dns.reversename.from_address(address)
-        result = ns_query(rev)
-        if not result:
-            return None
-    else:
-        result = address
-
-    if fqdn:
-        # strip trailing .
-        if result.endswith('.'):
-            return result[:-1]
-        else:
-            return result
-    else:
-        return result.split('.')[0]
+is_ip = ip.is_ip
+ns_query = ip.ns_query
+get_host_ip = ip.get_host_ip
+get_hostname = ip.get_hostname
 
 
 def get_matchmaker_map(mm_file='/etc/oslo/matchmaker_ring.json'):

@@ -45,12 +45,14 @@ class RelationContext(dict):
     """
     name = None
     interface = None
-    required_keys = []
 
     def __init__(self, name=None, additional_required_keys=None):
+        if not hasattr(self, 'required_keys'):
+            self.required_keys = []
+
         if name is not None:
             self.name = name
-        if additional_required_keys is not None:
+        if additional_required_keys:
             self.required_keys.extend(additional_required_keys)
         self.get_data()
 
@@ -134,7 +136,10 @@ class MysqlRelation(RelationContext):
     """
     name = 'db'
     interface = 'mysql'
-    required_keys = ['host', 'user', 'password', 'database']
+
+    def __init__(self, *args, **kwargs):
+        self.required_keys = ['host', 'user', 'password', 'database']
+        super(HttpRelation).__init__(self, *args, **kwargs)
 
 
 class HttpRelation(RelationContext):
@@ -146,7 +151,10 @@ class HttpRelation(RelationContext):
     """
     name = 'website'
     interface = 'http'
-    required_keys = ['host', 'port']
+
+    def __init__(self, *args, **kwargs):
+        self.required_keys = ['host', 'port']
+        super(HttpRelation).__init__(self, *args, **kwargs)
 
     def provide_data(self):
         return {
