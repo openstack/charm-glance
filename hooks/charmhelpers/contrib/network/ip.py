@@ -17,13 +17,16 @@
 import glob
 import re
 import subprocess
+import six
+import socket
 
 from functools import partial
 
 from charmhelpers.core.hookenv import unit_get
 from charmhelpers.fetch import apt_install
 from charmhelpers.core.hookenv import (
-    log
+    log,
+    WARNING,
 )
 
 try:
@@ -365,3 +368,83 @@ def is_bridge_member(nic):
             return True
 
     return False
+
+
+def is_ip(address):
+    """
+    Returns True if address is a valid IP address.
+    """
+    try:
+        # Test to see if already an IPv4 address
+        socket.inet_aton(address)
+        return True
+    except socket.error:
+        return False
+
+
+def ns_query(address):
+    try:
+        import dns.resolver
+    except ImportError:
+        apt_install('python-dnspython')
+        import dns.resolver
+
+    if isinstance(address, dns.name.Name):
+        rtype = 'PTR'
+    elif isinstance(address, six.string_types):
+        rtype = 'A'
+    else:
+        return None
+
+    answers = dns.resolver.query(address, rtype)
+    if answers:
+        return str(answers[0])
+    return None
+
+
+def get_host_ip(hostname, fallback=None):
+    """
+    Resolves the IP for a given hostname, or returns
+    the input if it is already an IP.
+    """
+    if is_ip(hostname):
+        return hostname
+
+    ip_addr = ns_query(hostname)
+    if not ip_addr:
+        try:
+            ip_addr = socket.gethostbyname(hostname)
+        except:
+            log("Failed to resolve hostname '%s'" % (hostname),
+                level=WARNING)
+            return fallback
+    return ip_addr
+
+
+def get_hostname(address, fqdn=True):
+    """
+    Resolves hostname for given IP, or returns the input
+    if it is already a hostname.
+    """
+    if is_ip(address):
+        try:
+            import dns.reversename
+        except ImportError:
+            apt_install("python-dnspython")
+            import dns.reversename
+
+        rev = dns.reversename.from_address(address)
+        result = ns_query(rev)
+        if not result:
+            return None
+    else:
+        result = address
+
+    if fqdn:
+        # strip trailing .
+        if result.endswith('.'):
+            return result[:-1]
+        else:
+            return result
+    else:
+        return result.split('.')[0]
