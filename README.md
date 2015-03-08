@@ -81,6 +81,96 @@ as the endpoint for Glance).
 Note that Glance in this configuration must be used with either Ceph or
 Swift providing backing image storage.
 
+Deploying from source
+---------------------
+
+The minimal openstack-origin-git config required to deploy from source is:
+
+  openstack-origin-git:
+      "{'glance':
+           {'repository': 'git://git.openstack.org/openstack/glance.git',
+            'branch': 'stable/icehouse'}}"
+
+If you specify a 'requirements' repository, it will be used to update the
+requirements.txt files of all other git repos that it applies to, before
+they are installed:
+
+  openstack-origin-git:
+      "{'requirements':
+           {'repository': 'git://git.openstack.org/openstack/requirements.git',
+            'branch': 'master'},
+        'glance':
+           {'repository': 'git://git.openstack.org/openstack/glance.git',
+            'branch': 'master'}}"
+
+Note that there are only two key values the charm knows about for the outermost
+dictionary: 'glance' and 'requirements'. These repositories must correspond to
+these keys. If the requirements repository is specified, it will be installed
+first. The glance repository is always installed last.  All other repostories
+will be installed in between.
+
+NOTE(coreycb): The following is temporary to keep track of the full list of
+current tip repos (may not be up-to-date).
+
+  openstack-origin-git:
+      "{'requirements':
+           {'repository': 'git://git.openstack.org/openstack/requirements.git',
+            'branch': 'master'},
+        'glance-store':
+           {'repository': 'git://git.openstack.org/openstack/glance_store.git',
+            'branch': 'master'},
+        'keystonemiddleware:
+           {'repository': 'git://git.openstack.org/openstack/keystonemiddleware.git',
+            'branch: 'master'},
+        'oslo-concurrency':
+           {'repository': 'git://git.openstack.org/openstack/oslo.concurrency.git',
+            'branch: 'master'},
+        'oslo-config':
+           {'repository': 'git://git.openstack.org/openstack/oslo.config.git',
+            'branch: 'master'},
+        'oslo-db':
+           {'repository': 'git://git.openstack.org/openstack/oslo.db.git',
+            'branch: 'master'},
+        'oslo-i18n':
+           {'repository': 'git://git.openstack.org/openstack/oslo.i18n.git',
+            'branch: 'master'},
+        'oslo-messaging':
+           {'repository': 'git://git.openstack.org/openstack/oslo.messaging.git',
+            'branch: 'master'},
+        'oslo-serialization':
+           {'repository': 'git://git.openstack.org/openstack/oslo.serialization.git',
+            'branch: 'master'},
+        'oslo-utils':
+           {'repository': 'git://git.openstack.org/openstack/oslo.utils.git',
+            'branch: 'master'},
+        'oslo-vmware':
+           {'repository': 'git://git.openstack.org/openstack/oslo.vmware.git',
+            'branch: 'master'},
+        'osprofiler':
+           {'repository': 'git://git.openstack.org/stackforge/osprofiler.git',
+            'branch: 'master'},
+        'pbr':
+           {'repository': 'git://git.openstack.org/openstack-dev/pbr.git',
+            'branch: 'master'},
+        'python-keystoneclient':
+           {'repository': 'git://git.openstack.org/openstack/python-keystoneclient.git',
+            'branch: 'master'},
+        'python-swiftclient':
+           {'repository': 'git://git.openstack.org/openstack/python-swiftclient.git',
+            'branch: 'master'},
+        'stevedore':
+           {'repository': 'git://git.openstack.org/openstack/stevedore.git',
+            'branch: 'master'},
+        'sqlalchemy-migrate':
+           {'repository': 'git://git.openstack.org/stackforge/sqlalchemy-migrate.git',
+            'branch: 'master'},
+        'wsme':
+           {'repository': 'git://git.openstack.org/stackforge/wsme.git',
+            'branch': 'master'},
+        'glance':
+           {'repository': 'git://git.openstack.org/openstack/glance.git',
+            'branch': 'master'}}"
+
 Contact Information
 -------------------
 

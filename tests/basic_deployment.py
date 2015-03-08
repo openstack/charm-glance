@@ -55,11 +55,17 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 
     def _configure_services(self):
         '''Configure all of the services.'''
+        # NOTE(coreycb): Added the following temporarily to test deploy from source
+        glance_config = {'openstack-origin-git':
+                         "{'glance':"
+                         "   {'repository': 'git://git.openstack.org/openstack/glance.git',"
+                         "    'branch': 'stable/icehouse'}}"}
         keystone_config = {'admin-password': 'openstack',
                            'admin-token': 'ubuntutesting'}
 
         mysql_config = {'dataset-size': '50%'}
-        configs = {'keystone': keystone_config,
+        configs = {'glance': glance_config,
+                   'keystone': keystone_config,
                    'mysql': mysql_config}
         super(GlanceBasicDeployment, self)._configure_services(configs)
 
