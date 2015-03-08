@@ -103,6 +103,12 @@ def install_hook():
 
     apt_update(fatal=True)
     apt_install(determine_packages(), fatal=True)
+
+    # NOTE(coreycb): This is temporary for sstack proxy, unless we decide
+    # we need to code proxy support into the charms.
+    os.environ["http_proxy"] = "http://squid.internal:3128"
+    os.environ["https_proxy"] = "https://squid.internal:3128"
+
     git_install(config('openstack-origin-git'))
 
     for service in SERVICES:

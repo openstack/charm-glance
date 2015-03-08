@@ -1,6 +1,0 @@
-glance:
-  repository: git://git.openstack.org/openstack/glance.git
-  branch: stable/juno
-requirements:
-  repository: git://git.openstack.org/openstack/requirements.git
-  branch: stable/juno

@@ -1,4 +1,5 @@
-branch: lp:charm-helpers
+#branch: lp:charm-helpers
+branch: /home/corey/src/charms/git/charm-helpers
 destination: tests/charmhelpers
 include:
     - contrib.amulet

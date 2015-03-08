@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+import yaml
 
 import glance_contexts
 
@@ -297,11 +298,11 @@ def setup_ipv6():
         apt_install('haproxy/trusty-backports', fatal=True)
 
 
-def git_install(file_name):
-    """Perform setup, and install git repos specified in yaml config file."""
+def git_install(projects):
+    """Perform setup, and install git repos specified in yaml parameter."""
     if git_install_requested():
         git_pre_install()
-        git_clone_and_install(file_name, core_project='glance')
+        git_clone_and_install(yaml.load(projects), core_project='glance')
         git_post_install()
 
 
