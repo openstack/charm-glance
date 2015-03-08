@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 from charmhelpers.core.hookenv import (
     config,
     unit_get,
@@ -9,6 +25,8 @@ from charmhelpers.contrib.network.ip import (
     get_ipv6_addr,
 )
 from charmhelpers.contrib.hahelpers.cluster import is_clustered
+
+from functools import partial
 
 PUBLIC = 'public'
 INTERNAL = 'int'
@@ -91,3 +109,38 @@ def resolve_address(endpoint_type=PUBLIC):
                          "clustered=%s)" % (net_type, clustered))
 
     return resolved_address
+
+
+def endpoint_url(configs, url_template, port, endpoint_type=PUBLIC,
+                 override=None):
+    """Returns the correct endpoint URL to advertise to Keystone.
+
+    This method provides the correct endpoint URL which should be advertised to
+    the keystone charm for endpoint creation. This method allows for the url to
+    be overridden to force a keystone endpoint to have specific URL for any of
+    the defined scopes (admin, internal, public).
+
+    :param configs: OSTemplateRenderer config templating object to inspect
+                    for a complete https context.
+    :param url_template: str format string for creating the url template. Only
+                         two values will be passed - the scheme+hostname
+                        returned by the canonical_url and the port.
+    :param endpoint_type: str endpoint type to resolve.
+    :param override: str the name of the config option which overrides the
+                     endpoint URL defined by the charm itself. None will
+                     disable any overrides (default).
+    """
+    if override:
+        # Return any user-defined overrides for the keystone endpoint URL.
+        user_value = config(override)
+        if user_value:
+            return user_value.strip()
+
+    return url_template % (canonical_url(configs, endpoint_type), port)
+
+
+public_endpoint = partial(endpoint_url, endpoint_type=PUBLIC)
+
+internal_endpoint = partial(endpoint_url, endpoint_type=INTERNAL)
+
+admin_endpoint = partial(endpoint_url, endpoint_type=ADMIN)

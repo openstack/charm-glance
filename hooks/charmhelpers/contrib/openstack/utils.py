@@ -1,17 +1,36 @@
 #!/usr/bin/python
 
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 # Common python helper functions used for OpenStack charms.
 from collections import OrderedDict
 from functools import wraps
 
+import errno
 import subprocess
 import json
 import os
-import socket
 import sys
+import time
 
 import six
 import yaml
+
+from charmhelpers.contrib.network import ip
 
 from charmhelpers.core.hookenv import (
     config,
@@ -87,6 +106,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('2.1.0', 'juno'),
     ('2.2.0', 'juno'),
     ('2.2.1', 'kilo'),
+    ('2.2.2', 'kilo'),
 ])
 
 DEFAULT_LOOPBACK_SIZE = '5G'
@@ -404,77 +424,10 @@ def clean_storage(block_device):
     else:
         zap_disk(block_device)
 
-
-def is_ip(address):
-    """
-    Returns True if address is a valid IP address.
-    """
-    try:
-        # Test to see if already an IPv4 address
-        socket.inet_aton(address)
-        return True
-    except socket.error:
-        return False
-
-
-def ns_query(address):
-    try:
-        import dns.resolver
-    except ImportError:
-        apt_install('python-dnspython')
-        import dns.resolver
-
-    if isinstance(address, dns.name.Name):
-        rtype = 'PTR'
-    elif isinstance(address, six.string_types):
-        rtype = 'A'
-    else:
-        return None
-
-    answers = dns.resolver.query(address, rtype)
-    if answers:
-        return str(answers[0])
-    return None
-
-
-def get_host_ip(hostname):
-    """
-    Resolves the IP for a given hostname, or returns
-    the input if it is already an IP.
-    """
-    if is_ip(hostname):
-        return hostname
-
-    return ns_query(hostname)
-
-
-def get_hostname(address, fqdn=True):
-    """
-    Resolves hostname for given IP, or returns the input
-    if it is already a hostname.
-    """
-    if is_ip(address):
-        try:
-            import dns.reversename
-        except ImportError:
-            apt_install('python-dnspython')
-            import dns.reversename
-
-        rev = dns.reversename.from_address(address)
-        result = ns_query(rev)
-        if not result:
-            return None
-    else:
-        result = address
-
-    if fqdn:
-        # strip trailing .
-        if result.endswith('.'):
-            return result[:-1]
-        else:
-            return result
-    else:
-        return result.split('.')[0]
+is_ip = ip.is_ip
+ns_query = ip.ns_query
+get_host_ip = ip.get_host_ip
+get_hostname = ip.get_hostname
 
 
 def get_matchmaker_map(mm_file='/etc/oslo/matchmaker_ring.json'):
@@ -519,89 +472,115 @@ def os_requires_version(ostack_release, pkg):
 
 def git_install_requested():
     """Returns true if openstack-origin-git is specified."""
-    return config('openstack-origin-git') != "None"
+    return config('openstack-origin-git') != None
 
 
 requirements_dir = None
 
 
-def git_clone_and_install(file_name, core_project):
-    """Clone/install all OpenStack repos specified in yaml config file."""
+def git_clone_and_install(projects, core_project,
+                          parent_dir='/mnt/openstack-git'):
+    """Clone/install all OpenStack repos specified in projects dictionary."""
     global requirements_dir
+    update_reqs = True
 
-    if file_name == "None":
+    if not projects:
         return
 
-    yaml_file = os.path.join(charm_dir(), file_name)
-
     # clone/install the requirements project first
-    installed = _git_clone_and_install_subset(yaml_file,
+    installed = _git_clone_and_install_subset(projects, parent_dir,
                                               whitelist=['requirements'])
     if 'requirements' not in installed:
-        error_out('requirements git repository must be specified')
+        update_reqs = False
 
     # clone/install all other projects except requirements and the core project
     blacklist = ['requirements', core_project]
-    _git_clone_and_install_subset(yaml_file, blacklist=blacklist,
-                                  update_requirements=True)
+    _git_clone_and_install_subset(projects, parent_dir, blacklist=blacklist,
+                                  update_requirements=update_reqs)
 
     # clone/install the core project
     whitelist = [core_project]
-    installed = _git_clone_and_install_subset(yaml_file, whitelist=whitelist,
-                                              update_requirements=True)
+    installed = _git_clone_and_install_subset(projects, parent_dir,
+                                              whitelist=whitelist,
+                                              update_requirements=update_reqs)
     if core_project not in installed:
         error_out('{} git repository must be specified'.format(core_project))
 
 
-def _git_clone_and_install_subset(yaml_file, whitelist=[], blacklist=[],
-                                  update_requirements=False):
-    """Clone/install subset of OpenStack repos specified in yaml config file."""
+def _git_clone_and_install_subset(projects, parent_dir, whitelist=[],
+                                  blacklist=[], update_requirements=False):
+    """Clone/install subset of OpenStack repos specified in projects dict."""
     global requirements_dir
     installed = []
 
-    with open(yaml_file, 'r') as fd:
-        projects = yaml.load(fd)
-        for proj, val in projects.items():
-            # The project subset is chosen based on the following 3 rules:
-            # 1) If project is in blacklist, we don't clone/install it, period.
-            # 2) If whitelist is empty, we clone/install everything else.
-            # 3) If whitelist is not empty, we clone/install everything in the
-            #    whitelist.
-            if proj in blacklist:
-                continue
-            if whitelist and proj not in whitelist:
-                continue
-            repo = val['repository']
-            branch = val['branch']
-            repo_dir = _git_clone_and_install_single(repo, branch,
-                                                     update_requirements)
-            if proj == 'requirements':
-                requirements_dir = repo_dir
-            installed.append(proj)
+    for proj, val in projects.items():
+        # The project subset is chosen based on the following 3 rules:
+        # 1) If project is in blacklist, we don't clone/install it, period.
+        # 2) If whitelist is empty, we clone/install everything else.
+        # 3) If whitelist is not empty, we clone/install everything in the
+        #    whitelist.
+        if proj in blacklist:
+            continue
+        if whitelist and proj not in whitelist:
+            continue
+        repo = val['repository']
+        branch = val['branch']
+        repo_dir = _git_clone_and_install_single(repo, branch, parent_dir,
+                                                 update_requirements)
+        if proj == 'requirements':
+            requirements_dir = repo_dir
+        installed.append(proj)
     return installed
 
 
-def _git_clone_and_install_single(repo, branch, update_requirements=False):
+def _git_clone_and_install_single(repo, branch, parent_dir,
+                                  update_requirements=False):
     """Clone and install a single git repository."""
-    dest_parent_dir = "/mnt/openstack-git/"
-    dest_dir = os.path.join(dest_parent_dir, os.path.basename(repo))
+    dest_dir = os.path.join(parent_dir, os.path.basename(repo))
+    lock_dir = os.path.join(parent_dir, os.path.basename(repo) + '.lock')
 
-    if not os.path.exists(dest_parent_dir):
-        juju_log('Host dir not mounted at {}. '
-                 'Creating directory there instead.'.format(dest_parent_dir))
-        os.mkdir(dest_parent_dir)
-
-    if not os.path.exists(dest_dir):
-        juju_log('Cloning git repo: {}, branch: {}'.format(repo, branch))
-        repo_dir = install_remote(repo, dest=dest_parent_dir, branch=branch)
+    # Note(coreycb): The parent directory for storing git repositories can be
+    # shared by multiple charms via bind mount, etc, so we use exception
+    # handling to ensure the test for existence and mkdir are atomic.
+    try:
+        os.mkdir(parent_dir)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            juju_log('Directory already exists at {}. '
+                     'No need to create directory.'.format(parent_dir))
+            pass
     else:
-        repo_dir = dest_dir
+        juju_log('Host directory not mounted at {}. '
+                 'Directory created.'.format(parent_dir))
 
-    if update_requirements:
-        if not requirements_dir:
-            error_out('requirements repo must be cloned before '
-                      'updating from global requirements.')
-        _git_update_requirements(repo_dir, requirements_dir)
+    # Note(coreycb): Similar to above, the cloned git repositories can be shared
+    # by multiple charms via bind mount, etc, so we use exception handling and
+    # special lock directories to ensure that a repository clone is only
+    # attempted once.
+    try:
+        os.mkdir(lock_dir)
+    except OSError as e:                                                                              
+        if e.errno == errno.EEXIST:
+            juju_log('Lock directory exists at {}. Skip git clone and wait '
+                     'for lock removal before installing.'.format(lock_dir))
+            while os.path.exists(lock_dir):
+                juju_log('Waiting for git clone to complete before installing.')
+                time.sleep(1)
+            pass
+    else:
+        if not os.path.exists(dest_dir):
+            juju_log('Cloning git repo: {}, branch: {}'.format(repo, branch))
+            repo_dir = install_remote(repo, dest=parent_dir, branch=branch)
+        else:
+            repo_dir = dest_dir
+
+        if update_requirements:
+            if not requirements_dir:
+                error_out('requirements repo must be cloned before '
+                          'updating from global requirements.')
+            _git_update_requirements(repo_dir, requirements_dir)
+
+        os.rmdir(lock_dir)
 
     juju_log('Installing git repo from dir: {}'.format(repo_dir))
     pip_install(repo_dir)
