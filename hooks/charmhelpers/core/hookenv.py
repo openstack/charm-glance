@@ -566,3 +566,17 @@ class Hooks(object):
 def charm_dir():
     """Return the root directory of the current charm"""
     return os.environ.get('CHARM_DIR')
+
+
+def is_leader():
+    """Does the current unit hold the juju leadership
+
+    Uses juju to determine whether the current unit is the leader of its peers
+    """
+    try:
+        leader = json.loads(
+            subprocess.check_output(['is-leader', '--format=json'])
+        )
+        return (leader is True)
+    except ValueError:
+        raise NotImplementedError
