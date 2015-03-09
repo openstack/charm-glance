@@ -44,6 +44,7 @@ from charmhelpers.core.hookenv import (
     ERROR,
     WARNING,
     unit_get,
+    is_leader as juju_is_leader
 )
 from charmhelpers.core.decorators import (
     retry_on_exception,
@@ -66,12 +67,18 @@ def is_elected_leader(resource):
     Returns True if the charm executing this is the elected cluster leader.
 
     It relies on two mechanisms to determine leadership:
-        1. If the charm is part of a corosync cluster, call corosync to
+        1. If juju is sufficiently new and leadership election is supported,
+        the is_leader command will be used.
+        2. If the charm is part of a corosync cluster, call corosync to
         determine leadership.
-        2. If the charm is not part of a corosync cluster, the leader is
+        3. If the charm is not part of a corosync cluster, the leader is
         determined as being "the alive unit with the lowest unit numer". In
         other words, the oldest surviving unit.
     """
+    try:
+        return juju_is_leader()
+    except NotImplementedError:
+        pass
     if is_clustered():
         if not is_crm_leader(resource):
             log('Deferring action to CRM leader.', level=INFO)
