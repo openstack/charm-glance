@@ -580,3 +580,5 @@ def is_leader():
         return (leader is True)
     except ValueError:
         raise NotImplementedError
+    except CalledProcessError:
+        raise NotImplementedError
