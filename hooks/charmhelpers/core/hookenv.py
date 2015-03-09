@@ -596,13 +596,14 @@ def is_leader():
         raise NotImplementedError
 
 
-@cached
 @translate_exc(from_exc=CalledProcessError, to_exc=NotImplementedError)
 def leader_get(attribute=None):
     """Juju leader get value(s)"""
     cmd = ['leader-get', '--format=json'] + [attribute or '-']
     try:
-        return json.loads(subprocess.check_output(cmd).decode('UTF-8'))
+        ret = json.loads(subprocess.check_output(cmd).decode('UTF-8'))
+        log("Juju leader-get '%s' = '%s'" % (attribute, ret), level=DEBUG)
+        return ret
     except ValueError:
         return None
     except CalledProcessError as e:
@@ -615,6 +616,7 @@ def leader_get(attribute=None):
 @translate_exc(from_exc=CalledProcessError, to_exc=NotImplementedError)
 def leader_set(settings=None, **kwargs):
     """Juju leader set value(s)"""
+    log("Juju leader-set '%s'" % (settings), level=DEBUG)
     cmd = ['leader-set']
     settings = settings or {}
     settings.update(kwargs)
