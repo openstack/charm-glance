@@ -40,6 +40,10 @@ from charmhelpers.contrib.openstack.utils import (
     get_os_codename_package,
     configure_installation_source)
 
+from charmhelpers.core.decorators import (
+    retry_on_exception,
+)
+
 CLUSTER_RES = "grp_glance_vips"
 
 PACKAGES = [
@@ -173,6 +177,9 @@ def register_configs():
     return configs
 
 
+# NOTE(jamespage): Retry deals with sync issues during one-shot HA deploys.
+#                  mysql might be restarting or suchlike.
+@retry_on_exception(5, base_delay=3, exc_type=subprocess.CalledProcessError)
 def migrate_database():
     '''Runs glance-manage to initialize a new database
     or migrate existing
