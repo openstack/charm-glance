@@ -78,7 +78,10 @@ def is_elected_leader(resource):
     try:
         return juju_is_leader()
     except NotImplementedError:
-        pass
+        log('Juju leadership election feature not enabled'
+            ', using fallback support',
+            level=WARNING)
+
     if is_clustered():
         if not is_crm_leader(resource):
             log('Deferring action to CRM leader.', level=INFO)
