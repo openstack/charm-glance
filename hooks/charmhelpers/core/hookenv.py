@@ -581,7 +581,7 @@ def translate_exc(from_exc, to_exc):
     return inner_translate_exc1
 
 
-@translate_exc(from_exc=CalledProcessError, to_exc=NotImplementedError)
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
 def is_leader():
     """Does the current unit hold the juju leadership
 
@@ -596,7 +596,7 @@ def is_leader():
         raise NotImplementedError
 
 
-@translate_exc(from_exc=CalledProcessError, to_exc=NotImplementedError)
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
 def leader_get(attribute=None):
     """Juju leader get value(s)"""
     cmd = ['leader-get', '--format=json'] + [attribute or '-']
@@ -613,7 +613,7 @@ def leader_get(attribute=None):
         raise
 
 
-@translate_exc(from_exc=CalledProcessError, to_exc=NotImplementedError)
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
 def leader_set(settings=None, **kwargs):
     """Juju leader set value(s)"""
     log("Juju leader-set '%s'" % (settings), level=DEBUG)
