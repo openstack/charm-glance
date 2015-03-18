@@ -1,4 +1,4 @@
-branch: lp:~hopem/charm-helpers/fix-ssl-install-from-config
+branch: lp:charm-helpers
 destination: hooks/charmhelpers
 include:
     - core
