@@ -20,17 +20,20 @@
 from collections import OrderedDict
 from functools import wraps
 
-import errno
 import subprocess
 import json
 import os
 import sys
-import time
 
 import six
 import yaml
 
 from charmhelpers.contrib.network import ip
+
+from charmhelpers.core import (
+    hookenv,
+    unitdata,
+)
 
 from charmhelpers.core.hookenv import (
     config,
@@ -332,6 +335,21 @@ def configure_installation_source(rel):
         error_out("Invalid openstack-release specified: %s" % rel)
 
 
+def config_value_changed(option):
+    """
+    Determine if config value changed since last call to this function.
+    """
+    hook_data = unitdata.HookData()
+    with hook_data():
+        db = unitdata.kv()
+        current = hookenv.execution_environment()['conf'][option]
+        saved = db.get(option)
+        db.set(option, current)
+        if saved is None:
+            return False
+        return current != saved
+
+
 def save_script_rc(script_path="scripts/scriptrc", **env_vars):
     """
     Write an rc file in the charm-delivered directory containing
@@ -471,116 +489,103 @@ def os_requires_version(ostack_release, pkg):
 
 
 def git_install_requested():
-    """Returns true if openstack-origin-git is specified."""
-    return config('openstack-origin-git') != None
+    """
+    Returns true if openstack-origin-git is specified.
+    """
+    return config('openstack-origin-git').lower() != "none"
 
 
 requirements_dir = None
 
 
-def git_clone_and_install(projects, core_project,
-                          parent_dir='/mnt/openstack-git'):
-    """Clone/install all OpenStack repos specified in projects dictionary."""
-    global requirements_dir
-    update_reqs = True
+def git_clone_and_install(projects_yaml, core_project):
+    """
+    Clone/install all specified OpenStack repositories.
 
-    if not projects:
+    The expected format of projects_yaml is:
+        repositories:
+          - {name: keystone,
+             repository: 'git://git.openstack.org/openstack/keystone.git',
+             branch: 'stable/icehouse'}
+          - {name: requirements,
+             repository: 'git://git.openstack.org/openstack/requirements.git',
+             branch: 'stable/icehouse'}
+        directory: /mnt/openstack-git
+
+        The directory key is optional.
+    """
+    global requirements_dir
+    parent_dir = '/mnt/openstack-git'
+
+    if not projects_yaml:
         return
 
-    # clone/install the requirements project first
-    installed = _git_clone_and_install_subset(projects, parent_dir,
-                                              whitelist=['requirements'])
-    if 'requirements' not in installed:
-        update_reqs = False
+    projects = yaml.load(projects_yaml)
+    _git_validate_projects_yaml(projects, core_project)
 
-    # clone/install all other projects except requirements and the core project
-    blacklist = ['requirements', core_project]
-    _git_clone_and_install_subset(projects, parent_dir, blacklist=blacklist,
-                                  update_requirements=update_reqs)
+    if 'directory' in projects.keys():
+        parent_dir = projects['directory']
 
-    # clone/install the core project
-    whitelist = [core_project]
-    installed = _git_clone_and_install_subset(projects, parent_dir,
-                                              whitelist=whitelist,
-                                              update_requirements=update_reqs)
-    if core_project not in installed:
-        error_out('{} git repository must be specified'.format(core_project))
-
-
-def _git_clone_and_install_subset(projects, parent_dir, whitelist=[],
-                                  blacklist=[], update_requirements=False):
-    """Clone/install subset of OpenStack repos specified in projects dict."""
-    global requirements_dir
-    installed = []
-
-    for proj, val in projects.items():
-        # The project subset is chosen based on the following 3 rules:
-        # 1) If project is in blacklist, we don't clone/install it, period.
-        # 2) If whitelist is empty, we clone/install everything else.
-        # 3) If whitelist is not empty, we clone/install everything in the
-        #    whitelist.
-        if proj in blacklist:
-            continue
-        if whitelist and proj not in whitelist:
-            continue
-        repo = val['repository']
-        branch = val['branch']
-        repo_dir = _git_clone_and_install_single(repo, branch, parent_dir,
-                                                 update_requirements)
-        if proj == 'requirements':
+    for p in projects['repositories']:
+        repo = p['repository']
+        branch = p['branch']
+        if p['name'] == 'requirements':
+            repo_dir = _git_clone_and_install_single(repo, branch, parent_dir,
+                                                     update_requirements=False)
             requirements_dir = repo_dir
-        installed.append(proj)
-    return installed
-
-
-def _git_clone_and_install_single(repo, branch, parent_dir,
-                                  update_requirements=False):
-    """Clone and install a single git repository."""
-    dest_dir = os.path.join(parent_dir, os.path.basename(repo))
-    lock_dir = os.path.join(parent_dir, os.path.basename(repo) + '.lock')
-
-    # Note(coreycb): The parent directory for storing git repositories can be
-    # shared by multiple charms via bind mount, etc, so we use exception
-    # handling to ensure the test for existence and mkdir are atomic.
-    try:
-        os.mkdir(parent_dir)
-    except OSError as e:
-        if e.errno == errno.EEXIST:
-            juju_log('Directory already exists at {}. '
-                     'No need to create directory.'.format(parent_dir))
-            pass
-    else:
-        juju_log('Host directory not mounted at {}. '
-                 'Directory created.'.format(parent_dir))
-
-    # Note(coreycb): Similar to above, the cloned git repositories can be shared
-    # by multiple charms via bind mount, etc, so we use exception handling and
-    # special lock directories to ensure that a repository clone is only
-    # attempted once.
-    try:
-        os.mkdir(lock_dir)
-    except OSError as e:                                                                              
-        if e.errno == errno.EEXIST:
-            juju_log('Lock directory exists at {}. Skip git clone and wait '
-                     'for lock removal before installing.'.format(lock_dir))
-            while os.path.exists(lock_dir):
-                juju_log('Waiting for git clone to complete before installing.')
-                time.sleep(1)
-            pass
-    else:
-        if not os.path.exists(dest_dir):
-            juju_log('Cloning git repo: {}, branch: {}'.format(repo, branch))
-            repo_dir = install_remote(repo, dest=parent_dir, branch=branch)
         else:
-            repo_dir = dest_dir
+            repo_dir = _git_clone_and_install_single(repo, branch, parent_dir,
+                                                     update_requirements=True)
 
-        if update_requirements:
-            if not requirements_dir:
-                error_out('requirements repo must be cloned before '
-                          'updating from global requirements.')
-            _git_update_requirements(repo_dir, requirements_dir)
 
-        os.rmdir(lock_dir)
+def _git_validate_projects_yaml(projects, core_project):
+    """
+    Validate the projects yaml.
+    """
+    _git_ensure_key_exists('repositories', projects)
+
+    for project in projects['repositories']:
+        _git_ensure_key_exists('name', project.keys())
+        _git_ensure_key_exists('repository', project.keys())
+        _git_ensure_key_exists('branch', project.keys())
+
+    if projects['repositories'][0]['name'] != 'requirements':
+        error_out('{} git repo must be specified first'.format('requirements'))
+
+    if projects['repositories'][-1]['name'] != core_project:
+        error_out('{} git repo must be specified last'.format(core_project))
+
+
+def _git_ensure_key_exists(key, keys):
+    """
+    Ensure that key exists in keys.
+    """
+    if key not in keys:
+        error_out('openstack-origin-git key \'{}\' is missing'.format(key))
+
+
+def _git_clone_and_install_single(repo, branch, parent_dir, update_requirements):
+    """
+    Clone and install a single git repository.
+    """
+    dest_dir = os.path.join(parent_dir, os.path.basename(repo))
+
+    if not os.path.exists(parent_dir):
+        juju_log('Directory already exists at {}. '
+                 'No need to create directory.'.format(parent_dir))
+        os.mkdir(parent_dir)
+
+    if not os.path.exists(dest_dir):
+        juju_log('Cloning git repo: {}, branch: {}'.format(repo, branch))
+        repo_dir = install_remote(repo, dest=parent_dir, branch=branch)
+    else:
+        repo_dir = dest_dir
+
+    if update_requirements:
+        if not requirements_dir:
+            error_out('requirements repo must be cloned before '
+                      'updating from global requirements.')
+        _git_update_requirements(repo_dir, requirements_dir)
 
     juju_log('Installing git repo from dir: {}'.format(repo_dir))
     pip_install(repo_dir)
@@ -589,16 +594,39 @@ def _git_clone_and_install_single(repo, branch, parent_dir,
 
 
 def _git_update_requirements(package_dir, reqs_dir):
-    """Update from global requirements.
+    """
+    Update from global requirements.
 
-       Update an OpenStack git directory's requirements.txt and
-       test-requirements.txt from global-requirements.txt."""
+    Update an OpenStack git directory's requirements.txt and
+    test-requirements.txt from global-requirements.txt.
+    """
     orig_dir = os.getcwd()
     os.chdir(reqs_dir)
-    cmd = "python update.py {}".format(package_dir)
+    cmd = ['python', 'update.py', package_dir]
     try:
-        subprocess.check_call(cmd.split(' '))
+        subprocess.check_call(cmd)
     except subprocess.CalledProcessError:
         package = os.path.basename(package_dir)
         error_out("Error updating {} from global-requirements.txt".format(package))
     os.chdir(orig_dir)
+
+
+def git_src_dir(projects_yaml, project):
+    """
+    Return the directory where the specified project's source is located.
+    """
+    parent_dir = '/mnt/openstack-git'
+
+    if not projects_yaml:
+        return
+
+    projects = yaml.load(projects_yaml)
+
+    if 'directory' in projects.keys():
+        parent_dir = projects['directory']
+
+    for p in projects['repositories']:
+        if p['name'] == project:
+            return os.path.join(parent_dir, os.path.basename(p['repository']))
+
+    return None
