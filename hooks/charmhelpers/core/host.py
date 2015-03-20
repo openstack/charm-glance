@@ -339,12 +339,16 @@ def lsb_release():
 def pwgen(length=None):
     """Generate a random pasword."""
     if length is None:
+        # A random length is ok to use a weak PRNG
         length = random.choice(range(35, 45))
     alphanumeric_chars = [
         l for l in (string.ascii_letters + string.digits)
         if l not in 'l0QD1vAEIOUaeiou']
+    # Use a crypto-friendly PRNG (e.g. /dev/urandom) for making the
+    # actual password
+    random_generator = random.SystemRandom()
     random_chars = [
-        random.choice(alphanumeric_chars) for _ in range(length)]
+        random_generator.choice(alphanumeric_chars) for _ in range(length)]
     return(''.join(random_chars))
 
 

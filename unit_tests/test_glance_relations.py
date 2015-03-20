@@ -64,6 +64,7 @@ TO_PATCH = [
     'get_iface_for_address',
     'get_ipv6_addr',
     'sync_db_with_multi_ipv6_addresses',
+    'delete_keyring',
 ]
 
 
@@ -381,6 +382,13 @@ class GlanceRelationTests(CharmTestCase):
                            call(self.ceph_config_file())],
                           configs.write.call_args_list)
 
+    @patch.object(relations, 'CONFIGS')
+    def test_ceph_broken(self, configs):
+        self.service_name.return_value = 'glance'
+        relations.ceph_broken()
+        self.delete_keyring.assert_called_with(service='glance')
+        self.assertTrue(configs.write_all.called)
+
     def test_keystone_joined(self):
         self.canonical_url.return_value = 'http://glancehost'
         relations.keystone_joined()
@@ -507,6 +515,7 @@ class GlanceRelationTests(CharmTestCase):
         self.get_netmask_for_address.return_value = '255.255.0.0'
         relations.ha_relation_joined()
         args = {
+            'relation_id': None,
             'corosync_bindiface': 'em0',
             'corosync_mcastport': '8080',
             'init_services': {'res_glance_haproxy': 'haproxy'},
@@ -519,7 +528,8 @@ class GlanceRelationTests(CharmTestCase):
             'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
         }
         self.relation_set.assert_has_calls([
-            call(groups={'grp_glance_vips': 'res_glance_eth1_vip'}),
+            call(relation_id=None,
+                 groups={'grp_glance_vips': 'res_glance_eth1_vip'}),
             call(**args),
         ])
 
@@ -535,6 +545,7 @@ class GlanceRelationTests(CharmTestCase):
         self.get_netmask_for_address.return_value = None
         relations.ha_relation_joined()
         args = {
+            'relation_id': None,
             'corosync_bindiface': 'em0',
             'corosync_mcastport': '8080',
             'init_services': {'res_glance_haproxy': 'haproxy'},
@@ -547,7 +558,8 @@ class GlanceRelationTests(CharmTestCase):
             'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
         }
         self.relation_set.assert_has_calls([
-            call(groups={'grp_glance_vips': 'res_glance_eth120_vip'}),
+            call(relation_id=None,
+                 groups={'grp_glance_vips': 'res_glance_eth120_vip'}),
             call(**args),
         ])
 
@@ -562,6 +574,7 @@ class GlanceRelationTests(CharmTestCase):
         self.get_netmask_for_address.return_value = '64'
         relations.ha_relation_joined()
         args = {
+            'relation_id': None,
             'corosync_bindiface': 'em0',
             'corosync_mcastport': '8080',
             'init_services': {'res_glance_haproxy': 'haproxy'},
