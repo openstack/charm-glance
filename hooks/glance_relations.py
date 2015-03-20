@@ -65,6 +65,7 @@ from charmhelpers.contrib.storage.linux.ceph import (
     ensure_ceph_keyring,
     CephBrokerRq,
     CephBrokerRsp,
+    delete_keyring,
 )
 from charmhelpers.payload.execd import (
     execd_preinstall
@@ -272,6 +273,13 @@ def ceph_changed():
             juju_log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
 
 
+@hooks.hook('ceph-relation-broken')
+def ceph_broken():
+    service = service_name()
+    delete_keyring(service=service)
+    CONFIGS.write_all()
+
+
 @hooks.hook('identity-service-relation-joined')
 def keystone_joined(relation_id=None):
     public_url = '{}:9292'.format(canonical_url(CONFIGS, PUBLIC))
@@ -332,6 +340,8 @@ def config_changed():
     [keystone_joined(rid) for rid in relation_ids('identity-service')]
     [image_service_joined(rid) for rid in relation_ids('image-service')]
     [cluster_joined(rid) for rid in relation_ids('cluster')]
+    for r_id in relation_ids('ha'):
+        ha_relation_joined(relation_id=r_id)
 
 
 #TODO(coreycb): For deploy from git support, need to implement action-set
@@ -375,7 +385,7 @@ def upgrade_charm():
 
 
 @hooks.hook('ha-relation-joined')
-def ha_relation_joined():
+def ha_relation_joined(relation_id=None):
     cluster_config = get_hacluster_config()
 
     resources = {
@@ -413,7 +423,8 @@ def ha_relation_joined():
             vip_group.append(vip_key)
 
     if len(vip_group) >= 1:
-        relation_set(groups={'grp_glance_vips': ' '.join(vip_group)})
+        relation_set(relation_id=relation_id,
+                     groups={'grp_glance_vips': ' '.join(vip_group)})
 
     init_services = {
         'res_glance_haproxy': 'haproxy',
@@ -423,7 +434,8 @@ def ha_relation_joined():
         'cl_glance_haproxy': 'res_glance_haproxy',
     }
 
-    relation_set(init_services=init_services,
+    relation_set(relation_id=relation_id,
+                 init_services=init_services,
                  corosync_bindiface=cluster_config['ha-bindiface'],
                  corosync_mcastport=cluster_config['ha-mcastport'],
                  resources=resources,
@@ -445,8 +457,7 @@ def ha_relation_changed():
     [image_service_joined(rid) for rid in relation_ids('image-service')]
 
 
-@hooks.hook('ceph-relation-broken',
-            'identity-service-relation-broken',
+@hooks.hook('identity-service-relation-broken',
             'object-store-relation-broken',
             'shared-db-relation-broken',
             'pgsql-db-relation-broken')
@@ -496,7 +507,9 @@ def update_nrpe_config():
     hostname = nrpe.get_nagios_hostname()
     current_unit = nrpe.get_nagios_unit_name()
     nrpe_setup = nrpe.NRPE(hostname=hostname)
+    nrpe.copy_nrpe_checks()
     nrpe.add_init_service_checks(nrpe_setup, services(), current_unit)
+    nrpe.add_haproxy_checks(nrpe_setup, current_unit)
     nrpe_setup.write()
 
 

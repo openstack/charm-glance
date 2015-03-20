@@ -16,6 +16,7 @@
 
 # Various utilies for dealing with Neutron and the renaming from Quantum.
 
+import six
 from subprocess import check_output
 
 from charmhelpers.core.hookenv import (
@@ -237,3 +238,72 @@ def network_manager():
     else:
         # ensure accurate naming for all releases post-H
         return 'neutron'
+
+
+def parse_mappings(mappings):
+    parsed = {}
+    if mappings:
+        mappings = mappings.split(' ')
+        for m in mappings:
+            p = m.partition(':')
+            if p[1] == ':':
+                parsed[p[0].strip()] = p[2].strip()
+
+    return parsed
+
+
+def parse_bridge_mappings(mappings):
+    """Parse bridge mappings.
+
+    Mappings must be a space-delimited list of provider:bridge mappings.
+
+    Returns dict of the form {provider:bridge}.
+    """
+    return parse_mappings(mappings)
+
+
+def parse_data_port_mappings(mappings, default_bridge='br-data'):
+    """Parse data port mappings.
+
+    Mappings must be a space-delimited list of bridge:port mappings.
+
+    Returns dict of the form {bridge:port}.
+    """
+    _mappings = parse_mappings(mappings)
+    if not _mappings:
+        if not mappings:
+            return {}
+
+        # For backwards-compatibility we need to support port-only provided in
+        # config.
+        _mappings = {default_bridge: mappings.split(' ')[0]}
+
+    bridges = _mappings.keys()
+    ports = _mappings.values()
+    if len(set(bridges)) != len(bridges):
+        raise Exception("It is not allowed to have more than one port "
+                        "configured on the same bridge")
+
+    if len(set(ports)) != len(ports):
+        raise Exception("It is not allowed to have the same port configured "
+                        "on more than one bridge")
+
+    return _mappings
+
+
+def parse_vlan_range_mappings(mappings):
+    """Parse vlan range mappings.
+
+    Mappings must be a space-delimited list of provider:start:end mappings.
+
+    Returns dict of the form {provider: (start, end)}.
+    """
+    _mappings = parse_mappings(mappings)
+    if not _mappings:
+        return {}
+
+    mappings = {}
+    for p, r in six.iteritems(_mappings):
+        mappings[p] = tuple(r.split(':'))
+
+    return mappings
