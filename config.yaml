@@ -15,22 +15,19 @@ options:
       provide a later version of OpenStack will trigger a software
       upgrade.
 
-      Note that when openstack-origin-git is specified, openstack-specific
-      packages will be installed from source rather than from the
-      openstack-origin repository.
+      Note that when openstack-origin-git is specified, openstack
+      specific packages will be installed from source rather than
+      from the openstack-origin repository.
   openstack-origin-git:
     default: None
     type: string
     description: |
-      Specifies a YAML-formatted two-dimensional array listing the git
-      repositories and branches from which to install OpenStack and its
-      dependencies.
+      Specifies a YAML-formatted dictionary listing the git
+      repositories and branches from which to install OpenStack and
+      its dependencies.
 
       Note that the installed config files will be determined based on
       the OpenStack release of the openstack-origin option.
-
-      Note also that this option is processed for the initial install
-      only. Setting this option after deployment is not supported.
 
       For more details see README.md.
   database-user:

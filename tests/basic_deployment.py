@@ -23,9 +23,11 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 #    * Add tests with different storage back ends
 #    * Resolve Essex->Havana juju set charm bug
 
-    def __init__(self, series=None, openstack=None, source=None, stable=False):
+    def __init__(self, series=None, openstack=None, source=None, git=False,
+                 stable=False):
         '''Deploy the entire test environment.'''
         super(GlanceBasicDeployment, self).__init__(series, openstack, source, stable)
+        self.git = git
         self._add_services()
         self._add_relations()
         self._configure_services()
@@ -56,13 +58,24 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
     def _configure_services(self):
         '''Configure all of the services.'''
         # NOTE(coreycb): Added the following temporarily to test deploy from source
-        glance_config = {'openstack-origin-git':
-                         "{'glance':"
-                         "   {'repository': 'git://git.openstack.org/openstack/glance.git',"
-                         "    'branch': 'stable/icehouse'}}"}
+        glance_config = {}
+        if self.git:
+            branch = 'stable/' + self._get_openstack_release_string()
+            openstack_origin_git = {
+                'repositories': [
+                    {'name': 'requirements',
+                     'repository': 'git://git.openstack.org/openstack/requirements',
+                     'branch': branch},
+                    {'name': 'glance',
+                     'repository': 'git://git.openstack.org/openstack/glance',
+                     'branch': branch},
+                ],
+                'directory': '/mnt/openstack-git',
+            }
+            glance_config['openstack-origin-git'] = yaml.dump(openstack_origin_git)
+
         keystone_config = {'admin-password': 'openstack',
                            'admin-token': 'ubuntutesting'}
-
         mysql_config = {'dataset-size': '50%'}
         configs = {'glance': glance_config,
                    'keystone': keystone_config,

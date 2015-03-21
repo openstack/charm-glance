@@ -47,6 +47,7 @@ from charmhelpers.contrib.openstack.utils import (
     get_os_codename_package,
     git_install_requested,
     git_clone_and_install,
+    git_src_dir,
     configure_installation_source,
     os_release,
 )
@@ -302,16 +303,16 @@ def setup_ipv6():
         apt_install('haproxy/trusty-backports', fatal=True)
 
 
-def git_install(projects):
+def git_install(projects_yaml):
     """Perform setup, and install git repos specified in yaml parameter."""
     if git_install_requested():
         git_pre_install()
-        git_clone_and_install(yaml.load(projects), core_project='glance')
-        git_post_install()
+        git_clone_and_install(projects_yaml, core_project='glance')
+        git_post_install(projects_yaml)
 
 
 def git_pre_install():
-    """Perform pre glance installation setup."""
+    """Perform glance pre-install setup."""
     dirs = [
         '/var/lib/glance',
         '/var/lib/glance/images',
@@ -339,26 +340,10 @@ def git_pre_install():
         write_file(l, '', owner='glance', group='glance', perms=0600)
 
 
-def git_post_install():
-    """Perform post glance installation setup."""
-    src_etc = os.path.join(charm_dir(), '/mnt/openstack-git/glance.git/etc/')
+def git_post_install(projects_yaml):
+    """Perform glance post-install setup."""
+    src_etc = os.path.join(git_src_dir(projects_yaml, 'glance'), 'etc')
     configs = {
-        'glance-api-paste': {
-            'src': os.path.join(src_etc, 'glance-api-paste.ini'),
-            'dest': '/etc/glance/glance-api-paste.ini',
-        },
-        'glance-api': {
-            'src': os.path.join(src_etc, 'glance-api.conf'),
-            'dest': '/etc/glance/glance-api.conf',
-        },
-        'glance-registry-paste': {
-            'src': os.path.join(src_etc, 'glance-registry-paste.ini'),
-            'dest': '/etc/glance/glance-registry-paste.ini',
-        },
-        'glance-registry': {
-            'src': os.path.join(src_etc, 'glance-registry.conf'),
-            'dest': '/etc/glance/glance-registry.conf',
-        },
         'glance-cache': {
             'src': os.path.join(src_etc, 'glance-cache.conf'),
             'dest': '/etc/glance/glance-cache.conf',
@@ -398,10 +383,13 @@ def git_post_install():
         'executable_name': '/usr/local/bin/glance-registry',
     }
 
-    render('upstart/glance.upstart', '/etc/init/glance-api.conf',
-           glance_api_context, perms=0o644)
-    render('upstart/glance.upstart', '/etc/init/glance-registry.conf',
-           glance_registry_context, perms=0o644)
+    # NOTE(coreycb): Needs systemd support
+    templates_dir = 'hooks/charmhelpers/contrib/openstack/templates'
+    templates_dir = os.path.join(charm_dir(), templates_dir)
+    render('git.upstart', '/etc/init/glance-api.conf',
+           glance_api_context, perms=0o644, templates_dir=templates_dir)
+    render('git.upstart', '/etc/init/glance-registry.conf',
+           glance_registry_context, perms=0o644, templates_dir=templates_dir)
 
     service_start('glance-api')
     service_start('glance-registry')
