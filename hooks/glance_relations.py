@@ -105,8 +105,7 @@ def install_hook():
     apt_update(fatal=True)
     apt_install(determine_packages(), fatal=True)
 
-    # NOTE(coreycb): This is temporary for sstack proxy, unless we decide
-    # we need to code proxy support into the charms.
+    # NOTE(coreycb): This is temporary until bug #1431286 is fixed.
     os.environ["http_proxy"] = "http://squid.internal:3128"
     os.environ["https_proxy"] = "https://squid.internal:3128"
 
@@ -325,7 +324,10 @@ def config_changed():
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
 
-    if not git_install_requested():
+    if git_install_requested():
+        if config_value_changed('openstack-origin-git'):
+            git_install(config('openstack-origin-git'))
+    else:
         if openstack_upgrade_available('glance-common'):
             juju_log('Upgrading OpenStack release')
             do_openstack_upgrade(CONFIGS)

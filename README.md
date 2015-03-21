@@ -84,92 +84,84 @@ Swift providing backing image storage.
 Deploying from source
 ---------------------
 
-The minimal openstack-origin-git config required to deploy from source is:
+The minimum openstack-origin-git config required to deploy from source is:
 
   openstack-origin-git:
-      "{'glance':
-           {'repository': 'git://git.openstack.org/openstack/glance.git',
-            'branch': 'stable/icehouse'}}"
+      "repositories:
+         - {name: requirements,
+            repository: 'git://git.openstack.org/openstack/requirements',
+            branch: stable/juno}
+         - {name: glance,
+            repository: 'git://git.openstack.org/openstack/glance',
+            branch: stable/juno}"
 
-If you specify a 'requirements' repository, it will be used to update the
-requirements.txt files of all other git repos that it applies to, before
-they are installed:
+Note that there are only two 'name' values the charm knows about: 'requirements'
+and 'glance'. These repositories must correspond to these 'name' values.
+Additionally, the requirements repository must be specified first and the
+glance repository must be specified last. All other repostories are installed
+in the order in which they are specified.
 
-  openstack-origin-git:
-      "{'requirements':
-           {'repository': 'git://git.openstack.org/openstack/requirements.git',
-            'branch': 'master'},
-        'glance':
-           {'repository': 'git://git.openstack.org/openstack/glance.git',
-            'branch': 'master'}}"
-
-Note that there are only two key values the charm knows about for the outermost
-dictionary: 'glance' and 'requirements'. These repositories must correspond to
-these keys. If the requirements repository is specified, it will be installed
-first. The glance repository is always installed last.  All other repostories
-will be installed in between.
-
-NOTE(coreycb): The following is temporary to keep track of the full list of
-current tip repos (may not be up-to-date).
+The following is a full list of current tip repos (may not be up-to-date):
 
   openstack-origin-git:
-      "{'requirements':
-           {'repository': 'git://git.openstack.org/openstack/requirements.git',
-            'branch': 'master'},
-        'glance-store':
-           {'repository': 'git://git.openstack.org/openstack/glance_store.git',
-            'branch': 'master'},
-        'keystonemiddleware:
-           {'repository': 'git://git.openstack.org/openstack/keystonemiddleware.git',
-            'branch: 'master'},
-        'oslo-concurrency':
-           {'repository': 'git://git.openstack.org/openstack/oslo.concurrency.git',
-            'branch: 'master'},
-        'oslo-config':
-           {'repository': 'git://git.openstack.org/openstack/oslo.config.git',
-            'branch: 'master'},
-        'oslo-db':
-           {'repository': 'git://git.openstack.org/openstack/oslo.db.git',
-            'branch: 'master'},
-        'oslo-i18n':
-           {'repository': 'git://git.openstack.org/openstack/oslo.i18n.git',
-            'branch: 'master'},
-        'oslo-messaging':
-           {'repository': 'git://git.openstack.org/openstack/oslo.messaging.git',
-            'branch: 'master'},
-        'oslo-serialization':
-           {'repository': 'git://git.openstack.org/openstack/oslo.serialization.git',
-            'branch: 'master'},
-        'oslo-utils':
-           {'repository': 'git://git.openstack.org/openstack/oslo.utils.git',
-            'branch: 'master'},
-        'oslo-vmware':
-           {'repository': 'git://git.openstack.org/openstack/oslo.vmware.git',
-            'branch: 'master'},
-        'osprofiler':
-           {'repository': 'git://git.openstack.org/stackforge/osprofiler.git',
-            'branch: 'master'},
-        'pbr':
-           {'repository': 'git://git.openstack.org/openstack-dev/pbr.git',
-            'branch: 'master'},
-        'python-keystoneclient':
-           {'repository': 'git://git.openstack.org/openstack/python-keystoneclient.git',
-            'branch: 'master'},
-        'python-swiftclient':
-           {'repository': 'git://git.openstack.org/openstack/python-swiftclient.git',
-            'branch: 'master'},
-        'stevedore':
-           {'repository': 'git://git.openstack.org/openstack/stevedore.git',
-            'branch: 'master'},
-        'sqlalchemy-migrate':
-           {'repository': 'git://git.openstack.org/stackforge/sqlalchemy-migrate.git',
-            'branch: 'master'},
-        'wsme':
-           {'repository': 'git://git.openstack.org/stackforge/wsme.git',
-            'branch': 'master'},
-        'glance':
-           {'repository': 'git://git.openstack.org/openstack/glance.git',
-            'branch': 'master'}}"
+      "repositories:
+         - {name: requirements,
+            repository: 'git://git.openstack.org/openstack/requirements',
+            branch: master}
+         - {name: oslo-concurrency,
+            repository: 'git://git.openstack.org/openstack/oslo.concurrency',
+            branch: master}
+         - {name: oslo-config,
+            repository: 'git://git.openstack.org/openstack/oslo.config',
+            branch: master}
+         - {name: oslo-db,
+            repository: 'git://git.openstack.org/openstack/oslo.db',
+            branch: master}
+         - {name: oslo-i18n,
+            repository: 'git://git.openstack.org/openstack/oslo.i18n',
+            branch: master}
+         - {name: oslo-messaging,
+            repository: 'git://git.openstack.org/openstack/oslo.messaging',
+            branch: master}
+         - {name: oslo-serialization,
+            repository: 'git://git.openstack.org/openstack/oslo.serialization',
+            branch: master}
+         - {name: oslo-utils,
+            repository: 'git://git.openstack.org/openstack/oslo.utils',
+            branch: master}
+         - {name: oslo-vmware,
+            repository: 'git://git.openstack.org/openstack/oslo.vmware',
+            branch: master}
+         - {name: osprofiler,
+            repository: 'git://git.openstack.org/stackforge/osprofiler',
+            branch: master}
+         - {name: pbr,
+            repository: 'git://git.openstack.org/openstack-dev/pbr',
+            branch: master}
+         - {name: python-keystoneclient,
+            repository: 'git://git.openstack.org/openstack/python-keystoneclient',
+            branch: master}
+         - {name: python-swiftclient,
+            repository: 'git://git.openstack.org/openstack/python-swiftclient',
+            branch: master}
+         - {name: sqlalchemy-migrate,
+            repository: 'git://git.openstack.org/stackforge/sqlalchemy-migrate',
+            branch: master}
+         - {name: stevedore,
+            repository: 'git://git.openstack.org/openstack/stevedore',
+            branch: master}
+         - {name: wsme,
+            repository: 'git://git.openstack.org/stackforge/wsme',
+            branch: master}
+         - {name: keystonemiddleware,
+            repository: 'git://git.openstack.org/openstack/keystonemiddleware',
+            branch: master}
+         - {name: glance-store,
+            repository: 'git://git.openstack.org/openstack/glance_store',
+            branch: master}
+         - {name: glance,
+            repository: 'git://git.openstack.org/openstack/glance',
+            branch: master}"
 
 Contact Information
 -------------------

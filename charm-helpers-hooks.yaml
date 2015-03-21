@@ -1,5 +1,4 @@
-#branch: lp:charm-helpers
-branch: /home/corey/src/charms/git/charm-helpers
+branch: lp:charm-helpers
 destination: hooks/charmhelpers
 include:
     - core
