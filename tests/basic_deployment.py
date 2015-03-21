@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import amulet
+import yaml
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
     OpenStackAmuletDeployment
