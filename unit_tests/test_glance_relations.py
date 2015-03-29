@@ -604,8 +604,9 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         self.relation_ids.return_value = ['identity-service:0']
         relations.configure_https()
-        cmd = ['a2ensite', 'openstack_https_frontend']
-        self.check_call.assert_called_with(cmd)
+        calls = [call('a2dissite', 'openstack_https_frontend'),
+                 call('service', 'apache2', 'reload')]
+        self.check_call.assert_called_has_calls(calls)
         keystone_joined.assert_called_with(relation_id='identity-service:0')
 
     @patch.object(relations, 'keystone_joined')
@@ -617,8 +618,9 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         self.relation_ids.return_value = ['identity-service:0']
         relations.configure_https()
-        cmd = ['a2dissite', 'openstack_https_frontend']
-        self.check_call.assert_called_with(cmd)
+        calls = [call('a2dissite', 'openstack_https_frontend'),
+                 call('service', 'apache2', 'reload')]
+        self.check_call.assert_called_has_calls(calls)
         keystone_joined.assert_called_with(relation_id='identity-service:0')
 
     @patch.object(relations, 'image_service_joined')
@@ -630,8 +632,9 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         self.relation_ids.return_value = ['image-service:0']
         relations.configure_https()
-        cmd = ['a2ensite', 'openstack_https_frontend']
-        self.check_call.assert_called_with(cmd)
+        calls = [call('a2dissite', 'openstack_https_frontend'),
+                 call('service', 'apache2', 'reload')]
+        self.check_call.assert_called_has_calls(calls)
         image_service_joined.assert_called_with(relation_id='image-service:0')
 
     @patch.object(relations, 'image_service_joined')
@@ -643,8 +646,9 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         self.relation_ids.return_value = ['image-service:0']
         relations.configure_https()
-        cmd = ['a2dissite', 'openstack_https_frontend']
-        self.check_call.assert_called_with(cmd)
+        calls = [call('a2dissite', 'openstack_https_frontend'),
+                 call('service', 'apache2', 'reload')]
+        self.check_call.assert_called_has_calls(calls)
         image_service_joined.assert_called_with(relation_id='image-service:0')
 
     def test_amqp_joined(self):
