@@ -38,6 +38,7 @@ TO_PATCH = [
     'apt_install',
     'apt_update',
     'restart_on_change',
+    'service_reload',
     'service_stop',
     # charmhelpers.contrib.openstack.utils
     'configure_installation_source',
