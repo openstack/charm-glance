@@ -4,7 +4,6 @@ import sys
 from subprocess import (
     call,
     check_call,
-    CalledProcessError,
 )
 
 from glance_utils import (
@@ -43,6 +42,7 @@ from charmhelpers.core.hookenv import (
 )
 from charmhelpers.core.host import (
     restart_on_change,
+    service_reload,
     service_stop,
 )
 from charmhelpers.fetch import (
@@ -468,10 +468,7 @@ def configure_https():
 
     # TODO: improve this by checking if local CN certs are available
     # first then checking reload status (see LP #1433114).
-    try:
-        check_call(['service', 'apache2', 'reload'])
-    except CalledProcessError:
-        call(['service', 'apache2', 'restart'])
+    service_reload('apache2', restart_on_failure=True)
 
     for r_id in relation_ids('identity-service'):
         keystone_joined(relation_id=r_id)
