@@ -1,9 +1,10 @@
 #!/usr/bin/python
-from subprocess import (
-    check_call,
-    call
-)
 import sys
+
+from subprocess import (
+    call,
+    check_call,
+)
 
 from glance_utils import (
     do_openstack_upgrade,
@@ -41,6 +42,7 @@ from charmhelpers.core.hookenv import (
 )
 from charmhelpers.core.host import (
     restart_on_change,
+    service_reload,
     service_stop,
 )
 from charmhelpers.fetch import (
@@ -164,7 +166,8 @@ def db_changed():
             status = call(['glance-manage', 'db_version'])
             if status != 0:
                 juju_log('Setting version_control to 0')
-                check_call(["glance-manage", "version_control", "0"])
+                cmd = ["glance-manage", "version_control", "0"]
+                check_call(cmd)
 
         juju_log('Cluster leader, performing db sync')
         migrate_database()
@@ -189,7 +192,8 @@ def pgsql_db_changed():
             status = call(['glance-manage', 'db_version'])
             if status != 0:
                 juju_log('Setting version_control to 0')
-                check_call(["glance-manage", "version_control", "0"])
+                cmd = ["glance-manage", "version_control", "0"]
+                check_call(cmd)
 
         juju_log('Cluster leader, performing db sync')
         migrate_database()
@@ -461,6 +465,10 @@ def configure_https():
     else:
         cmd = ['a2dissite', 'openstack_https_frontend']
         check_call(cmd)
+
+    # TODO: improve this by checking if local CN certs are available
+    # first then checking reload status (see LP #1433114).
+    service_reload('apache2', restart_on_failure=True)
 
     for r_id in relation_ids('identity-service'):
         keystone_joined(relation_id=r_id)
