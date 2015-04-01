@@ -1,0 +1,2 @@
+git-reinstall:
+  description: Reinstall glance from the openstack-origin-git repositories.

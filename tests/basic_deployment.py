@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import amulet
+import yaml
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
     OpenStackAmuletDeployment
@@ -23,9 +24,11 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 #    * Add tests with different storage back ends
 #    * Resolve Essex->Havana juju set charm bug
 
-    def __init__(self, series=None, openstack=None, source=None, stable=False):
+    def __init__(self, series=None, openstack=None, source=None, git=False,
+                 stable=False):
         '''Deploy the entire test environment.'''
         super(GlanceBasicDeployment, self).__init__(series, openstack, source, stable)
+        self.git = git
         self._add_services()
         self._add_relations()
         self._configure_services()
@@ -55,11 +58,29 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 
     def _configure_services(self):
         '''Configure all of the services.'''
+        glance_config = {}
+        if self.git:
+            branch = 'stable/' + self._get_openstack_release_string()
+            openstack_origin_git = {
+                'repositories': [
+                    {'name': 'requirements',
+                     'repository': 'git://git.openstack.org/openstack/requirements',
+                     'branch': branch},
+                    {'name': 'glance',
+                     'repository': 'git://git.openstack.org/openstack/glance',
+                     'branch': branch},
+                ],
+                'directory': '/mnt/openstack-git',
+                'http_proxy': 'http://squid.internal:3128',
+                'https_proxy': 'https://squid.internal:3128',
+            }
+            glance_config['openstack-origin-git'] = yaml.dump(openstack_origin_git)
+
         keystone_config = {'admin-password': 'openstack',
                            'admin-token': 'ubuntutesting'}
-
         mysql_config = {'dataset-size': '50%'}
-        configs = {'keystone': keystone_config,
+        configs = {'glance': glance_config,
+                   'keystone': keystone_config,
                    'mysql': mysql_config}
         super(GlanceBasicDeployment, self)._configure_services(configs)
 
@@ -160,7 +181,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             'auth_port': '35357',
             'auth_protocol': 'http',
             'private-address': u.valid_ip,
-            'https_keystone': 'False',
             'auth_host': u.valid_ip,
             'service_username': 'glance',
             'service_tenant_id': u.not_null,
