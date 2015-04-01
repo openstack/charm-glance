@@ -443,7 +443,7 @@ class HookData(object):
         data = hookenv.execution_environment()
         self.conf = conf_delta = self.kv.delta(data['conf'], 'config')
         self.rels = rels_delta = self.kv.delta(data['rels'], 'rels')
-        self.kv.set('env', data['env'])
+        self.kv.set('env', dict(data['env']))
         self.kv.set('unit', data['unit'])
         self.kv.set('relid', data.get('relid'))
         return conf_delta, rels_delta
