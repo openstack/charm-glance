@@ -320,14 +320,15 @@ def db_ssl(rdata, ctxt, ssl_dir):
 
 
 class IdentityServiceContext(OSContextGenerator):
-    interfaces = ['identity-service']
 
-    def __init__(self, service=None, service_user=None):
+    def __init__(self, service=None, service_user=None, rel_name='identity-service'):
         self.service = service
         self.service_user = service_user
+        self.rel_name = rel_name
+        self.interfaces = [self.rel_name]
 
     def __call__(self):
-        log('Generating template context for identity-service', level=DEBUG)
+        log('Generating template context for ' + self.rel_name, level=DEBUG)
         ctxt = {}
 
         if self.service and self.service_user:
@@ -341,7 +342,7 @@ class IdentityServiceContext(OSContextGenerator):
 
             ctxt['signing_dir'] = cachedir
 
-        for rid in relation_ids('identity-service'):
+        for rid in relation_ids(self.rel_name):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
                 serv_host = rdata.get('service_host')
