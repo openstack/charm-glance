@@ -20,11 +20,13 @@
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
 
+from __future__ import print_function
 import os
 import json
 import yaml
 import subprocess
 import sys
+import errno
 from subprocess import CalledProcessError
 
 import six
@@ -87,7 +89,18 @@ def log(message, level=None):
     if not isinstance(message, six.string_types):
         message = repr(message)
     command += [message]
-    subprocess.call(command)
+    # Missing juju-log should not cause failures in unit tests
+    # Send log output to stderr
+    try:
+        subprocess.call(command)
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            if level:
+                message = "{}: {}".format(level, message)
+            message = "juju-log: {}".format(message)
+            print(message, file=sys.stderr)
+        else:
+            raise
 
 
 class Serializable(UserDict):
