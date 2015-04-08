@@ -371,7 +371,7 @@ def git_post_install(projects_yaml):
         'start_dir': '/var/lib/glance',
         'process_name': 'glance-api',
         'executable_name': '/usr/local/bin/glance-api',
-        'config_file': '/etc/glance/glance-api.conf',
+        'config_files': ['/etc/glance/glance-api.conf'],
         'log_file': '/var/log/glance/api.log',
     }
 
@@ -382,7 +382,7 @@ def git_post_install(projects_yaml):
         'start_dir': '/var/lib/glance',
         'process_name': 'glance-registry',
         'executable_name': '/usr/local/bin/glance-registry',
-        'config_file': '/etc/glance/glance-registry.conf',
+        'config_files': ['/etc/glance/glance-registry.conf'],
         'log_file': '/var/log/glance/registry.log',
     }
 
