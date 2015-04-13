@@ -320,7 +320,6 @@ def git_pre_install():
         '/var/lib/glance/image-cache/invalid',
         '/var/lib/glance/image-cache/queue',
         '/var/log/glance',
-        '/etc/glance',
     ]
 
     logs = [
@@ -343,26 +342,13 @@ def git_post_install(projects_yaml):
     """Perform glance post-install setup."""
     src_etc = os.path.join(git_src_dir(projects_yaml, 'glance'), 'etc')
     configs = {
-        'glance-cache': {
-            'src': os.path.join(src_etc, 'glance-cache.conf'),
-            'dest': '/etc/glance/glance-cache.conf',
-        },
-        'glance-scrubber': {
-            'src': os.path.join(src_etc, 'glance-scrubber.conf'),
-            'dest': '/etc/glance/glance-scrubber.conf',
-        },
-        'policy': {
-            'src': os.path.join(src_etc, 'policy.json'),
-            'dest': '/etc/glance/policy.json',
-        },
-        'schema-image': {
-            'src': os.path.join(src_etc, 'schema-image.json'),
-            'dest': '/etc/glance/schema-image.json',
-        },
+        'src': src_etc,
+        'dest': '/etc/glance',
     }
 
-    for conf, files in configs.iteritems():
-        shutil.copyfile(files['src'], files['dest'])
+    if os.path.exists(configs['dest']):
+        shutil.rmtree(configs['dest'])
+    shutil.copytree(configs['src'], configs['dest'])
 
     glance_api_context = {
         'service_description': 'Glance API server',
