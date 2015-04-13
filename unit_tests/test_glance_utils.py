@@ -223,8 +223,6 @@ class TestGlanceUtils(CharmTestCase):
                  group='glance', perms=0700, force=False),
             call('/var/log/glance', owner='glance',
                  group='glance', perms=0700, force=False),
-            call('/etc/glance', owner='glance',
-                 group='glance', perms=0700, force=False),
         ]
         self.assertEquals(mkdir.call_args_list, expected)
         expected = [
@@ -239,19 +237,18 @@ class TestGlanceUtils(CharmTestCase):
     @patch.object(utils, 'service_restart')
     @patch.object(utils, 'render')
     @patch('os.path.join')
-    @patch('shutil.copyfile')
-    def test_git_post_install(self, copyfile, join, render, service_restart,
-                              git_src_dir):
+    @patch('os.path.exists')
+    @patch('shutil.copytree')
+    @patch('shutil.rmtree')
+    def test_git_post_install(self, rmtree, copytree, exists, join, render,
+                              service_restart, git_src_dir):
         projects_yaml = openstack_origin_git
         join.return_value = 'joined-string'
         utils.git_post_install(projects_yaml)
         expected = [
-            call('joined-string', '/etc/glance/glance-cache.conf'),
-            call('joined-string', '/etc/glance/glance-scrubber.conf'),
-            call('joined-string', '/etc/glance/policy.json'),
-            call('joined-string', '/etc/glance/schema-image.json'),
+            call('joined-string', '/etc/glance'),
         ]
-        copyfile.assert_has_calls(expected, any_order=True)
+        copytree.assert_has_calls(expected)
         glance_api_context = {
             'service_description': 'Glance API server',
             'service_name': 'Glance',
