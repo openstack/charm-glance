@@ -33,9 +33,9 @@ def bool_from_string(value):
 
     value = value.strip().lower()
 
-    if value in ['y', 'yes', 'true', 't']:
+    if value in ['y', 'yes', 'true', 't', 'on']:
         return True
-    elif value in ['n', 'no', 'false', 'f']:
+    elif value in ['n', 'no', 'false', 'f', 'off']:
         return False
 
     msg = "Unable to interpret string value '%s' as boolean" % (value)

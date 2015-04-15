@@ -44,7 +44,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            Determine if the local branch being tested is derived from its
            stable or next (dev) branch, and based on this, use the corresonding
            stable or next branches for the other_services."""
-        base_charms = ['mysql', 'mongodb', 'rabbitmq-server']
+        base_charms = ['mysql', 'mongodb']
 
         if self.stable:
             for svc in other_services:
