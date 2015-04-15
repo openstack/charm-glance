@@ -35,6 +35,7 @@ def git_reinstall():
 
     try:
         git_install(config('openstack-origin-git'))
+        config_changed()
     except:
         action_set({'traceback': traceback.format_exc()})
         action_fail('git-reinstall resulted in an unexpected error')
@@ -42,4 +43,3 @@ def git_reinstall():
 
 if __name__ == '__main__':
     git_reinstall()
-    config_changed()
