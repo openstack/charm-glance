@@ -808,6 +808,19 @@ class NeutronContext(OSContextGenerator):
 
         return ovs_ctxt
 
+    def nuage_ctxt(self):
+        driver = neutron_plugin_attribute(self.plugin, 'driver',
+                                          self.network_manager)
+        config = neutron_plugin_attribute(self.plugin, 'config',
+                                          self.network_manager)
+        nuage_ctxt = {'core_plugin': driver,
+                      'neutron_plugin': 'vsp',
+                      'neutron_security_groups': self.neutron_security_groups,
+                      'local_ip': unit_private_ip(),
+                      'config': config}
+
+        return nuage_ctxt
+
     def nvp_ctxt(self):
         driver = neutron_plugin_attribute(self.plugin, 'driver',
                                           self.network_manager)
@@ -891,6 +904,8 @@ class NeutronContext(OSContextGenerator):
             ctxt.update(self.n1kv_ctxt())
         elif self.plugin == 'Calico':
             ctxt.update(self.calico_ctxt())
+        elif self.plugin == 'vsp':
+            ctxt.update(self.nuage_ctxt())
 
         alchemy_flags = config('neutron-alchemy-flags')
         if alchemy_flags:

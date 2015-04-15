@@ -118,6 +118,9 @@ class AmuletUtils(object):
            longs, or can be a function that evaluate a variable and returns a
            bool.
            """
+        self.log.debug('actual: {}'.format(repr(actual)))
+        self.log.debug('expected: {}'.format(repr(expected)))
+
         for k, v in six.iteritems(expected):
             if k in actual:
                 if (isinstance(v, six.string_types) or
@@ -134,7 +137,6 @@ class AmuletUtils(object):
     def validate_relation_data(self, sentry_unit, relation, expected):
         """Validate actual relation data based on expected relation data."""
         actual = sentry_unit.relation(relation[0], relation[1])
-        self.log.debug('actual: {}'.format(repr(actual)))
         return self._validate_dict_data(expected, actual)
 
     def _validate_list_data(self, expected, actual):
