@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 import amulet
+import os
+import yaml
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
     OpenStackAmuletDeployment
@@ -13,7 +15,7 @@ from charmhelpers.contrib.openstack.amulet.utils import (
 )
 
 # Use DEBUG to turn on debug logging
-u = OpenStackAmuletUtils(ERROR)
+u = OpenStackAmuletUtils(DEBUG)
 
 class GlanceBasicDeployment(OpenStackAmuletDeployment):
     '''Amulet tests on a basic file-backed glance deployment.  Verify relations,
@@ -23,9 +25,11 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 #    * Add tests with different storage back ends
 #    * Resolve Essex->Havana juju set charm bug
 
-    def __init__(self, series=None, openstack=None, source=None, stable=False):
+    def __init__(self, series=None, openstack=None, source=None, git=False,
+                 stable=False):
         '''Deploy the entire test environment.'''
         super(GlanceBasicDeployment, self).__init__(series, openstack, source, stable)
+        self.git = git
         self._add_services()
         self._add_relations()
         self._configure_services()
@@ -55,11 +59,30 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 
     def _configure_services(self):
         '''Configure all of the services.'''
+        glance_config = {}
+        if self.git:
+            branch = 'stable/' + self._get_openstack_release_string()
+            amulet_http_proxy = os.environ.get('AMULET_HTTP_PROXY')
+            openstack_origin_git = {
+                'repositories': [
+                    {'name': 'requirements',
+                     'repository': 'git://git.openstack.org/openstack/requirements',
+                     'branch': branch},
+                    {'name': 'glance',
+                     'repository': 'git://git.openstack.org/openstack/glance',
+                     'branch': branch},
+                ],
+                'directory': '/mnt/openstack-git',
+                'http_proxy': amulet_http_proxy,
+                'https_proxy': amulet_http_proxy,
+            }
+            glance_config['openstack-origin-git'] = yaml.dump(openstack_origin_git)
+
         keystone_config = {'admin-password': 'openstack',
                            'admin-token': 'ubuntutesting'}
-
         mysql_config = {'dataset-size': '50%'}
-        configs = {'keystone': keystone_config,
+        configs = {'glance': glance_config,
+                   'keystone': keystone_config,
                    'mysql': mysql_config}
         super(GlanceBasicDeployment, self)._configure_services(configs)
 

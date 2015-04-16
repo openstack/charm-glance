@@ -8,12 +8,13 @@ from subprocess import (
 
 from glance_utils import (
     do_openstack_upgrade,
+    git_install,
     migrate_database,
     register_configs,
     restart_map,
     services,
     CLUSTER_RES,
-    PACKAGES,
+    determine_packages,
     SERVICES,
     CHARM,
     GLANCE_REGISTRY_CONF,
@@ -55,11 +56,13 @@ from charmhelpers.contrib.hahelpers.cluster import (
     get_hacluster_config
 )
 from charmhelpers.contrib.openstack.utils import (
+    config_value_changed,
     configure_installation_source,
-    get_os_codename_package,
-    openstack_upgrade_available,
+    git_install_requested,
     lsb_release,
-    sync_db_with_multi_ipv6_addresses
+    openstack_upgrade_available,
+    os_release,
+    sync_db_with_multi_ipv6_addresses,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     ensure_ceph_keyring,
@@ -103,7 +106,9 @@ def install_hook():
     configure_installation_source(src)
 
     apt_update(fatal=True)
-    apt_install(PACKAGES, fatal=True)
+    apt_install(determine_packages(), fatal=True)
+
+    git_install(config('openstack-origin-git'))
 
     for service in SERVICES:
         service_stop(service)
@@ -143,7 +148,7 @@ def pgsql_db_joined():
 @hooks.hook('shared-db-relation-changed')
 @restart_on_change(restart_map())
 def db_changed():
-    rel = get_os_codename_package("glance-common")
+    rel = os_release('glance-common')
 
     if 'shared-db' not in CONFIGS.complete_contexts():
         juju_log('shared-db relation incomplete. Peer not ready?')
@@ -176,7 +181,7 @@ def db_changed():
 @hooks.hook('pgsql-db-relation-changed')
 @restart_on_change(restart_map())
 def pgsql_db_changed():
-    rel = get_os_codename_package("glance-common")
+    rel = os_release('glance-common')
 
     if 'pgsql-db' not in CONFIGS.complete_contexts():
         juju_log('pgsql-db relation incomplete. Peer not ready?')
@@ -320,9 +325,13 @@ def config_changed():
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
 
-    if openstack_upgrade_available('glance-common'):
-        juju_log('Upgrading OpenStack release')
-        do_openstack_upgrade(CONFIGS)
+    if git_install_requested():
+        if config_value_changed('openstack-origin-git'):
+            git_install(config('openstack-origin-git'))
+    else:
+        if openstack_upgrade_available('glance-common'):
+            juju_log('Upgrading OpenStack release')
+            do_openstack_upgrade(CONFIGS)
 
     open_port(9292)
     configure_https()
@@ -366,7 +375,7 @@ def cluster_changed():
 @hooks.hook('upgrade-charm')
 @restart_on_change(restart_map(), stopstart=True)
 def upgrade_charm():
-    apt_install(filter_installed_packages(PACKAGES), fatal=True)
+    apt_install(filter_installed_packages(determine_packages()), fatal=True)
     configure_https()
     update_nrpe_config()
     CONFIGS.write_all()

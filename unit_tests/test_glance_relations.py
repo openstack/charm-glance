@@ -1,6 +1,7 @@
 from mock import call, patch, MagicMock
 import json
 import os
+import yaml
 
 from test_utils import CharmTestCase
 
@@ -42,7 +43,7 @@ TO_PATCH = [
     'service_stop',
     # charmhelpers.contrib.openstack.utils
     'configure_installation_source',
-    'get_os_codename_package',
+    'os_release',
     'openstack_upgrade_available',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'eligible_leader',
@@ -53,6 +54,7 @@ TO_PATCH = [
     'migrate_database',
     'ensure_ceph_keyring',
     'ceph_config_file',
+    'git_install',
     'update_nrpe_config',
     # other
     'call',
@@ -75,23 +77,26 @@ class GlanceRelationTests(CharmTestCase):
         super(GlanceRelationTests, self).setUp(relations, TO_PATCH)
         self.config.side_effect = self.test_config.get
 
-    def test_install_hook(self):
+    @patch.object(utils, 'git_install_requested')
+    def test_install_hook(self, git_requested):
+        git_requested.return_value = False
         repo = 'cloud:precise-grizzly'
         self.test_config.set('openstack-origin', repo)
         self.service_stop.return_value = True
         relations.install_hook()
         self.configure_installation_source.assert_called_with(repo)
         self.apt_update.assert_called_with(fatal=True)
-        self.apt_install.assert_called_with(['apache2', 'glance',
-                                             'python-mysqldb',
-                                             'python-swiftclient',
-                                             'python-psycopg2',
+        self.apt_install.assert_called_with(['haproxy', 'python-six', 'uuid',
+                                             'python-mysqldb', 'apache2',
+                                             'python-psycopg2', 'glance',
                                              'python-keystone',
-                                             'python-six',
-                                             'uuid', 'haproxy'], fatal=True)
+                                             'python-swiftclient'], fatal=True)
         self.assertTrue(self.execd_preinstall.called)
+        self.git_install.assert_called_with(None)
 
-    def test_install_hook_precise_distro(self):
+    @patch.object(utils, 'git_install_requested')
+    def test_install_hook_precise_distro(self, git_requested):
+        git_requested.return_value = False
         self.test_config.set('openstack-origin', 'distro')
         self.lsb_release.return_value = {'DISTRIB_RELEASE': 12.04,
                                          'DISTRIB_CODENAME': 'precise'}
@@ -100,6 +105,37 @@ class GlanceRelationTests(CharmTestCase):
         self.configure_installation_source.assert_called_with(
             "cloud:precise-folsom"
         )
+
+    @patch.object(utils, 'git_install_requested')
+    def test_install_hook_git(self, git_requested):
+        git_requested.return_value = True
+        repo = 'cloud:trusty-juno'
+        openstack_origin_git = {
+            'repositories': [
+                {'name': 'requirements',
+                 'repository': 'git://git.openstack.org/openstack/requirements',  # noqa
+                 'branch': 'stable/juno'},
+                {'name': 'glance',
+                 'repository': 'git://git.openstack.org/openstack/glance',
+                 'branch': 'stable/juno'}
+            ],
+            'directory': '/mnt/openstack-git',
+        }
+        projects_yaml = yaml.dump(openstack_origin_git)
+        self.test_config.set('openstack-origin', repo)
+        self.test_config.set('openstack-origin-git', projects_yaml)
+        relations.install_hook()
+        self.assertTrue(self.execd_preinstall.called)
+        self.configure_installation_source.assert_called_with(repo)
+        self.apt_update.assert_called_with(fatal=True)
+        self.apt_install.assert_called_with(['haproxy', 'python-setuptools',
+                                             'python-six', 'uuid',
+                                             'python-mysqldb', 'python-pip',
+                                             'apache2', 'libxslt1-dev',
+                                             'python-psycopg2', 'zlib1g-dev',
+                                             'python-dev', 'libxml2-dev'],
+                                            fatal=True)
+        self.git_install.assert_called_with(projects_yaml)
 
     def test_db_joined(self):
         self.unit_get.return_value = 'glance.foohost.com'
@@ -217,7 +253,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_with_essex_not_setting_version_control(self, configs):
-        self.get_os_codename_package.return_value = "essex"
+        self.os_release.return_value = "essex"
         self.call.return_value = 0
         self._shared_db_test(configs, 'glance/0')
         self.assertEquals([call('/etc/glance/glance-registry.conf')],
@@ -230,7 +266,7 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'CONFIGS')
     def test_postgresql_db_changed_with_essex_not_setting_version_control(
             self, configs):
-        self.get_os_codename_package.return_value = "essex"
+        self.os_release.return_value = "essex"
         self.call.return_value = 0
         self._postgresql_db_test(configs)
         self.assertEquals([call('/etc/glance/glance-registry.conf')],
@@ -242,7 +278,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_with_essex_setting_version_control(self, configs):
-        self.get_os_codename_package.return_value = "essex"
+        self.os_release.return_value = "essex"
         self.call.return_value = 1
         self._shared_db_test(configs, 'glance/0')
         self.assertEquals([call('/etc/glance/glance-registry.conf')],
@@ -258,7 +294,7 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'CONFIGS')
     def test_postgresql_db_changed_with_essex_setting_version_control(
             self, configs):
-        self.get_os_codename_package.return_value = "essex"
+        self.os_release.return_value = "essex"
         self.call.return_value = 1
         self._postgresql_db_test(configs)
         self.assertEquals([call('/etc/glance/glance-registry.conf')],
@@ -442,8 +478,12 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'object_store_joined')
     @patch.object(relations, 'CONFIGS')
-    def test_keystone_changed_with_object_store_relation(
-            self, configs, object_store_joined, configure_https):
+    @patch.object(utils, 'git_install_requested')
+    def test_keystone_changed_with_object_store_relation(self, git_requested,
+                                                         configs,
+                                                         object_store_joined,
+                                                         configure_https):
+        git_requested.return_value = False
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['identity-service']
         configs.write = MagicMock()
@@ -458,20 +498,52 @@ class GlanceRelationTests(CharmTestCase):
         self.assertTrue(configure_https.called)
 
     @patch.object(relations, 'configure_https')
-    def test_config_changed_no_openstack_upgrade(self, configure_https):
+    @patch.object(relations, 'git_install_requested')
+    def test_config_changed_no_openstack_upgrade(self, git_requested,
+                                                 configure_https):
+        git_requested.return_value = False
         self.openstack_upgrade_available.return_value = False
         relations.config_changed()
         self.open_port.assert_called_with(9292)
         self.assertTrue(configure_https.called)
 
     @patch.object(relations, 'configure_https')
-    def test_config_changed_with_openstack_upgrade(self, configure_https):
+    @patch.object(relations, 'git_install_requested')
+    def test_config_changed_with_openstack_upgrade(self, git_requested,
+                                                   configure_https):
+        git_requested.return_value = False
         self.openstack_upgrade_available.return_value = True
         relations.config_changed()
         self.juju_log.assert_called_with(
             'Upgrading OpenStack release'
         )
         self.assertTrue(self.do_openstack_upgrade.called)
+        self.assertTrue(configure_https.called)
+
+    @patch.object(relations, 'configure_https')
+    @patch.object(relations, 'git_install_requested')
+    @patch.object(relations, 'config_value_changed')
+    def test_config_changed_git_updated(self, config_val_changed,
+                                        git_requested, configure_https):
+        git_requested.return_value = True
+        repo = 'cloud:trusty-juno'
+        openstack_origin_git = {
+            'repositories': [
+                {'name': 'requirements',
+                 'repository': 'git://git.openstack.org/openstack/requirements',  # noqa
+                 'branch': 'stable/juno'},
+                {'name': 'glance',
+                 'repository': 'git://git.openstack.org/openstack/glance',
+                 'branch': 'stable/juno'}
+            ],
+            'directory': '/mnt/openstack-git',
+        }
+        projects_yaml = yaml.dump(openstack_origin_git)
+        self.test_config.set('openstack-origin', repo)
+        self.test_config.set('openstack-origin-git', projects_yaml)
+        relations.config_changed()
+        self.git_install.assert_called_with(projects_yaml)
+        self.assertFalse(self.do_openstack_upgrade.called)
         self.assertTrue(configure_https.called)
 
     @patch.object(relations, 'CONFIGS')
@@ -500,7 +572,9 @@ class GlanceRelationTests(CharmTestCase):
                           configs.write.call_args_list)
 
     @patch.object(relations, 'CONFIGS')
-    def test_upgrade_charm(self, configs):
+    @patch.object(utils, 'git_install_requested')
+    def test_upgrade_charm(self, git_requested, configs):
+        git_requested.return_value = False
         self.filter_installed_packages.return_value = ['test']
         relations.upgrade_charm()
         self.apt_install.assert_called_with(['test'], fatal=True)
