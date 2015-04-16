@@ -15,6 +15,7 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import six
+from collections import OrderedDict
 from charmhelpers.contrib.amulet.deployment import (
     AmuletDeployment
 )
@@ -43,7 +44,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            Determine if the local branch being tested is derived from its
            stable or next (dev) branch, and based on this, use the corresonding
            stable or next branches for the other_services."""
-        base_charms = ['mysql', 'mongodb', 'rabbitmq-server']
+        base_charms = ['mysql', 'mongodb']
 
         if self.stable:
             for svc in other_services:
@@ -100,12 +101,34 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            """
         (self.precise_essex, self.precise_folsom, self.precise_grizzly,
          self.precise_havana, self.precise_icehouse,
-         self.trusty_icehouse) = range(6)
+         self.trusty_icehouse, self.trusty_juno, self.trusty_kilo) = range(8)
         releases = {
             ('precise', None): self.precise_essex,
             ('precise', 'cloud:precise-folsom'): self.precise_folsom,
             ('precise', 'cloud:precise-grizzly'): self.precise_grizzly,
             ('precise', 'cloud:precise-havana'): self.precise_havana,
             ('precise', 'cloud:precise-icehouse'): self.precise_icehouse,
-            ('trusty', None): self.trusty_icehouse}
+            ('trusty', None): self.trusty_icehouse,
+            ('trusty', 'cloud:trusty-juno'): self.trusty_juno,
+            ('trusty', 'cloud:trusty-kilo'): self.trusty_kilo}
         return releases[(self.series, self.openstack)]
+
+    def _get_openstack_release_string(self):
+        """Get openstack release string.
+
+           Return a string representing the openstack release.
+           """
+        releases = OrderedDict([
+            ('precise', 'essex'),
+            ('quantal', 'folsom'),
+            ('raring', 'grizzly'),
+            ('saucy', 'havana'),
+            ('trusty', 'icehouse'),
+            ('utopic', 'juno'),
+            ('vivid', 'kilo'),
+        ])
+        if self.openstack:
+            os_origin = self.openstack.split(':')[1]
+            return os_origin.split('%s-' % self.series)[1].split('/')[0]
+        else:
+            return releases[self.series]
