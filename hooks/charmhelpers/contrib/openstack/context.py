@@ -459,6 +459,11 @@ class AMQPContext(OSContextGenerator):
 
                 ctxt['rabbitmq_hosts'] = ','.join(sorted(rabbitmq_hosts))
 
+        oslo_messaging_flags = conf.get('oslo-messaging-flags', None)
+        if oslo_messaging_flags:
+            ctxt['oslo_messaging_flags'] = config_flags_parser(
+                oslo_messaging_flags)
+
         if not context_complete(ctxt):
             return {}
 
