@@ -1,0 +1,9 @@
+#!/usr/bin/python
+
+"""Amulet tests on a basic Glance deployment on vivid-kilo."""
+
+from basic_deployment import GlanceBasicDeployment
+
+if __name__ == '__main__':
+    deployment = GlanceBasicDeployment(series='vivid')
+    deployment.run_tests()
