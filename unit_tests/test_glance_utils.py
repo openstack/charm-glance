@@ -210,19 +210,19 @@ class TestGlanceUtils(CharmTestCase):
         add_user_to_group.assert_called_with('glance', 'glance')
         expected = [
             call('/var/lib/glance', owner='glance',
-                 group='glance', perms=0700, force=False),
+                 group='glance', perms=0755, force=False),
             call('/var/lib/glance/images', owner='glance',
-                 group='glance', perms=0700, force=False),
+                 group='glance', perms=0755, force=False),
             call('/var/lib/glance/image-cache', owner='glance',
-                 group='glance', perms=0700, force=False),
+                 group='glance', perms=0755, force=False),
             call('/var/lib/glance/image-cache/incomplete', owner='glance',
-                 group='glance', perms=0700, force=False),
+                 group='glance', perms=0755, force=False),
             call('/var/lib/glance/image-cache/invalid', owner='glance',
-                 group='glance', perms=0700, force=False),
+                 group='glance', perms=0755, force=False),
             call('/var/lib/glance/image-cache/queue', owner='glance',
-                 group='glance', perms=0700, force=False),
+                 group='glance', perms=0755, force=False),
             call('/var/log/glance', owner='glance',
-                 group='glance', perms=0700, force=False),
+                 group='glance', perms=0755, force=False),
         ]
         self.assertEquals(mkdir.call_args_list, expected)
         expected = [
