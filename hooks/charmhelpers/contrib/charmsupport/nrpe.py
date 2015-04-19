@@ -247,7 +247,9 @@ class NRPE(object):
 
         service('restart', 'nagios-nrpe-server')
 
-        for rid in relation_ids("local-monitors"):
+        monitor_ids = relation_ids("local-monitors") + \
+            relation_ids("nrpe-external-master")
+        for rid in monitor_ids:
             relation_set(relation_id=rid, monitors=yaml.dump(monitors))
 
 
