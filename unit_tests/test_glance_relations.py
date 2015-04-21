@@ -208,7 +208,7 @@ class GlanceRelationTests(CharmTestCase):
         )
 
     def _shared_db_test(self, configs, unit_name,
-                       allowed_units = 'glance/0 glance/3'):
+                        allowed_units='glance/0 glance/3'):
         self.relation_get.return_value = allowed_units
         self.local_unit.return_value = unit_name
         configs.complete_contexts = MagicMock()
@@ -248,7 +248,6 @@ class GlanceRelationTests(CharmTestCase):
                            call('/etc/glance/glance-api.conf')],
                           configs.write.call_args_list)
         self.assertFalse(self.migrate_database.called)
-
 
     @patch.object(relations, 'CONFIGS')
     def test_postgresql_db_changed_no_essex(self, configs):
