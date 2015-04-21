@@ -207,8 +207,9 @@ class GlanceRelationTests(CharmTestCase):
             'pgsql-db relation incomplete. Peer not ready?'
         )
 
-    def _shared_db_test(self, configs, unit_name):
-        self.relation_get.return_value = 'glance/0 glance/3'
+    def _shared_db_test(self, configs, unit_name,
+                       allowed_units = 'glance/0 glance/3'):
+        self.relation_get.return_value = allowed_units
         self.local_unit.return_value = unit_name
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['shared-db']
@@ -239,6 +240,15 @@ class GlanceRelationTests(CharmTestCase):
                            call('/etc/glance/glance-api.conf')],
                           configs.write.call_args_list)
         self.assertFalse(self.migrate_database.called)
+
+    @patch.object(relations, 'CONFIGS')
+    def test_db_changed_no_acls(self, configs):
+        self._shared_db_test(configs, 'glance/2', None)
+        self.assertEquals([call('/etc/glance/glance-registry.conf'),
+                           call('/etc/glance/glance-api.conf')],
+                          configs.write.call_args_list)
+        self.assertFalse(self.migrate_database.called)
+
 
     @patch.object(relations, 'CONFIGS')
     def test_postgresql_db_changed_no_essex(self, configs):
