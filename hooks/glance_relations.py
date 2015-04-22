@@ -164,18 +164,19 @@ def db_changed():
         # acl entry has been added. So, if the db supports passing a list of
         # permitted units then check if we're in the list.
         allowed_units = relation_get('allowed_units')
-        if allowed_units and local_unit() not in allowed_units.split():
-            juju_log('Allowed_units list provided and this unit not present')
-            return
-        if rel == "essex":
-            status = call(['glance-manage', 'db_version'])
-            if status != 0:
-                juju_log('Setting version_control to 0')
-                cmd = ["glance-manage", "version_control", "0"]
-                check_call(cmd)
+        if allowed_units and local_unit() in allowed_units.split():
+            if rel == "essex":
+                status = call(['glance-manage', 'db_version'])
+                if status != 0:
+                    juju_log('Setting version_control to 0')
+                    cmd = ["glance-manage", "version_control", "0"]
+                    check_call(cmd)
 
-        juju_log('Cluster leader, performing db sync')
-        migrate_database()
+            juju_log('Cluster leader, performing db sync')
+            migrate_database()
+        else:
+            juju_log('allowed_units either not presented, or local unit '
+                     'not in acl list: %s' % allowed_units)
 
 
 @hooks.hook('pgsql-db-relation-changed')
