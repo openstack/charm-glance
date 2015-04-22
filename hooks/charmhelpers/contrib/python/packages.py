@@ -51,16 +51,19 @@ def pip_install_requirements(requirements, **options):
     pip_execute(command)
 
 
-def pip_install(package, fatal=False, upgrade=False, **options):
+def pip_install(package, fatal=False, upgrade=False, ignore=False, **options):
     """Install a python package"""
     command = ["install"]
 
-    available_options = ('proxy', 'src', 'log', "index-url", )
+    available_options = ('proxy', 'src', 'log', 'index-url', )
     for option in parse_options(options, available_options):
         command.append(option)
 
     if upgrade:
         command.append('--upgrade')
+
+    if ignore:
+        command.append('--ignore-installed')
 
     if isinstance(package, list):
         command.extend(package)
