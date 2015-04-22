@@ -517,6 +517,7 @@ def git_clone_and_install(projects_yaml, core_project):
     """
     global requirements_dir
     parent_dir = '/mnt/openstack-git'
+    http_proxy = None
 
     if not projects_yaml:
         return
@@ -527,6 +528,7 @@ def git_clone_and_install(projects_yaml, core_project):
     old_environ = dict(os.environ)
 
     if 'http_proxy' in projects.keys():
+        http_proxy = projects['http_proxy']
         os.environ['http_proxy'] = projects['http_proxy']
     if 'https_proxy' in projects.keys():
         os.environ['https_proxy'] = projects['https_proxy']
@@ -539,10 +541,12 @@ def git_clone_and_install(projects_yaml, core_project):
         branch = p['branch']
         if p['name'] == 'requirements':
             repo_dir = _git_clone_and_install_single(repo, branch, parent_dir,
+                                                     http_proxy,
                                                      update_requirements=False)
             requirements_dir = repo_dir
         else:
             repo_dir = _git_clone_and_install_single(repo, branch, parent_dir,
+                                                     http_proxy,
                                                      update_requirements=True)
 
     os.environ = old_environ
@@ -574,7 +578,8 @@ def _git_ensure_key_exists(key, keys):
         error_out('openstack-origin-git key \'{}\' is missing'.format(key))
 
 
-def _git_clone_and_install_single(repo, branch, parent_dir, update_requirements):
+def _git_clone_and_install_single(repo, branch, parent_dir, http_proxy,
+                                  update_requirements):
     """
     Clone and install a single git repository.
     """
@@ -598,7 +603,10 @@ def _git_clone_and_install_single(repo, branch, parent_dir, update_requirements)
         _git_update_requirements(repo_dir, requirements_dir)
 
     juju_log('Installing git repo from dir: {}'.format(repo_dir))
-    pip_install(repo_dir)
+    if http_proxy:
+        pip_install(repo_dir, ignore=True, proxy=http_proxy)
+    else:
+        pip_install(repo_dir, ignore=True)
 
     return repo_dir
 
