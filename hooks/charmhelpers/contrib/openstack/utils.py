@@ -604,9 +604,9 @@ def _git_clone_and_install_single(repo, branch, parent_dir, http_proxy,
 
     juju_log('Installing git repo from dir: {}'.format(repo_dir))
     if http_proxy:
-        pip_install(repo_dir, proxy=http_proxy)
+        pip_install(repo_dir, upgrade=True, proxy=http_proxy)
     else:
-        pip_install(repo_dir)
+        pip_install(repo_dir, upgrade=True)
 
     return repo_dir
 
