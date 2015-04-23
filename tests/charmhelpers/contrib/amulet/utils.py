@@ -79,6 +79,9 @@ class AmuletUtils(object):
         for k, v in six.iteritems(commands):
             for cmd in v:
                 output, code = k.run(cmd)
+                self.log.debug('{} `{}` returned '
+                               '{}'.format(k.info['unit_name'],
+                                           cmd, code))
                 if code != 0:
                     return "command `{}` returned {}".format(cmd, str(code))
         return None
@@ -86,7 +89,11 @@ class AmuletUtils(object):
     def _get_config(self, unit, filename):
         """Get a ConfigParser object for parsing a unit's config file."""
         file_contents = unit.file_contents(filename)
-        config = ConfigParser.ConfigParser()
+
+        # NOTE(beisner):  by default, ConfigParser does not handle options
+        # with no value, such as the flags used in the mysql my.cnf file.
+        # https://bugs.python.org/issue7005
+        config = ConfigParser.ConfigParser(allow_no_value=True)
         config.readfp(io.StringIO(file_contents))
         return config
 
