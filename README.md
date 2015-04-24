@@ -86,8 +86,8 @@ Deploying from source
 
 The minimum openstack-origin-git config required to deploy from source is:
 
-  openstack-origin-git:
-      "repositories:
+    openstack-origin-git:
+        "repositories:
          - {name: requirements,
             repository: 'git://git.openstack.org/openstack/requirements',
             branch: stable/juno}
@@ -103,8 +103,8 @@ in the order in which they are specified.
 
 The following is a full list of current tip repos (may not be up-to-date):
 
-  openstack-origin-git:
-      "repositories:
+    openstack-origin-git:
+        "repositories:
          - {name: requirements,
             repository: 'git://git.openstack.org/openstack/requirements',
             branch: master}
