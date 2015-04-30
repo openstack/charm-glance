@@ -44,6 +44,7 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.core.host import (
     restart_on_change,
     service_reload,
+    service_restart,
     service_stop,
 )
 from charmhelpers.fetch import (
@@ -265,6 +266,9 @@ def ceph_changed():
                  (rsp.exit_code, rsp.exit_msg), level=INFO)
         CONFIGS.write(GLANCE_API_CONF)
         CONFIGS.write(ceph_config_file())
+        # Ensure that glance-api is restarted since only now can we
+        # guarantee that ceph resources are ready.
+        service_restart('glance-api')
     else:
         rq = CephBrokerRq()
         replicas = config('ceph-osd-replication-count')
