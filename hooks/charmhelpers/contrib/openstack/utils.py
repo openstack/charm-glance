@@ -497,7 +497,7 @@ def git_install_requested():
 requirements_dir = None
 
 
-def git_clone_and_install(projects_yaml, core_project):
+def git_clone_and_install(projects_yaml, core_project, depth=1):
     """
     Clone/install all specified OpenStack repositories.
 
@@ -540,13 +540,13 @@ def git_clone_and_install(projects_yaml, core_project):
         repo = p['repository']
         branch = p['branch']
         if p['name'] == 'requirements':
-            repo_dir = _git_clone_and_install_single(repo, branch, parent_dir,
-                                                     http_proxy,
+            repo_dir = _git_clone_and_install_single(repo, branch, depth,
+                                                     parent_dir, http_proxy,
                                                      update_requirements=False)
             requirements_dir = repo_dir
         else:
-            repo_dir = _git_clone_and_install_single(repo, branch, parent_dir,
-                                                     http_proxy,
+            repo_dir = _git_clone_and_install_single(repo, branch, depth,
+                                                     parent_dir, http_proxy,
                                                      update_requirements=True)
 
     os.environ = old_environ
@@ -578,7 +578,7 @@ def _git_ensure_key_exists(key, keys):
         error_out('openstack-origin-git key \'{}\' is missing'.format(key))
 
 
-def _git_clone_and_install_single(repo, branch, parent_dir, http_proxy,
+def _git_clone_and_install_single(repo, branch, depth, parent_dir, http_proxy,
                                   update_requirements):
     """
     Clone and install a single git repository.
@@ -592,7 +592,8 @@ def _git_clone_and_install_single(repo, branch, parent_dir, http_proxy,
 
     if not os.path.exists(dest_dir):
         juju_log('Cloning git repo: {}, branch: {}'.format(repo, branch))
-        repo_dir = install_remote(repo, dest=parent_dir, branch=branch)
+        repo_dir = install_remote(repo, dest=parent_dir, branch=branch,
+                                  depth=depth)
     else:
         repo_dir = dest_dir
 

@@ -367,15 +367,13 @@ def install_remote(source, *args, **kwargs):
     # explaining why it can't handle a given source.
     handlers = [h for h in plugins() if h.can_handle(source) is True]
     installed_to = None
-    while not installed_to:
-        for handler in handlers:
-            try:
-                installed_to = handler.install(source, *args, **kwargs)
-            except UnhandledSource:
-                pass
-            log("CB: install loop - installed_to = |%s|".format(installed_to))
-        #if not installed_to:
-        #    raise UnhandledSource("No handler found for source {}".format(source))
+    for handler in handlers:
+        try:
+            installed_to = handler.install(source, *args, **kwargs)
+        except UnhandledSource:
+            pass
+    if not installed_to:
+        raise UnhandledSource("No handler found for source {}".format(source))
     return installed_to
 
 
