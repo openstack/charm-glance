@@ -45,14 +45,17 @@ class GitUrlFetchHandler(BaseFetchHandler):
         else:
             return True
 
-    def clone(self, source, dest, branch):
+    def clone(self, source, dest, branch, depth):
         if not self.can_handle(source):
             raise UnhandledSource("Cannot handle {}".format(source))
 
-        repo = Repo.clone_from(source, dest)
+        if depth:
+            repo = Repo.clone_from(source, dest, depth)
+        else:
+            repo = Repo.clone_from(source, dest)
         repo.git.checkout(branch)
 
-    def install(self, source, branch="master", dest=None):
+    def install(self, source, branch="master", dest=None, depth=None):
         url_parts = self.parse_url(source)
         branch_name = url_parts.path.strip("/").split("/")[-1]
         if dest:
@@ -63,7 +66,7 @@ class GitUrlFetchHandler(BaseFetchHandler):
         if not os.path.exists(dest_dir):
             mkdir(dest_dir, perms=0o755)
         try:
-            self.clone(source, dest_dir, branch)
+            self.clone(source, dest_dir, branch, depth)
         except GitCommandError as e:
             raise UnhandledSource(e.message)
         except OSError as e:
