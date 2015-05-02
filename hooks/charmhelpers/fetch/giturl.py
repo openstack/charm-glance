@@ -50,7 +50,7 @@ class GitUrlFetchHandler(BaseFetchHandler):
             raise UnhandledSource("Cannot handle {}".format(source))
 
         if depth:
-            repo = Repo.clone_from(source, dest, depth)
+            repo = Repo.clone_from(source, dest, depth=depth)
         else:
             repo = Repo.clone_from(source, dest)
         repo.git.checkout(branch)
