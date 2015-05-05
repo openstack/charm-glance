@@ -53,9 +53,13 @@ from charmhelpers.contrib.network.ip import (
     get_ipv6_addr
 )
 
+from charmhelpers.contrib.python.packages import (
+    pip_create_virtualenv,
+    pip_install,
+)
+
 from charmhelpers.core.host import lsb_release, mounts, umount
 from charmhelpers.fetch import apt_install, apt_cache, install_remote
-from charmhelpers.contrib.python.packages import pip_install
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
 
@@ -535,6 +539,8 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
 
     if 'directory' in projects.keys():
         parent_dir = projects['directory']
+
+    pip_create_virtualenv(proxy=http_proxy)
 
     for p in projects['repositories']:
         repo = p['repository']

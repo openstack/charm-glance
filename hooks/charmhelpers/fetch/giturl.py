@@ -50,9 +50,9 @@ class GitUrlFetchHandler(BaseFetchHandler):
             raise UnhandledSource("Cannot handle {}".format(source))
 
         if depth:
-            repo = Repo.clone_from(source, dest, branch=branch, depth=depth)
+            Repo.clone_from(source, dest, branch=branch, depth=depth)
         else:
-            repo = Repo.clone_from(source, dest, branch=branch)
+            Repo.clone_from(source, dest, branch=branch)
 
     def install(self, source, branch="master", dest=None, depth=None):
         url_parts = self.parse_url(source)

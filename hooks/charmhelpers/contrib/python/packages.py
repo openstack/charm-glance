@@ -17,8 +17,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+import subprocess
+
 from charmhelpers.fetch import apt_install, apt_update
-from charmhelpers.core.hookenv import log
+from charmhelpers.core.hookenv import charm_dir, log
 
 try:
     from pip import main as pip_execute
@@ -94,3 +97,17 @@ def pip_list():
     """Returns the list of current python installed packages
     """
     return pip_execute(["list"])
+
+
+def pip_create_virtualenv(parent_dir=charm_dir(), proxy=None):
+    """Create and activate an isolated Python environment (virtualenv)."""
+    if proxy:
+        pip_install('virtualenv', proxy=proxy)
+    else:
+        pip_install('virtualenv')
+
+    venv_dir = os.path.join(parent_dir, 'venv')
+    subprocess.check_call(['virtualenv', '--no-site-packages', venv_dir])
+
+    venv_activate = os.path.join(venv_dir, 'bin/activate')
+    subprocess.check_call(['.', venv_activate], shell=True)
