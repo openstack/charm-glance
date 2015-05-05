@@ -350,13 +350,14 @@ def git_post_install(projects_yaml):
         shutil.rmtree(configs['dest'])
     shutil.copytree(configs['src'], configs['dest'])
 
+    bin_dir = os.path.join(charm_dir(), 'venv/bin')
     glance_api_context = {
         'service_description': 'Glance API server',
         'service_name': 'Glance',
         'user_name': 'glance',
         'start_dir': '/var/lib/glance',
         'process_name': 'glance-api',
-        'executable_name': '/usr/local/bin/glance-api',
+        'executable_name': os.path.join(bin_dir, 'glance-api'),
         'config_files': ['/etc/glance/glance-api.conf'],
         'log_file': '/var/log/glance/api.log',
     }
@@ -367,7 +368,7 @@ def git_post_install(projects_yaml):
         'user_name': 'glance',
         'start_dir': '/var/lib/glance',
         'process_name': 'glance-registry',
-        'executable_name': '/usr/local/bin/glance-registry',
+        'executable_name': os.path.join(bin_dir, 'glance-registry'),
         'config_files': ['/etc/glance/glance-registry.conf'],
         'log_file': '/var/log/glance/registry.log',
     }
