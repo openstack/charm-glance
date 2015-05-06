@@ -351,6 +351,16 @@ def git_post_install(projects_yaml):
         shutil.rmtree(configs['dest'])
     shutil.copytree(configs['src'], configs['dest'])
 
+    symlinks = [
+        {'src': os.path.join(charm_dir(), 'venv/bin/glance-manage'),
+         'link': '/usr/local/bin/glance-manage'},
+    ]
+
+    for s in symlinks:
+        if os.path.lexists(s['link']):
+            os.remove(s['link'])
+        os.symlink(s['src'], s['link'])
+
     bin_dir = os.path.join(charm_dir(), 'venv/bin')
     glance_api_context = {
         'service_description': 'Glance API server',
