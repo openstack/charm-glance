@@ -540,7 +540,7 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
     if 'directory' in projects.keys():
         parent_dir = projects['directory']
 
-    pip_create_virtualenv(proxy=http_proxy)
+    pip_create_virtualenv()
 
     for p in projects['repositories']:
         repo = p['repository']
@@ -611,9 +611,9 @@ def _git_clone_and_install_single(repo, branch, depth, parent_dir, http_proxy,
 
     juju_log('Installing git repo from dir: {}'.format(repo_dir))
     if http_proxy:
-        pip_install(repo_dir, proxy=http_proxy)
+        pip_install(repo_dir, proxy=http_proxy, venv=True)
     else:
-        pip_install(repo_dir)
+        pip_install(repo_dir, venv=True)
 
     return repo_dir
 

@@ -54,9 +54,13 @@ def pip_install_requirements(requirements, **options):
     pip_execute(command)
 
 
-def pip_install(package, fatal=False, upgrade=False, **options):
+def pip_install(package, fatal=False, upgrade=False, venv=False, **options):
     """Install a python package"""
-    command = ["install"]
+    if venv:
+        venv_python = os.path.join(charm_dir(), 'venv/bin/pip')
+        command = [venv_python, "install"]
+    else:
+        command = ["install"]
 
     available_options = ('proxy', 'src', 'log', 'index-url', )
     for option in parse_options(options, available_options):
@@ -72,7 +76,10 @@ def pip_install(package, fatal=False, upgrade=False, **options):
 
     log("Installing {} package with options: {}".format(package,
                                                         command))
-    pip_execute(command)
+    if venv:
+        subprocess.check_call(command)
+    else:
+        pip_execute(command)
 
 
 def pip_uninstall(package, **options):
@@ -99,15 +106,7 @@ def pip_list():
     return pip_execute(["list"])
 
 
-def pip_create_virtualenv(parent_dir=charm_dir(), proxy=None):
-    """Create and activate an isolated Python environment (virtualenv)."""
-    if proxy:
-        pip_install('virtualenv', proxy=proxy)
-    else:
-        pip_install('virtualenv')
-
-    venv_dir = os.path.join(parent_dir, 'venv')
-    subprocess.check_call(['virtualenv', '--no-site-packages', venv_dir])
-
-    venv_activate = os.path.join(venv_dir, 'bin/activate')
-    subprocess.check_call(['.', venv_activate], shell=True)
+def pip_create_virtualenv():
+    """Create an isolated Python environment."""
+    apt_install('python-virtualenv')
+    subprocess.check_call(['virtualenv', os.path.join(charm_dir(), 'venv')])
