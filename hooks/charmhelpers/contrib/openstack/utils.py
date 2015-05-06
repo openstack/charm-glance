@@ -655,3 +655,18 @@ def git_src_dir(projects_yaml, project):
             return os.path.join(parent_dir, os.path.basename(p['repository']))
 
     return None
+
+
+def git_http_proxy(projects_yaml):
+    """
+    Return the http_proxy value if it is specified in projects_yaml.
+    """
+    if not projects_yaml:
+        return
+
+    projects = yaml.load(projects_yaml)
+
+    if 'http_proxy' in projects.keys():
+        return projects['http_proxy']
+
+    return None
