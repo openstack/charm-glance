@@ -14,6 +14,10 @@ from charmhelpers.fetch import (
     apt_install,
     add_source)
 
+from charmhelpers.contrib.python.packages import (
+    pip_install,
+)
+
 from charmhelpers.core.hookenv import (
     charm_dir,
     config,
@@ -47,6 +51,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_install_requested,
     git_clone_and_install,
     git_src_dir,
+    git_http_proxy,
     configure_installation_source,
     os_release,
 )
@@ -60,6 +65,7 @@ PACKAGES = [
     "python-psycopg2", "python-keystone", "python-six", "uuid", "haproxy", ]
 
 BASE_GIT_PACKAGES = [
+    'libmysqlclient-dev',
     'libxml2-dev',
     'libxslt1-dev',
     'libssl-dev',
@@ -341,6 +347,12 @@ def git_pre_install():
 
 def git_post_install(projects_yaml):
     """Perform glance post-install setup."""
+    http_proxy = git_http_proxy(projects_yaml)
+    if http_proxy:
+        pip_install('mysql-python', proxy=http_proxy, venv=True)
+    else:
+        pip_install('mysql-python', venv=True)
+
     src_etc = os.path.join(git_src_dir(projects_yaml, 'glance'), 'etc')
     configs = {
         'src': src_etc,
