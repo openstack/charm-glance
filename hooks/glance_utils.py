@@ -367,7 +367,8 @@ def git_post_install(projects_yaml):
     shutil.copytree(configs['src'], configs['dest'])
 
     symlinks = [
-        {'src': os.path.join(git_pip_venv_dir(), 'bin/glance-manage'),
+        {'src': os.path.join(git_pip_venv_dir(projects_yaml),
+                             'bin/glance-manage'),
          'link': '/usr/local/bin/glance-manage'},
     ]
 
@@ -376,7 +377,7 @@ def git_post_install(projects_yaml):
             os.remove(s['link'])
         os.symlink(s['src'], s['link'])
 
-    bin_dir = os.path.join(git_pip_venv_dir(), 'bin')
+    bin_dir = os.path.join(git_pip_venv_dir(projects_yaml), 'bin')
     glance_api_context = {
         'service_description': 'Glance API server',
         'service_name': 'Glance',
