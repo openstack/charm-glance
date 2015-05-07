@@ -115,4 +115,5 @@ def pip_create_virtualenv(path=None):
     else:
         venv_path = os.path.join(charm_dir(), 'venv')
 
-    subprocess.check_call(['virtualenv', venv_path])
+    if not os.path.exists(venv_path):
+        subprocess.check_call(['virtualenv', venv_path])
