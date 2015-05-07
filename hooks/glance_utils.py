@@ -16,7 +16,6 @@ from charmhelpers.fetch import (
 
 from charmhelpers.contrib.python.packages import (
     pip_install,
-    pip_get_virtualenv_path,
 )
 
 from charmhelpers.core.hookenv import (
@@ -53,6 +52,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_clone_and_install,
     git_src_dir,
     git_yaml_value,
+    git_pip_venv_dir,
     configure_installation_source,
     os_release,
 )
@@ -350,9 +350,11 @@ def git_post_install(projects_yaml):
     """Perform glance post-install setup."""
     http_proxy = git_yaml_value(projects_yaml, 'http_proxy')
     if http_proxy:
-        pip_install('mysql-python', proxy=http_proxy, venv=True)
+        pip_install('mysql-python', proxy=http_proxy,
+                    venv=git_pip_venv_dir(projects_yaml))
     else:
-        pip_install('mysql-python', venv=True)
+        pip_install('mysql-python',
+                    venv=git_pip_venv_dir(projects_yaml))
 
     src_etc = os.path.join(git_src_dir(projects_yaml, 'glance'), 'etc')
     configs = {
@@ -365,7 +367,7 @@ def git_post_install(projects_yaml):
     shutil.copytree(configs['src'], configs['dest'])
 
     symlinks = [
-        {'src': os.path.join(pip_get_virtualenv_path(), 'bin/glance-manage'),
+        {'src': os.path.join(git_pip_venv_dir(), 'bin/glance-manage'),
          'link': '/usr/local/bin/glance-manage'},
     ]
 
@@ -374,7 +376,7 @@ def git_post_install(projects_yaml):
             os.remove(s['link'])
         os.symlink(s['src'], s['link'])
 
-    bin_dir = os.path.join(pip_get_virtualenv_path(), 'bin')
+    bin_dir = os.path.join(git_pip_venv_dir(), 'bin')
     glance_api_context = {
         'service_description': 'Glance API server',
         'service_name': 'Glance',
