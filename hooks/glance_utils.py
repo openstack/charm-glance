@@ -370,6 +370,14 @@ def git_post_install(projects_yaml):
         {'src': os.path.join(git_pip_venv_dir(projects_yaml),
                              'bin/glance-manage'),
          'link': '/usr/local/bin/glance-manage'},
+        # NOTE(coreycb): This is ugly but couldn't find pypi package that
+        #                installs rbd.py and rados.py.
+        {'src': '/usr/lib/python2.7/dist-packages/rbd.py',
+         'link': os.path.join(git_pip_venv_dir(projects_yaml),
+                              'lib/python2.7/site-packages/rbd.py')},
+        {'src': '/usr/lib/python2.7/dist-packages/rados.py',
+         'link': os.path.join(git_pip_venv_dir(projects_yaml),
+                              'lib/python2.7/site-packages/rados.py')},
     ]
 
     for s in symlinks:
