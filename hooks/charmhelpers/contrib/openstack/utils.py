@@ -611,9 +611,11 @@ def _git_clone_and_install_single(repo, branch, depth, parent_dir, http_proxy,
 
     juju_log('Installing git repo from dir: {}'.format(repo_dir))
     if http_proxy:
-        pip_install(repo_dir, proxy=http_proxy, venv=True)
+        pip_install(repo_dir, proxy=http_proxy,
+                    venv=os.path.join(parent_dir, 'venv'))
     else:
-        pip_install(repo_dir, venv=True)
+        pip_install(repo_dir,
+                    venv=os.path.join(parent_dir, 'venv'))
 
     return repo_dir
 
@@ -634,6 +636,23 @@ def _git_update_requirements(package_dir, reqs_dir):
         package = os.path.basename(package_dir)
         error_out("Error updating {} from global-requirements.txt".format(package))
     os.chdir(orig_dir)
+
+
+def git_pip_venv_dir(projects_yaml):
+    """
+    Return the pip virtualenv path.
+    """
+    parent_dir = '/mnt/openstack-git'
+
+    if not projects_yaml:
+        return
+
+    projects = yaml.load(projects_yaml)
+
+    if 'directory' in projects.keys():
+        parent_dir = projects['directory']
+
+    return os.path.join(parent_dir, 'venv')
 
 
 def git_src_dir(projects_yaml, project):
