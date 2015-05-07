@@ -130,8 +130,10 @@ class GlanceRelationTests(CharmTestCase):
         self.apt_update.assert_called_with(fatal=True)
         self.apt_install.assert_called_with(['haproxy', 'python-setuptools',
                                              'python-six', 'uuid',
-                                             'python-mysqldb', 'python-pip',
-                                             'apache2', 'libxslt1-dev',
+                                             'python-mysqldb',
+                                             'libmysqlclient-dev',
+                                             'libssl-dev', 'apache2',
+                                             'python-pip', 'libxslt1-dev',
                                              'python-psycopg2',
                                              'zlib1g-dev', 'python-dev',
                                              'libxml2-dev'],
