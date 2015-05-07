@@ -30,6 +30,8 @@ except ImportError:
     apt_install('python-pip')
     from pip import main as pip_execute
 
+pip_venv_path = None
+
 __author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
 
@@ -57,7 +59,7 @@ def pip_install_requirements(requirements, **options):
 def pip_install(package, fatal=False, upgrade=False, venv=False, **options):
     """Install a python package"""
     if venv:
-        venv_python = os.path.join(charm_dir(), 'venv/bin/pip')
+        venv_python = os.path.join(pip_venv_path, 'bin/pip')
         command = [venv_python, "install"]
     else:
         command = ["install"]
@@ -106,7 +108,19 @@ def pip_list():
     return pip_execute(["list"])
 
 
-def pip_create_virtualenv():
+def pip_create_virtualenv(path=None):
     """Create an isolated Python environment."""
+    global pip_venv_path
+
     apt_install('python-virtualenv')
-    subprocess.check_call(['virtualenv', os.path.join(charm_dir(), 'venv')])
+
+    if path:
+        pip_venv_path = path
+    else:
+        pip_venv_path = os.path.join(charm_dir(), 'venv')
+
+    subprocess.check_call(['virtualenv', pip_venv_path])
+
+
+def pip_get_virtualenv_path():
+    return pip_venv_path
