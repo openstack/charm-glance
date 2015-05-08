@@ -66,6 +66,7 @@ PACKAGES = [
     "python-psycopg2", "python-keystone", "python-six", "uuid", "haproxy", ]
 
 BASE_GIT_PACKAGES = [
+    'libffi-dev',
     'libmysqlclient-dev',
     'libxml2-dev',
     'libxslt1-dev',
