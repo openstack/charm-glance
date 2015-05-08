@@ -23,6 +23,7 @@ TO_PATCH = [
     'apt_install',
     'mkdir',
     'os_release',
+    'pip_install',
     'service_start',
     'service_stop',
     'service_name',
