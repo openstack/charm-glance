@@ -508,7 +508,7 @@ def _git_yaml_load(projects_yaml):
     if not projects_yaml:
         return None
 
-    projects = yaml.load(projects_yaml)
+    return yaml.load(projects_yaml)
 
 
 def git_clone_and_install(projects_yaml, core_project, depth=1):
