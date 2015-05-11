@@ -90,7 +90,7 @@ def service_available(service_name):
             ['service', service_name, 'status'],
             stderr=subprocess.STDOUT).decode('UTF-8')
     except subprocess.CalledProcessError as e:
-        return 'unrecognized service' not in e.output
+        return b'unrecognized service' not in e.output
     else:
         return True
 

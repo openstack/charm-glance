@@ -180,6 +180,19 @@ def neutron_plugins():
                           'nova-api-metadata']],
             'server_packages': ['neutron-server', 'calico-control'],
             'server_services': ['neutron-server']
+        },
+        'vsp': {
+            'config': '/etc/neutron/plugins/nuage/nuage_plugin.ini',
+            'driver': 'neutron.plugins.nuage.plugin.NuagePlugin',
+            'contexts': [
+                context.SharedDBContext(user=config('neutron-database-user'),
+                                        database=config('neutron-database'),
+                                        relation_prefix='neutron',
+                                        ssl_dir=NEUTRON_CONF_DIR)],
+            'services': [],
+            'packages': [],
+            'server_packages': ['neutron-server', 'neutron-plugin-nuage'],
+            'server_services': ['neutron-server']
         }
     }
     if release >= 'icehouse':

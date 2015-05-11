@@ -3,7 +3,7 @@ PYTHON := /usr/bin/env python
 
 lint:
 	@echo "Running flake8 tests: "
-	@flake8 --exclude hooks/charmhelpers hooks unit_tests tests
+	@flake8 --exclude hooks/charmhelpers actions hooks unit_tests tests
 	@echo "OK"
 	@echo "Running charm proof: "
 	@charm proof
@@ -26,8 +26,7 @@ test:
 	# /!\ Note: The -v should only be temporary until Amulet sends
 	# raise_status() messages to stderr:
 	#   https://bugs.launchpad.net/amulet/+bug/1320357
-	@juju test -v -p AMULET_HTTP_PROXY --timeout 900 \
-        00-setup 14-basic-precise-icehouse 15-basic-trusty-icehouse
+	@juju test -v -p AMULET_HTTP_PROXY,AMULET_OS_VIP --timeout 2700
 
 publish: lint unit_test
 	bzr push lp:charms/glance

@@ -14,7 +14,6 @@ TO_PATCH = [
     'config',
     'log',
     'relation_ids',
-    'get_os_codename_package',
     'get_os_codename_install_source',
     'configure_installation_source',
     'is_elected_leader',
@@ -23,6 +22,7 @@ TO_PATCH = [
     'apt_upgrade',
     'apt_install',
     'mkdir',
+    'os_release',
     'service_start',
     'service_stop',
     'service_name',
@@ -33,6 +33,15 @@ DPKG_OPTS = [
     '--option', 'Dpkg::Options::=--force-confnew',
     '--option', 'Dpkg::Options::=--force-confdef',
 ]
+
+openstack_origin_git = \
+    """repositories:
+         - {name: requirements,
+            repository: 'git://git.openstack.org/openstack/requirements',
+            branch: stable/juno}
+         - {name: glance,
+            repository: 'git://git.openstack.org/openstack/glance',
+            branch: stable/juno}"""
 
 
 class TestGlanceUtils(CharmTestCase):
@@ -50,7 +59,7 @@ class TestGlanceUtils(CharmTestCase):
     @patch('os.path.exists')
     def test_register_configs_apache(self, exists):
         exists.return_value = False
-        self.get_os_codename_package.return_value = 'grizzly'
+        self.os_release.return_value = 'grizzly'
         self.relation_ids.return_value = False
         configs = utils.register_configs()
         calls = []
@@ -69,7 +78,7 @@ class TestGlanceUtils(CharmTestCase):
     @patch('os.path.exists')
     def test_register_configs_apache24(self, exists):
         exists.return_value = True
-        self.get_os_codename_package.return_value = 'grizzly'
+        self.os_release.return_value = 'grizzly'
         self.relation_ids.return_value = False
         configs = utils.register_configs()
         calls = []
@@ -88,7 +97,7 @@ class TestGlanceUtils(CharmTestCase):
     @patch('os.path.exists')
     def test_register_configs_ceph(self, exists):
         exists.return_value = True
-        self.get_os_codename_package.return_value = 'grizzly'
+        self.os_release.return_value = 'grizzly'
         self.relation_ids.return_value = ['ceph:0']
         self.service_name.return_value = 'glance'
         configs = utils.register_configs()
@@ -121,8 +130,26 @@ class TestGlanceUtils(CharmTestCase):
         ])
         self.assertEquals(ex_map, utils.restart_map())
 
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_determine_packages(self, _config):
+        _config.return_value = None
+        result = utils.determine_packages()
+        ex = utils.PACKAGES
+        self.assertEquals(set(ex), set(result))
+
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    def test_determine_packages_git(self, _config):
+        _config.return_value = openstack_origin_git
+        result = utils.determine_packages()
+        ex = utils.PACKAGES + utils.BASE_GIT_PACKAGES
+        for p in utils.GIT_PACKAGE_BLACKLIST:
+            ex.remove(p)
+        self.assertEquals(set(ex), set(result))
+
     @patch.object(utils, 'migrate_database')
-    def test_openstack_upgrade_leader(self, migrate):
+    @patch.object(utils, 'git_install_requested')
+    def test_openstack_upgrade_leader(self, git_requested, migrate):
+        git_requested.return_value = True
         self.config.side_effect = None
         self.config.return_value = 'cloud:precise-havana'
         self.is_elected_leader.return_value = True
@@ -130,14 +157,17 @@ class TestGlanceUtils(CharmTestCase):
         configs = MagicMock()
         utils.do_openstack_upgrade(configs)
         self.assertTrue(configs.write_all.called)
-        self.apt_install.assert_called_with(utils.PACKAGES, fatal=True)
+        self.apt_install.assert_called_with(utils.determine_packages(),
+                                            fatal=True)
         self.apt_upgrade.assert_called_with(options=DPKG_OPTS,
                                             fatal=True, dist=True)
         configs.set_release.assert_called_with(openstack_release='havana')
         self.assertTrue(migrate.called)
 
     @patch.object(utils, 'migrate_database')
-    def test_openstack_upgrade_not_leader(self, migrate):
+    @patch.object(utils, 'git_install_requested')
+    def test_openstack_upgrade_not_leader(self, git_requested, migrate):
+        git_requested.return_value = True
         self.config.side_effect = None
         self.config.return_value = 'cloud:precise-havana'
         self.is_elected_leader.return_value = False
@@ -145,8 +175,111 @@ class TestGlanceUtils(CharmTestCase):
         configs = MagicMock()
         utils.do_openstack_upgrade(configs)
         self.assertTrue(configs.write_all.called)
-        self.apt_install.assert_called_with(utils.PACKAGES, fatal=True)
+        self.apt_install.assert_called_with(utils.determine_packages(),
+                                            fatal=True)
         self.apt_upgrade.assert_called_with(options=DPKG_OPTS,
                                             fatal=True, dist=True)
         configs.set_release.assert_called_with(openstack_release='havana')
         self.assertFalse(migrate.called)
+
+    @patch.object(utils, 'git_install_requested')
+    @patch.object(utils, 'git_clone_and_install')
+    @patch.object(utils, 'git_post_install')
+    @patch.object(utils, 'git_pre_install')
+    def test_git_install(self, git_pre, git_post, git_clone_and_install,
+                         git_requested):
+        projects_yaml = openstack_origin_git
+        git_requested.return_value = True
+        utils.git_install(projects_yaml)
+        self.assertTrue(git_pre.called)
+        git_clone_and_install.assert_called_with(openstack_origin_git,
+                                                 core_project='glance')
+        self.assertTrue(git_post.called)
+
+    @patch.object(utils, 'mkdir')
+    @patch.object(utils, 'write_file')
+    @patch.object(utils, 'add_user_to_group')
+    @patch.object(utils, 'add_group')
+    @patch.object(utils, 'adduser')
+    def test_git_pre_install(self, adduser, add_group, add_user_to_group,
+                             write_file, mkdir):
+        utils.git_pre_install()
+        adduser.assert_called_with('glance', shell='/bin/bash',
+                                   system_user=True)
+        add_group.assert_called_with('glance', system_group=True)
+        add_user_to_group.assert_called_with('glance', 'glance')
+        expected = [
+            call('/var/lib/glance', owner='glance',
+                 group='glance', perms=0755, force=False),
+            call('/var/lib/glance/images', owner='glance',
+                 group='glance', perms=0755, force=False),
+            call('/var/lib/glance/image-cache', owner='glance',
+                 group='glance', perms=0755, force=False),
+            call('/var/lib/glance/image-cache/incomplete', owner='glance',
+                 group='glance', perms=0755, force=False),
+            call('/var/lib/glance/image-cache/invalid', owner='glance',
+                 group='glance', perms=0755, force=False),
+            call('/var/lib/glance/image-cache/queue', owner='glance',
+                 group='glance', perms=0755, force=False),
+            call('/var/log/glance', owner='glance',
+                 group='glance', perms=0755, force=False),
+        ]
+        self.assertEquals(mkdir.call_args_list, expected)
+        expected = [
+            call('/var/log/glance/glance-api.log', '', owner='glance',
+                 group='glance', perms=0600),
+            call('/var/log/glance/glance-registry.log', '', owner='glance',
+                 group='glance', perms=0600),
+        ]
+        self.assertEquals(write_file.call_args_list, expected)
+
+    @patch.object(utils, 'git_src_dir')
+    @patch.object(utils, 'service_restart')
+    @patch.object(utils, 'render')
+    @patch('os.path.join')
+    @patch('os.path.exists')
+    @patch('shutil.copytree')
+    @patch('shutil.rmtree')
+    def test_git_post_install(self, rmtree, copytree, exists, join, render,
+                              service_restart, git_src_dir):
+        projects_yaml = openstack_origin_git
+        join.return_value = 'joined-string'
+        utils.git_post_install(projects_yaml)
+        expected = [
+            call('joined-string', '/etc/glance'),
+        ]
+        copytree.assert_has_calls(expected)
+        glance_api_context = {
+            'service_description': 'Glance API server',
+            'service_name': 'Glance',
+            'user_name': 'glance',
+            'start_dir': '/var/lib/glance',
+            'process_name': 'glance-api',
+            'executable_name': '/usr/local/bin/glance-api',
+            'config_files': ['/etc/glance/glance-api.conf'],
+            'log_file': '/var/log/glance/api.log',
+        }
+        glance_registry_context = {
+            'service_description': 'Glance registry server',
+            'service_name': 'Glance',
+            'user_name': 'glance',
+            'start_dir': '/var/lib/glance',
+            'process_name': 'glance-registry',
+            'executable_name': '/usr/local/bin/glance-registry',
+            'config_files': ['/etc/glance/glance-registry.conf'],
+            'log_file': '/var/log/glance/registry.log',
+        }
+        expected = [
+            call('git.upstart', '/etc/init/glance-api.conf',
+                 glance_api_context, perms=0o644,
+                 templates_dir='joined-string'),
+            call('git.upstart', '/etc/init/glance-registry.conf',
+                 glance_registry_context, perms=0o644,
+                 templates_dir='joined-string'),
+        ]
+        self.assertEquals(render.call_args_list, expected)
+        expected = [
+            call('glance-api'),
+            call('glance-registry'),
+        ]
+        self.assertEquals(service_restart.call_args_list, expected)

@@ -158,7 +158,7 @@ def filter_installed_packages(packages):
 
 def apt_cache(in_memory=True):
     """Build and return an apt cache"""
-    import apt_pkg
+    from apt import apt_pkg
     apt_pkg.init()
     if in_memory:
         apt_pkg.config.set("Dir::Cache::pkgcache", "")

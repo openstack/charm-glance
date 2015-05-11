@@ -20,11 +20,14 @@
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
 
+from __future__ import print_function
+from functools import wraps
 import os
 import json
 import yaml
 import subprocess
 import sys
+import errno
 from subprocess import CalledProcessError
 
 import six
@@ -56,15 +59,17 @@ def cached(func):
 
     will cache the result of unit_get + 'test' for future calls.
     """
+    @wraps(func)
     def wrapper(*args, **kwargs):
         global cache
         key = str((func, args, kwargs))
         try:
             return cache[key]
         except KeyError:
-            res = func(*args, **kwargs)
-            cache[key] = res
-            return res
+            pass  # Drop out of the exception handler scope.
+        res = func(*args, **kwargs)
+        cache[key] = res
+        return res
     return wrapper
 
 
@@ -87,7 +92,18 @@ def log(message, level=None):
     if not isinstance(message, six.string_types):
         message = repr(message)
     command += [message]
-    subprocess.call(command)
+    # Missing juju-log should not cause failures in unit tests
+    # Send log output to stderr
+    try:
+        subprocess.call(command)
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            if level:
+                message = "{}: {}".format(level, message)
+            message = "juju-log: {}".format(message)
+            print(message, file=sys.stderr)
+        else:
+            raise
 
 
 class Serializable(UserDict):
@@ -165,7 +181,7 @@ def local_unit():
 
 def remote_unit():
     """The remote unit for the current relation hook"""
-    return os.environ['JUJU_REMOTE_UNIT']
+    return os.environ.get('JUJU_REMOTE_UNIT', None)
 
 
 def service_name():
@@ -236,6 +252,12 @@ class Config(dict):
             return dict.__getitem__(self, key)
         except KeyError:
             return (self._prev_dict or {})[key]
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
     def keys(self):
         prev_keys = []
@@ -507,6 +529,11 @@ def unit_get(attribute):
         return None
 
 
+def unit_public_ip():
+    """Get this unit's public IP address"""
+    return unit_get('public-address')
+
+
 def unit_private_ip():
     """Get this unit's private IP address"""
     return unit_get('private-address')
@@ -664,3 +691,49 @@ def action_fail(message):
 
     The results set by action_set are preserved."""
     subprocess.check_call(['action-fail', message])
+
+
+def status_set(workload_state, message):
+    """Set the workload state with a message
+
+    Use status-set to set the workload state with a message which is visible
+    to the user via juju status. If the status-set command is not found then
+    assume this is juju < 1.23 and juju-log the message unstead.
+
+    workload_state -- valid juju workload state.
+    message        -- status update message
+    """
+    valid_states = ['maintenance', 'blocked', 'waiting', 'active']
+    if workload_state not in valid_states:
+        raise ValueError(
+            '{!r} is not a valid workload state'.format(workload_state)
+        )
+    cmd = ['status-set', workload_state, message]
+    try:
+        ret = subprocess.call(cmd)
+        if ret == 0:
+            return
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise
+    log_message = 'status-set failed: {} {}'.format(workload_state,
+                                                    message)
+    log(log_message, level='INFO')
+
+
+def status_get():
+    """Retrieve the previously set juju workload state
+
+    If the status-set command is not found then assume this is juju < 1.23 and
+    return 'unknown'
+    """
+    cmd = ['status-get']
+    try:
+        raw_status = subprocess.check_output(cmd, universal_newlines=True)
+        status = raw_status.rstrip()
+        return status
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            return 'unknown'
+        else:
+            raise
