@@ -501,6 +501,16 @@ def git_install_requested():
 requirements_dir = None
 
 
+def _git_yaml_load(projects_yaml):
+    """
+    Load the specified yaml into a dictionary.
+    """
+    if not projects_yaml:
+        return None
+
+    projects = yaml.load(projects_yaml)
+
+
 def git_clone_and_install(projects_yaml, core_project, depth=1):
     """
     Clone/install all specified OpenStack repositories.
@@ -523,10 +533,7 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
     parent_dir = '/mnt/openstack-git'
     http_proxy = None
 
-    if not projects_yaml:
-        return
-
-    projects = yaml.load(projects_yaml)
+    projects = _git_yaml_load(projects_yaml)
     _git_validate_projects_yaml(projects, core_project)
 
     old_environ = dict(os.environ)
@@ -644,10 +651,7 @@ def git_pip_venv_dir(projects_yaml):
     """
     parent_dir = '/mnt/openstack-git'
 
-    if not projects_yaml:
-        return
-
-    projects = yaml.load(projects_yaml)
+    projects = _git_yaml_load(projects_yaml)
 
     if 'directory' in projects.keys():
         parent_dir = projects['directory']
@@ -661,10 +665,7 @@ def git_src_dir(projects_yaml, project):
     """
     parent_dir = '/mnt/openstack-git'
 
-    if not projects_yaml:
-        return
-
-    projects = yaml.load(projects_yaml)
+    projects = _git_yaml_load(projects_yaml)
 
     if 'directory' in projects.keys():
         parent_dir = projects['directory']
@@ -680,10 +681,7 @@ def git_yaml_value(projects_yaml, key):
     """
     Return the value in projects_yaml for the specified key.
     """
-    if not projects_yaml:
-        return None
-
-    projects = yaml.load(projects_yaml)
+    projects = _git_yaml_load(projects_yaml)
 
     if key in projects.keys():
         return projects[key]
