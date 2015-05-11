@@ -9,5 +9,9 @@ respawn
 exec start-stop-daemon --start --chuid {{ user_name }} \
             --chdir {{ start_dir }} --name {{ process_name }} \
             --exec {{ executable_name }} -- \
+            {% for config_file in config_files -%}
             --config-file={{ config_file }} \
+            {% endfor -%}
+            {% if log_file -%}
             --log-file={{ log_file }}
+            {% endif -%}

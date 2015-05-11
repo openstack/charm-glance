@@ -44,17 +44,24 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            Determine if the local branch being tested is derived from its
            stable or next (dev) branch, and based on this, use the corresonding
            stable or next branches for the other_services."""
-        base_charms = ['mysql', 'mongodb', 'rabbitmq-server']
+        base_charms = ['mysql', 'mongodb']
+
+        if self.series in ['precise', 'trusty']:
+            base_series = self.series
+        else:
+            base_series = self.current_next
 
         if self.stable:
             for svc in other_services:
-                temp = 'lp:charms/{}'
-                svc['location'] = temp.format(svc['name'])
+                temp = 'lp:charms/{}/{}'
+                svc['location'] = temp.format(base_series,
+                                              svc['name'])
         else:
             for svc in other_services:
                 if svc['name'] in base_charms:
-                    temp = 'lp:charms/{}'
-                    svc['location'] = temp.format(svc['name'])
+                    temp = 'lp:charms/{}/{}'
+                    svc['location'] = temp.format(base_series,
+                                                  svc['name'])
                 else:
                     temp = 'lp:~openstack-charmers/charms/{}/{}/next'
                     svc['location'] = temp.format(self.current_next,
@@ -99,9 +106,12 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            Return an integer representing the enum value of the openstack
            release.
            """
+        # Must be ordered by OpenStack release (not by Ubuntu release):
         (self.precise_essex, self.precise_folsom, self.precise_grizzly,
          self.precise_havana, self.precise_icehouse,
-         self.trusty_icehouse, self.trusty_juno, self.trusty_kilo) = range(8)
+         self.trusty_icehouse, self.trusty_juno, self.utopic_juno,
+         self.trusty_kilo, self.vivid_kilo) = range(10)
+
         releases = {
             ('precise', None): self.precise_essex,
             ('precise', 'cloud:precise-folsom'): self.precise_folsom,
@@ -110,7 +120,9 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('precise', 'cloud:precise-icehouse'): self.precise_icehouse,
             ('trusty', None): self.trusty_icehouse,
             ('trusty', 'cloud:trusty-juno'): self.trusty_juno,
-            ('trusty', 'cloud:trusty-kilo'): self.trusty_kilo}
+            ('trusty', 'cloud:trusty-kilo'): self.trusty_kilo,
+            ('utopic', None): self.utopic_juno,
+            ('vivid', None): self.vivid_kilo}
         return releases[(self.series, self.openstack)]
 
     def _get_openstack_release_string(self):

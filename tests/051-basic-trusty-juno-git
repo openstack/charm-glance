@@ -1,0 +1,12 @@
+#!/usr/bin/python
+
+"""Amulet tests on a basic Glance git deployment on trusty-juno."""
+
+from basic_deployment import GlanceBasicDeployment
+
+if __name__ == '__main__':
+    deployment = GlanceBasicDeployment(series='trusty',
+                                       openstack='cloud:trusty-juno',
+                                       source='cloud:trusty-updates/juno',
+                                       git=True)
+    deployment.run_tests()

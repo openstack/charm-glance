@@ -510,8 +510,10 @@ def git_clone_and_install(projects_yaml, core_project):
              repository: 'git://git.openstack.org/openstack/requirements.git',
              branch: 'stable/icehouse'}
         directory: /mnt/openstack-git
+        http_proxy: http://squid.internal:3128
+        https_proxy: https://squid.internal:3128
 
-        The directory key is optional.
+        The directory, http_proxy, and https_proxy keys are optional.
     """
     global requirements_dir
     parent_dir = '/mnt/openstack-git'
@@ -521,6 +523,13 @@ def git_clone_and_install(projects_yaml, core_project):
 
     projects = yaml.load(projects_yaml)
     _git_validate_projects_yaml(projects, core_project)
+
+    old_environ = dict(os.environ)
+
+    if 'http_proxy' in projects.keys():
+        os.environ['http_proxy'] = projects['http_proxy']
+    if 'https_proxy' in projects.keys():
+        os.environ['https_proxy'] = projects['https_proxy']
 
     if 'directory' in projects.keys():
         parent_dir = projects['directory']
@@ -535,6 +544,8 @@ def git_clone_and_install(projects_yaml, core_project):
         else:
             repo_dir = _git_clone_and_install_single(repo, branch, parent_dir,
                                                      update_requirements=True)
+
+    os.environ = old_environ
 
 
 def _git_validate_projects_yaml(projects, core_project):

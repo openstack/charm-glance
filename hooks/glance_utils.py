@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import os
+import shutil
 import subprocess
 
 import glance_contexts
@@ -14,21 +15,27 @@ from charmhelpers.fetch import (
     add_source)
 
 from charmhelpers.core.hookenv import (
+    charm_dir,
     config,
     log,
     relation_ids,
     service_name)
 
 from charmhelpers.core.host import (
+    adduser,
+    add_group,
+    add_user_to_group,
     mkdir,
     service_stop,
     service_start,
-    lsb_release
+    service_restart,
+    lsb_release,
+    write_file,
 )
 
 from charmhelpers.contrib.openstack import (
     templating,
-    context, )
+    context,)
 
 from charmhelpers.contrib.hahelpers.cluster import (
     is_elected_leader,
@@ -37,8 +44,14 @@ from charmhelpers.contrib.hahelpers.cluster import (
 from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
-    get_os_codename_package,
-    configure_installation_source)
+    git_install_requested,
+    git_clone_and_install,
+    git_src_dir,
+    configure_installation_source,
+    os_release,
+)
+
+from charmhelpers.core.templating import render
 
 from charmhelpers.core.decorators import (
     retry_on_exception,
@@ -50,8 +63,27 @@ PACKAGES = [
     "apache2", "glance", "python-mysqldb", "python-swiftclient",
     "python-psycopg2", "python-keystone", "python-six", "uuid", "haproxy", ]
 
+BASE_GIT_PACKAGES = [
+    'libxml2-dev',
+    'libxslt1-dev',
+    'python-dev',
+    'python-pip',
+    'python-setuptools',
+    'zlib1g-dev',
+]
+
 SERVICES = [
-    "glance-api", "glance-registry", ]
+    "glance-api",
+    "glance-registry",
+]
+
+# ubuntu packages that should not be installed when deploying from git
+GIT_PACKAGE_BLACKLIST = [
+    'glance',
+    'python-swiftclient',
+    'python-keystone',
+]
+
 
 CHARM = "glance"
 
@@ -144,7 +176,7 @@ def register_configs():
     # Register config files with their respective contexts.
     # Regstration of some configs may not be required depending on
     # existing of certain relations.
-    release = get_os_codename_package('glance-common', fatal=False) or 'essex'
+    release = os_release('glance-common')
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
 
@@ -184,6 +216,18 @@ def register_configs():
 # NOTE(jamespage): Retry deals with sync issues during one-shot HA deploys.
 #                  mysql might be restarting or suchlike.
 @retry_on_exception(5, base_delay=3, exc_type=subprocess.CalledProcessError)
+def determine_packages():
+    packages = [] + PACKAGES
+
+    if git_install_requested():
+        packages.extend(BASE_GIT_PACKAGES)
+        # don't include packages that will be installed from git
+        for p in GIT_PACKAGE_BLACKLIST:
+            packages.remove(p)
+
+    return list(set(packages))
+
+
 def migrate_database():
     '''Runs glance-manage to initialize a new database
     or migrate existing
@@ -212,7 +256,7 @@ def do_openstack_upgrade(configs):
     ]
     apt_update()
     apt_upgrade(options=dpkg_opts, fatal=True, dist=True)
-    apt_install(PACKAGES, fatal=True)
+    apt_install(determine_packages(), fatal=True)
 
     # set CONFIGS to load templates from new release and regenerate config
     configs.set_release(openstack_release=new_os_rel)
@@ -263,3 +307,85 @@ def setup_ipv6():
                    ' main')
         apt_update()
         apt_install('haproxy/trusty-backports', fatal=True)
+
+
+def git_install(projects_yaml):
+    """Perform setup, and install git repos specified in yaml parameter."""
+    if git_install_requested():
+        git_pre_install()
+        git_clone_and_install(projects_yaml, core_project='glance')
+        git_post_install(projects_yaml)
+
+
+def git_pre_install():
+    """Perform glance pre-install setup."""
+    dirs = [
+        '/var/lib/glance',
+        '/var/lib/glance/images',
+        '/var/lib/glance/image-cache',
+        '/var/lib/glance/image-cache/incomplete',
+        '/var/lib/glance/image-cache/invalid',
+        '/var/lib/glance/image-cache/queue',
+        '/var/log/glance',
+    ]
+
+    logs = [
+        '/var/log/glance/glance-api.log',
+        '/var/log/glance/glance-registry.log',
+    ]
+
+    adduser('glance', shell='/bin/bash', system_user=True)
+    add_group('glance', system_group=True)
+    add_user_to_group('glance', 'glance')
+
+    for d in dirs:
+        mkdir(d, owner='glance', group='glance', perms=0755, force=False)
+
+    for l in logs:
+        write_file(l, '', owner='glance', group='glance', perms=0600)
+
+
+def git_post_install(projects_yaml):
+    """Perform glance post-install setup."""
+    src_etc = os.path.join(git_src_dir(projects_yaml, 'glance'), 'etc')
+    configs = {
+        'src': src_etc,
+        'dest': '/etc/glance',
+    }
+
+    if os.path.exists(configs['dest']):
+        shutil.rmtree(configs['dest'])
+    shutil.copytree(configs['src'], configs['dest'])
+
+    glance_api_context = {
+        'service_description': 'Glance API server',
+        'service_name': 'Glance',
+        'user_name': 'glance',
+        'start_dir': '/var/lib/glance',
+        'process_name': 'glance-api',
+        'executable_name': '/usr/local/bin/glance-api',
+        'config_files': ['/etc/glance/glance-api.conf'],
+        'log_file': '/var/log/glance/api.log',
+    }
+
+    glance_registry_context = {
+        'service_description': 'Glance registry server',
+        'service_name': 'Glance',
+        'user_name': 'glance',
+        'start_dir': '/var/lib/glance',
+        'process_name': 'glance-registry',
+        'executable_name': '/usr/local/bin/glance-registry',
+        'config_files': ['/etc/glance/glance-registry.conf'],
+        'log_file': '/var/log/glance/registry.log',
+    }
+
+    # NOTE(coreycb): Needs systemd support
+    templates_dir = 'hooks/charmhelpers/contrib/openstack/templates'
+    templates_dir = os.path.join(charm_dir(), templates_dir)
+    render('git.upstart', '/etc/init/glance-api.conf',
+           glance_api_context, perms=0o644, templates_dir=templates_dir)
+    render('git.upstart', '/etc/init/glance-registry.conf',
+           glance_registry_context, perms=0o644, templates_dir=templates_dir)
+
+    service_restart('glance-api')
+    service_restart('glance-registry')
