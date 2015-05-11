@@ -41,6 +41,7 @@ TO_PATCH = [
     'restart_on_change',
     'service_reload',
     'service_stop',
+    'service_restart',
     # charmhelpers.contrib.openstack.utils
     'configure_installation_source',
     'os_release',
@@ -427,6 +428,7 @@ class GlanceRelationTests(CharmTestCase):
         self.assertEquals([call('/etc/glance/glance-api.conf'),
                            call(self.ceph_config_file())],
                           configs.write.call_args_list)
+        self.service_restart.assert_called_with('glance-api')
 
     @patch.object(relations, 'CONFIGS')
     def test_ceph_broken(self, configs):
