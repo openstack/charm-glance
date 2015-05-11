@@ -368,6 +368,7 @@ def git_post_install(projects_yaml):
     shutil.copytree(configs['src'], configs['dest'])
 
     symlinks = [
+        # NOTE(coreycb): Need to find better solution than bin symlinks.
         {'src': os.path.join(git_pip_venv_dir(projects_yaml),
                              'bin/glance-manage'),
          'link': '/usr/local/bin/glance-manage'},
