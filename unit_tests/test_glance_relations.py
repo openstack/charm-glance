@@ -134,7 +134,7 @@ class GlanceRelationTests(CharmTestCase):
                                              'libmysqlclient-dev',
                                              'libssl-dev', 'libffi-dev',
                                              'apache2', 'python-pip',
-                                             'libxslt1-dev',
+                                             'libxslt1-dev', 'libyaml-dev',
                                              'python-psycopg2',
                                              'zlib1g-dev', 'python-dev',
                                              'libxml2-dev'],
