@@ -524,8 +524,8 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
              repository: 'git://git.openstack.org/openstack/requirements.git',
              branch: 'stable/icehouse'}
         directory: /mnt/openstack-git
-        http_proxy: http://squid.internal:3128
-        https_proxy: https://squid.internal:3128
+        http_proxy: squid-proxy-url
+        https_proxy: squid-proxy-url
 
         The directory, http_proxy, and https_proxy keys are optional.
     """
