@@ -45,7 +45,7 @@ class GitUrlFetchHandler(BaseFetchHandler):
         else:
             return True
 
-    def clone(self, source, dest, branch, depth):
+    def clone(self, source, dest, branch, depth=None):
         if not self.can_handle(source):
             raise UnhandledSource("Cannot handle {}".format(source))
 
