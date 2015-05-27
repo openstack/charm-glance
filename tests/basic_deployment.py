@@ -66,10 +66,10 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             openstack_origin_git = {
                 'repositories': [
                     {'name': 'requirements',
-                     'repository': 'git://git.openstack.org/openstack/requirements',
+                     'repository': 'git://github.com/openstack/requirements',
                      'branch': branch},
                     {'name': 'glance',
-                     'repository': 'git://git.openstack.org/openstack/glance',
+                     'repository': 'git://github.com/openstack/glance',
                      'branch': branch},
                 ],
                 'directory': '/mnt/openstack-git',
