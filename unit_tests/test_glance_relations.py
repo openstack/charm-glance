@@ -24,7 +24,6 @@ utils.restart_map = _map
 TO_PATCH = [
     # charmhelpers.core.hookenv
     'Hooks',
-    'canonical_url',
     'config',
     'juju_log',
     'is_relation_made',
@@ -320,8 +319,9 @@ class GlanceRelationTests(CharmTestCase):
         )
         self.migrate_database.assert_called_with()
 
-    def test_image_service_joined_leader(self):
-        self.canonical_url.return_value = 'http://glancehost'
+    @patch.object(relations, 'canonical_url')
+    def test_image_service_joined_leader(self, _canonical_url):
+        _canonical_url.return_value = 'http://glancehost'
         relations.image_service_joined()
         args = {
             'glance-api-server': 'http://glancehost:9292',
@@ -329,8 +329,9 @@ class GlanceRelationTests(CharmTestCase):
         }
         self.relation_set.assert_called_with(**args)
 
-    def test_image_service_joined_specified_interface(self):
-        self.canonical_url.return_value = 'http://glancehost'
+    @patch.object(relations, 'canonical_url')
+    def test_image_service_joined_specified_interface(self, _canonical_url):
+        _canonical_url.return_value = 'http://glancehost'
         relations.image_service_joined(relation_id='image-service:1')
         args = {
             'glance-api-server': 'http://glancehost:9292',
@@ -417,10 +418,12 @@ class GlanceRelationTests(CharmTestCase):
         for c in [call('/etc/glance/glance.conf')]:
             self.assertNotIn(c, configs.write.call_args_list)
 
+    @patch("charmhelpers.core.host.service")
     @patch("glance_relations.relation_get", autospec=True)
     @patch.object(relations, 'CONFIGS')
     def test_ceph_changed_with_key_and_relation_data(self, configs,
-                                                     mock_relation_get):
+                                                     mock_relation_get,
+                                                     mock_service):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['ceph']
         configs.write = MagicMock()
@@ -439,8 +442,9 @@ class GlanceRelationTests(CharmTestCase):
         self.delete_keyring.assert_called_with(service='glance')
         self.assertTrue(configs.write_all.called)
 
-    def test_keystone_joined(self):
-        self.canonical_url.return_value = 'http://glancehost'
+    @patch.object(relations, 'canonical_url')
+    def test_keystone_joined(self, _canonical_url):
+        _canonical_url.return_value = 'http://glancehost'
         relations.keystone_joined()
         ex = {
             'region': 'RegionOne',
@@ -452,8 +456,9 @@ class GlanceRelationTests(CharmTestCase):
         }
         self.relation_set.assert_called_with(**ex)
 
-    def test_keystone_joined_with_relation_id(self):
-        self.canonical_url.return_value = 'http://glancehost'
+    @patch.object(relations, 'canonical_url')
+    def test_keystone_joined_with_relation_id(self, _canonical_url):
+        _canonical_url.return_value = 'http://glancehost'
         relations.keystone_joined(relation_id='identity-service:0')
         ex = {
             'region': 'RegionOne',
@@ -462,6 +467,23 @@ class GlanceRelationTests(CharmTestCase):
             'service': 'glance',
             'internal_url': 'http://glancehost:9292',
             'relation_id': 'identity-service:0',
+        }
+        self.relation_set.assert_called_with(**ex)
+
+    @patch('charmhelpers.contrib.openstack.ip.resolve_address')
+    @patch('charmhelpers.contrib.openstack.ip.config')
+    def test_keystone_joined_public_endpoint(self, _config, _resolve_address):
+        _resolve_address.return_value = 'glancehost'
+        self.test_config.set('endpoint-public-name', 'glance.example.com')
+        _config.side_effect = self.test_config.get
+        relations.keystone_joined()
+        ex = {
+            'region': 'RegionOne',
+            'public_url': 'http://glance.example.com:9292',
+            'admin_url': 'http://glancehost:9292',
+            'service': 'glance',
+            'internal_url': 'http://glancehost:9292',
+            'relation_id': None,
         }
         self.relation_set.assert_called_with(**ex)
 
@@ -570,9 +592,11 @@ class GlanceRelationTests(CharmTestCase):
                            call('/etc/haproxy/haproxy.cfg')],
                           configs.write.call_args_list)
 
+    @patch.object(relations, 'canonical_url')
     @patch.object(relations, 'relation_set')
     @patch.object(relations, 'CONFIGS')
-    def test_cluster_changed_with_ipv6(self, configs, relation_set):
+    def test_cluster_changed_with_ipv6(self, configs, relation_set,
+                                       _canonical_url):
         self.test_config.set('prefer-ipv6', True)
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['cluster']
@@ -683,10 +707,11 @@ class GlanceRelationTests(CharmTestCase):
             'ha_changed: hacluster subordinate is not fully clustered.'
         )
 
+    @patch.object(relations, 'canonical_url')
     @patch.object(relations, 'keystone_joined')
     @patch.object(relations, 'CONFIGS')
     def test_configure_https_enable_with_identity_service(
-            self, configs, keystone_joined):
+            self, configs, keystone_joined, _canonical_url):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['https']
         configs.write = MagicMock()
@@ -697,10 +722,11 @@ class GlanceRelationTests(CharmTestCase):
         self.check_call.assert_called_has_calls(calls)
         keystone_joined.assert_called_with(relation_id='identity-service:0')
 
+    @patch.object(relations, 'canonical_url')
     @patch.object(relations, 'keystone_joined')
     @patch.object(relations, 'CONFIGS')
     def test_configure_https_disable_with_keystone_joined(
-            self, configs, keystone_joined):
+            self, configs, keystone_joined, _canonical_url):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['']
         configs.write = MagicMock()
@@ -711,10 +737,11 @@ class GlanceRelationTests(CharmTestCase):
         self.check_call.assert_called_has_calls(calls)
         keystone_joined.assert_called_with(relation_id='identity-service:0')
 
+    @patch.object(relations, 'canonical_url')
     @patch.object(relations, 'image_service_joined')
     @patch.object(relations, 'CONFIGS')
     def test_configure_https_enable_with_image_service(
-            self, configs, image_service_joined):
+            self, configs, image_service_joined, _canonical_url):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['https']
         configs.write = MagicMock()
@@ -725,10 +752,11 @@ class GlanceRelationTests(CharmTestCase):
         self.check_call.assert_called_has_calls(calls)
         image_service_joined.assert_called_with(relation_id='image-service:0')
 
+    @patch.object(relations, 'canonical_url')
     @patch.object(relations, 'image_service_joined')
     @patch.object(relations, 'CONFIGS')
     def test_configure_https_disable_with_image_service(
-            self, configs, image_service_joined):
+            self, configs, image_service_joined, _canonical_url):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['']
         configs.write = MagicMock()
