@@ -470,10 +470,13 @@ class GlanceRelationTests(CharmTestCase):
         }
         self.relation_set.assert_called_with(**ex)
 
-    @patch('charmhelpers.contrib.openstack.ip.resolve_address')
+    @patch('charmhelpers.contrib.openstack.ip.is_clustered')
+    @patch('charmhelpers.contrib.openstack.ip.unit_get')
     @patch('charmhelpers.contrib.openstack.ip.config')
-    def test_keystone_joined_public_endpoint(self, _config, _resolve_address):
-        _resolve_address.return_value = 'glancehost'
+    def test_keystone_joined_public_endpoint(self, _config, _unit_get,
+                                             _is_clustered):
+        _unit_get.return_value = 'glancehost'
+        _is_clustered.return_value = False
         self.test_config.set('endpoint-public-name', 'glance.example.com')
         _config.side_effect = self.test_config.get
         relations.keystone_joined()
