@@ -34,17 +34,17 @@ ADDRESS_MAP = {
     PUBLIC: {
         'config': 'os-public-network',
         'fallback': 'public-address',
-        'override': 'endpoint-public-name',
+        'override': 'os-public-hostname',
     },
     INTERNAL: {
         'config': 'os-internal-network',
         'fallback': 'private-address',
-        'override': 'endpoint-internal-name',
+        'override': 'os-internal-hostname',
     },
     ADMIN: {
         'config': 'os-admin-network',
         'fallback': 'private-address',
-        'override': 'endpoint-admin-name',
+        'override': 'os-admin-hostname',
     }
 }
 

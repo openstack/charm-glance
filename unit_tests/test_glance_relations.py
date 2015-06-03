@@ -477,7 +477,7 @@ class GlanceRelationTests(CharmTestCase):
                                              _is_clustered):
         _unit_get.return_value = 'glancehost'
         _is_clustered.return_value = False
-        self.test_config.set('endpoint-public-name', 'glance.example.com')
+        self.test_config.set('os-public-hostname', 'glance.example.com')
         _config.side_effect = self.test_config.get
         relations.keystone_joined()
         ex = {
