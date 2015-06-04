@@ -1,4 +1,4 @@
-branch: lp:~le-charmers/charm-helpers/leadership-election
+branch: lp:charm-helpers
 destination: tests/charmhelpers
 include:
     - contrib.amulet
