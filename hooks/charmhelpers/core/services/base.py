@@ -15,9 +15,9 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import re
 import json
-from collections import Iterable
+from inspect import getargspec
+from collections import Iterable, OrderedDict
 
 from charmhelpers.core import host
 from charmhelpers.core import hookenv
@@ -119,7 +119,7 @@ class ServiceManager(object):
         """
         self._ready_file = os.path.join(hookenv.charm_dir(), 'READY-SERVICES.json')
         self._ready = None
-        self.services = {}
+        self.services = OrderedDict()
         for service in services or []:
             service_name = service['service']
             self.services[service_name] = service
@@ -132,8 +132,8 @@ class ServiceManager(object):
         if hook_name == 'stop':
             self.stop_services()
         else:
-            self.provide_data()
             self.reconfigure_services()
+            self.provide_data()
         cfg = hookenv.config()
         if cfg.implicit_save:
             cfg.save()
@@ -145,15 +145,36 @@ class ServiceManager(object):
         A provider must have a `name` attribute, which indicates which relation
         to set data on, and a `provide_data()` method, which returns a dict of
         data to set.
+
+        The `provide_data()` method can optionally accept two parameters:
+
+          * ``remote_service`` The name of the remote service that the data will
+            be provided to.  The `provide_data()` method will be called once
+            for each connected service (not unit).  This allows the method to
+            tailor its data to the given service.
+          * ``service_ready`` Whether or not the service definition had all of
+            its requirements met, and thus the ``data_ready`` callbacks run.
+
+        Note that the ``provided_data`` methods are now called **after** the
+        ``data_ready`` callbacks are run.  This gives the ``data_ready`` callbacks
+        a chance to generate any data necessary for the providing to the remote
+        services.
         """
-        hook_name = hookenv.hook_name()
-        for service in self.services.values():
+        for service_name, service in self.services.items():
+            service_ready = self.is_ready(service_name)
             for provider in service.get('provided_data', []):
-                if re.match(r'{}-relation-(joined|changed)'.format(provider.name), hook_name):
-                    data = provider.provide_data()
-                    _ready = provider._is_ready(data) if hasattr(provider, '_is_ready') else data
-                    if _ready:
-                        hookenv.relation_set(None, data)
+                for relid in hookenv.relation_ids(provider.name):
+                    units = hookenv.related_units(relid)
+                    if not units:
+                        continue
+                    remote_service = units[0].split('/')[0]
+                    argspec = getargspec(provider.provide_data)
+                    if len(argspec.args) > 1:
+                        data = provider.provide_data(remote_service, service_ready)
+                    else:
+                        data = provider.provide_data()
+                    if data:
+                        hookenv.relation_set(relid, data)
 
     def reconfigure_services(self, *service_names):
         """

@@ -16,7 +16,7 @@ TO_PATCH = [
     'relation_ids',
     'get_os_codename_install_source',
     'configure_installation_source',
-    'eligible_leader',
+    'is_elected_leader',
     'templating',
     'apt_update',
     'apt_upgrade',
@@ -153,7 +153,7 @@ class TestGlanceUtils(CharmTestCase):
         git_requested.return_value = True
         self.config.side_effect = None
         self.config.return_value = 'cloud:precise-havana'
-        self.eligible_leader.return_value = True
+        self.is_elected_leader.return_value = True
         self.get_os_codename_install_source.return_value = 'havana'
         configs = MagicMock()
         utils.do_openstack_upgrade(configs)
@@ -171,7 +171,7 @@ class TestGlanceUtils(CharmTestCase):
         git_requested.return_value = True
         self.config.side_effect = None
         self.config.return_value = 'cloud:precise-havana'
-        self.eligible_leader.return_value = False
+        self.is_elected_leader.return_value = False
         self.get_os_codename_install_source.return_value = 'havana'
         configs = MagicMock()
         utils.do_openstack_upgrade(configs)
