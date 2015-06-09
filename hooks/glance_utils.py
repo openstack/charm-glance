@@ -42,7 +42,7 @@ from charmhelpers.contrib.openstack import (
     context,)
 
 from charmhelpers.contrib.hahelpers.cluster import (
-    eligible_leader,
+    is_elected_leader,
 )
 
 from charmhelpers.contrib.openstack.alternatives import install_alternative
@@ -58,6 +58,10 @@ from charmhelpers.contrib.openstack.utils import (
 )
 
 from charmhelpers.core.templating import render
+
+from charmhelpers.core.decorators import (
+    retry_on_exception,
+)
 
 CLUSTER_RES = "grp_glance_vips"
 
@@ -219,6 +223,9 @@ def register_configs():
     return configs
 
 
+# NOTE(jamespage): Retry deals with sync issues during one-shot HA deploys.
+#                  mysql might be restarting or suchlike.
+@retry_on_exception(5, base_delay=3, exc_type=subprocess.CalledProcessError)
 def determine_packages():
     packages = [] + PACKAGES
 
@@ -266,7 +273,7 @@ def do_openstack_upgrade(configs):
     configs.write_all()
 
     [service_stop(s) for s in services()]
-    if eligible_leader(CLUSTER_RES):
+    if is_elected_leader(CLUSTER_RES):
         migrate_database()
     [service_start(s) for s in services()]
 

@@ -53,7 +53,7 @@ from charmhelpers.fetch import (
     filter_installed_packages
 )
 from charmhelpers.contrib.hahelpers.cluster import (
-    eligible_leader,
+    is_elected_leader,
     get_hacluster_config
 )
 from charmhelpers.contrib.openstack.utils import (
@@ -160,7 +160,7 @@ def db_changed():
     if rel != "essex":
         CONFIGS.write(GLANCE_API_CONF)
 
-    if eligible_leader(CLUSTER_RES):
+    if is_elected_leader(CLUSTER_RES):
         # Bugs 1353135 & 1187508. Dbs can appear to be ready before the units
         # acl entry has been added. So, if the db supports passing a list of
         # permitted units then check if we're in the list.
@@ -194,7 +194,7 @@ def pgsql_db_changed():
     if rel != "essex":
         CONFIGS.write(GLANCE_API_CONF)
 
-    if eligible_leader(CLUSTER_RES):
+    if is_elected_leader(CLUSTER_RES):
         if rel == "essex":
             status = call(['glance-manage', 'db_version'])
             if status != 0:
