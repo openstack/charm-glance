@@ -176,6 +176,18 @@ options:
       192.168.0.0/24)
       .
       This network will be used for public endpoints.
+  os-public-hostname:
+    type: string
+    default:
+    description: |
+      The hostname or address of the public endpoints created for glance
+      in the keystone identity provider.
+      .
+      This value will be used for public endpoints. For example, an
+      os-public-hostname set to 'glance.example.com' with ssl enabled will
+      create a public endpoint for glance of:
+      .
+      https://glance.example.com:9292/
   prefer-ipv6:
     type: boolean
     default: False
