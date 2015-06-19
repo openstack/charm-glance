@@ -16,14 +16,14 @@
 
 import logging
 import os
+import six
 import time
 import urllib
 
 import glanceclient.v1.client as glance_client
+import heatclient.v1.client as heat_client
 import keystoneclient.v2_0 as keystone_client
 import novaclient.v1_1.client as nova_client
-
-import six
 
 from charmhelpers.contrib.amulet.utils import (
     AmuletUtils
@@ -37,7 +37,7 @@ class OpenStackAmuletUtils(AmuletUtils):
     """OpenStack amulet utilities.
 
        This class inherits from AmuletUtils and has additional support
-       that is specifically for use by OpenStack charms.
+       that is specifically for use by OpenStack charm tests.
        """
 
     def __init__(self, log_level=ERROR):
@@ -51,6 +51,8 @@ class OpenStackAmuletUtils(AmuletUtils):
            Validate actual endpoint data vs expected endpoint data. The ports
            are used to find the matching endpoint.
            """
+        self.log.debug('Validating endpoint data...')
+        self.log.debug('actual: {}'.format(repr(endpoints)))
         found = False
         for ep in endpoints:
             self.log.debug('endpoint: {}'.format(repr(ep)))
@@ -77,6 +79,7 @@ class OpenStackAmuletUtils(AmuletUtils):
            Validate a list of actual service catalog endpoints vs a list of
            expected service catalog endpoints.
            """
+        self.log.debug('Validating service catalog endpoint data...')
         self.log.debug('actual: {}'.format(repr(actual)))
         for k, v in six.iteritems(expected):
             if k in actual:
@@ -93,6 +96,7 @@ class OpenStackAmuletUtils(AmuletUtils):
            Validate a list of actual tenant data vs list of expected tenant
            data.
            """
+        self.log.debug('Validating tenant data...')
         self.log.debug('actual: {}'.format(repr(actual)))
         for e in expected:
             found = False
@@ -114,6 +118,7 @@ class OpenStackAmuletUtils(AmuletUtils):
            Validate a list of actual role data vs a list of expected role
            data.
            """
+        self.log.debug('Validating role data...')
         self.log.debug('actual: {}'.format(repr(actual)))
         for e in expected:
             found = False
@@ -134,6 +139,7 @@ class OpenStackAmuletUtils(AmuletUtils):
            Validate a list of actual user data vs a list of expected user
            data.
            """
+        self.log.debug('Validating user data...')
         self.log.debug('actual: {}'.format(repr(actual)))
         for e in expected:
             found = False
@@ -155,17 +161,20 @@ class OpenStackAmuletUtils(AmuletUtils):
 
            Validate a list of actual flavors vs a list of expected flavors.
            """
+        self.log.debug('Validating flavor data...')
         self.log.debug('actual: {}'.format(repr(actual)))
         act = [a.name for a in actual]
         return self._validate_list_data(expected, act)
 
     def tenant_exists(self, keystone, tenant):
         """Return True if tenant exists."""
+        self.log.debug('Checking if tenant exists ({})...'.format(tenant))
         return tenant in [t.name for t in keystone.tenants.list()]
 
     def authenticate_keystone_admin(self, keystone_sentry, user, password,
                                     tenant):
         """Authenticates admin user with the keystone admin endpoint."""
+        self.log.debug('Authenticating keystone admin...')
         unit = keystone_sentry
         service_ip = unit.relation('shared-db',
                                    'mysql:shared-db')['private-address']
@@ -175,6 +184,7 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     def authenticate_keystone_user(self, keystone, user, password, tenant):
         """Authenticates a regular user with the keystone public endpoint."""
+        self.log.debug('Authenticating keystone user ({})...'.format(user))
         ep = keystone.service_catalog.url_for(service_type='identity',
                                               endpoint_type='publicURL')
         return keystone_client.Client(username=user, password=password,
@@ -182,12 +192,21 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     def authenticate_glance_admin(self, keystone):
         """Authenticates admin user with glance."""
+        self.log.debug('Authenticating glance admin...')
         ep = keystone.service_catalog.url_for(service_type='image',
                                               endpoint_type='adminURL')
         return glance_client.Client(ep, token=keystone.auth_token)
 
+    def authenticate_heat_admin(self, keystone):
+        """Authenticates the admin user with heat."""
+        self.log.debug('Authenticating heat admin...')
+        ep = keystone.service_catalog.url_for(service_type='orchestration',
+                                              endpoint_type='publicURL')
+        return heat_client.Client(endpoint=ep, token=keystone.auth_token)
+
     def authenticate_nova_user(self, keystone, user, password, tenant):
         """Authenticates a regular user with nova-api."""
+        self.log.debug('Authenticating nova user ({})...'.format(user))
         ep = keystone.service_catalog.url_for(service_type='identity',
                                               endpoint_type='publicURL')
         return nova_client.Client(username=user, api_key=password,
@@ -195,6 +214,7 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     def create_cirros_image(self, glance, image_name):
         """Download the latest cirros image and upload it to glance."""
+        self.log.debug('Creating glance image ({})...'.format(image_name))
         http_proxy = os.getenv('AMULET_HTTP_PROXY')
         self.log.debug('AMULET_HTTP_PROXY: {}'.format(http_proxy))
         if http_proxy:
@@ -235,6 +255,11 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     def delete_image(self, glance, image):
         """Delete the specified image."""
+
+        # /!\ DEPRECATION WARNING
+        self.log.warn('/!\\ DEPRECATION WARNING:  use '
+                      'delete_resource instead of delete_image.')
+        self.log.debug('Deleting glance image ({})...'.format(image))
         num_before = len(list(glance.images.list()))
         glance.images.delete(image)
 
@@ -254,6 +279,8 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     def create_instance(self, nova, image_name, instance_name, flavor):
         """Create the specified instance."""
+        self.log.debug('Creating instance '
+                       '({}|{}|{})'.format(instance_name, image_name, flavor))
         image = nova.images.find(name=image_name)
         flavor = nova.flavors.find(name=flavor)
         instance = nova.servers.create(name=instance_name, image=image,
@@ -276,6 +303,11 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     def delete_instance(self, nova, instance):
         """Delete the specified instance."""
+
+        # /!\ DEPRECATION WARNING
+        self.log.warn('/!\\ DEPRECATION WARNING:  use '
+                      'delete_resource instead of delete_instance.')
+        self.log.debug('Deleting instance ({})...'.format(instance))
         num_before = len(list(nova.servers.list()))
         nova.servers.delete(instance)
 
@@ -292,3 +324,90 @@ class OpenStackAmuletUtils(AmuletUtils):
             return False
 
         return True
+
+    def create_or_get_keypair(self, nova, keypair_name="testkey"):
+        """Create a new keypair, or return pointer if it already exists."""
+        try:
+            _keypair = nova.keypairs.get(keypair_name)
+            self.log.debug('Keypair ({}) already exists, '
+                           'using it.'.format(keypair_name))
+            return _keypair
+        except:
+            self.log.debug('Keypair ({}) does not exist, '
+                           'creating it.'.format(keypair_name))
+
+        _keypair = nova.keypairs.create(name=keypair_name)
+        return _keypair
+
+    def delete_resource(self, resource, resource_id,
+                        msg="resource", max_wait=120):
+        """Delete one openstack resource, such as one instance, keypair,
+        image, volume, stack, etc., and confirm deletion within max wait time.
+
+        :param resource: pointer to os resource type, ex:glance_client.images
+        :param resource_id: unique name or id for the openstack resource
+        :param msg: text to identify purpose in logging
+        :param max_wait: maximum wait time in seconds
+        :returns: True if successful, otherwise False
+        """
+        num_before = len(list(resource.list()))
+        resource.delete(resource_id)
+
+        tries = 0
+        num_after = len(list(resource.list()))
+        while num_after != (num_before - 1) and tries < (max_wait / 4):
+            self.log.debug('{} delete check: '
+                           '{} [{}:{}] {}'.format(msg, tries,
+                                                  num_before,
+                                                  num_after,
+                                                  resource_id))
+            time.sleep(4)
+            num_after = len(list(resource.list()))
+            tries += 1
+
+        self.log.debug('{}:  expected, actual count = {}, '
+                       '{}'.format(msg, num_before - 1, num_after))
+
+        if num_after == (num_before - 1):
+            return True
+        else:
+            self.log.error('{} delete timed out'.format(msg))
+            return False
+
+    def resource_reaches_status(self, resource, resource_id,
+                                expected_stat='available',
+                                msg='resource', max_wait=120):
+        """Wait for an openstack resources status to reach an
+           expected status within a specified time.  Useful to confirm that
+           nova instances, cinder vols, snapshots, glance images, heat stacks
+           and other resources eventually reach the expected status.
+
+        :param resource: pointer to os resource type, ex: heat_client.stacks
+        :param resource_id: unique id for the openstack resource
+        :param expected_stat: status to expect resource to reach
+        :param msg: text to identify purpose in logging
+        :param max_wait: maximum wait time in seconds
+        :returns: True if successful, False if status is not reached
+        """
+
+        tries = 0
+        resource_stat = resource.get(resource_id).status
+        while resource_stat != expected_stat and tries < (max_wait / 4):
+            self.log.debug('{} status check: '
+                           '{} [{}:{}] {}'.format(msg, tries,
+                                                  resource_stat,
+                                                  expected_stat,
+                                                  resource_id))
+            time.sleep(4)
+            resource_stat = resource.get(resource_id).status
+            tries += 1
+
+        self.log.debug('{}:  expected, actual status = {}, '
+                       '{}'.format(msg, resource_stat, expected_stat))
+
+        if resource_stat == expected_stat:
+            return True
+        else:
+            self.log.debug('{} never reached expected status: '
+                           '{}'.format(resource_id, expected_stat))
+            return False

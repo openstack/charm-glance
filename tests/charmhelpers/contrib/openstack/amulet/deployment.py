@@ -110,7 +110,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         (self.precise_essex, self.precise_folsom, self.precise_grizzly,
          self.precise_havana, self.precise_icehouse,
          self.trusty_icehouse, self.trusty_juno, self.utopic_juno,
-         self.trusty_kilo, self.vivid_kilo) = range(10)
+         self.trusty_kilo, self.vivid_kilo, self.trusty_liberty,
+         self.wily_liberty) = range(12)
 
         releases = {
             ('precise', None): self.precise_essex,
@@ -121,8 +122,10 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('trusty', None): self.trusty_icehouse,
             ('trusty', 'cloud:trusty-juno'): self.trusty_juno,
             ('trusty', 'cloud:trusty-kilo'): self.trusty_kilo,
+            ('trusty', 'cloud:trusty-liberty'): self.trusty_liberty,
             ('utopic', None): self.utopic_juno,
-            ('vivid', None): self.vivid_kilo}
+            ('vivid', None): self.vivid_kilo,
+            ('wily', None): self.wily_liberty}
         return releases[(self.series, self.openstack)]
 
     def _get_openstack_release_string(self):
@@ -138,6 +141,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('trusty', 'icehouse'),
             ('utopic', 'juno'),
             ('vivid', 'kilo'),
+            ('wily', 'liberty'),
         ])
         if self.openstack:
             os_origin = self.openstack.split(':')[1]
