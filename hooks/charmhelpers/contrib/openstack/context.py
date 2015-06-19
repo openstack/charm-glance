@@ -240,7 +240,7 @@ class SharedDBContext(OSContextGenerator):
         if self.relation_prefix:
             password_setting = self.relation_prefix + '_password'
 
-        for rid in relation_ids('shared-db'):
+        for rid in relation_ids(self.interfaces[0]):
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
                 host = rdata.get('db_host')
