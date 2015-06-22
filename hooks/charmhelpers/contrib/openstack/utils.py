@@ -79,6 +79,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('trusty', 'icehouse'),
     ('utopic', 'juno'),
     ('vivid', 'kilo'),
+    ('wily', 'liberty'),
 ])
 
 
@@ -91,6 +92,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2014.1', 'icehouse'),
     ('2014.2', 'juno'),
     ('2015.1', 'kilo'),
+    ('2015.2', 'liberty'),
 ])
 
 # The ugly duckling
@@ -113,6 +115,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('2.2.0', 'juno'),
     ('2.2.1', 'kilo'),
     ('2.2.2', 'kilo'),
+    ('2.3.0', 'liberty'),
 ])
 
 DEFAULT_LOOPBACK_SIZE = '5G'
@@ -321,6 +324,9 @@ def configure_installation_source(rel):
             'kilo': 'trusty-updates/kilo',
             'kilo/updates': 'trusty-updates/kilo',
             'kilo/proposed': 'trusty-proposed/kilo',
+            'liberty': 'trusty-updates/liberty',
+            'liberty/updates': 'trusty-updates/liberty',
+            'liberty/proposed': 'trusty-proposed/liberty',
         }
 
         try:
@@ -549,6 +555,11 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
 
     pip_create_virtualenv(os.path.join(parent_dir, 'venv'))
 
+    # Upgrade setuptools from default virtualenv version. The default version
+    # in trusty breaks update.py in global requirements master branch.
+    pip_install('setuptools', upgrade=True, proxy=http_proxy,
+                venv=os.path.join(parent_dir, 'venv'))
+
     for p in projects['repositories']:
         repo = p['repository']
         branch = p['branch']
@@ -610,24 +621,24 @@ def _git_clone_and_install_single(repo, branch, depth, parent_dir, http_proxy,
     else:
         repo_dir = dest_dir
 
+    venv = os.path.join(parent_dir, 'venv')
+
     if update_requirements:
         if not requirements_dir:
             error_out('requirements repo must be cloned before '
                       'updating from global requirements.')
-        _git_update_requirements(repo_dir, requirements_dir)
+        _git_update_requirements(venv, repo_dir, requirements_dir)
 
     juju_log('Installing git repo from dir: {}'.format(repo_dir))
     if http_proxy:
-        pip_install(repo_dir, proxy=http_proxy,
-                    venv=os.path.join(parent_dir, 'venv'))
+        pip_install(repo_dir, proxy=http_proxy, venv=venv)
     else:
-        pip_install(repo_dir,
-                    venv=os.path.join(parent_dir, 'venv'))
+        pip_install(repo_dir, venv=venv)
 
     return repo_dir
 
 
-def _git_update_requirements(package_dir, reqs_dir):
+def _git_update_requirements(venv, package_dir, reqs_dir):
     """
     Update from global requirements.
 
@@ -636,12 +647,14 @@ def _git_update_requirements(package_dir, reqs_dir):
     """
     orig_dir = os.getcwd()
     os.chdir(reqs_dir)
-    cmd = ['python', 'update.py', package_dir]
+    python = os.path.join(venv, 'bin/python')
+    cmd = [python, 'update.py', package_dir]
     try:
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError:
         package = os.path.basename(package_dir)
-        error_out("Error updating {} from global-requirements.txt".format(package))
+        error_out("Error updating {} from "
+                  "global-requirements.txt".format(package))
     os.chdir(orig_dir)
 
 

@@ -64,6 +64,10 @@ class CRMResourceNotFound(Exception):
     pass
 
 
+class CRMDCNotFound(Exception):
+    pass
+
+
 def is_elected_leader(resource):
     """
     Returns True if the charm executing this is the elected cluster leader.
@@ -116,8 +120,9 @@ def is_crm_dc():
         status = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         if not isinstance(status, six.text_type):
             status = six.text_type(status, "utf-8")
-    except subprocess.CalledProcessError:
-        return False
+    except subprocess.CalledProcessError as ex:
+        raise CRMDCNotFound(str(ex))
+
     current_dc = ''
     for line in status.split('\n'):
         if line.startswith('Current DC'):
@@ -125,10 +130,14 @@ def is_crm_dc():
             current_dc = line.split(':')[1].split()[0]
     if current_dc == get_unit_hostname():
         return True
+    elif current_dc == 'NONE':
+        raise CRMDCNotFound('Current DC: NONE')
+
     return False
 
 
-@retry_on_exception(5, base_delay=2, exc_type=CRMResourceNotFound)
+@retry_on_exception(5, base_delay=2,
+                    exc_type=(CRMResourceNotFound, CRMDCNotFound))
 def is_crm_leader(resource, retry=False):
     """
     Returns True if the charm calling this is the elected corosync leader,
