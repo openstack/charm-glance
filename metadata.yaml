@@ -6,7 +6,7 @@ description: |
  (Parallax) and an image delivery service (Teller). These services are used
  in conjunction by Nova to deliver images from object stores, such as
  OpenStack's Swift service, to Nova's compute nodes.
-categories:
+tags:
   - miscellaneous
 provides:
   nrpe-external-master:

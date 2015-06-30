@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-"""Amulet tests on a basic Glance deployment on vivid-kilo."""
+"""Amulet tests on a basic glance deployment on wily-liberty."""
 
 from basic_deployment import GlanceBasicDeployment
 
 if __name__ == '__main__':
-    deployment = GlanceBasicDeployment(series='vivid')
+    deployment = GlanceBasicDeployment(series='wily')
     deployment.run_tests()
