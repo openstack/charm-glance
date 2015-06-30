@@ -1,0 +1,11 @@
+#!/usr/bin/python
+
+"""Amulet tests on a basic glance deployment on trusty-liberty."""
+
+from basic_deployment import GlanceBasicDeployment
+
+if __name__ == '__main__':
+    deployment = GlanceBasicDeployment(series='trusty',
+                                       openstack='cloud:trusty-liberty',
+                                       source='cloud:trusty-updates/liberty')
+    deployment.run_tests()
