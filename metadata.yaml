@@ -7,7 +7,9 @@ description: |
  in conjunction by Nova to deliver images from object stores, such as
  OpenStack's Swift service, to Nova's compute nodes.
 tags:
-  - miscellaneous
+  - openstack
+  - storage
+  - misc
 provides:
   nrpe-external-master:
     interface: nrpe-external-master
