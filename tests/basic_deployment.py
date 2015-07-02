@@ -1,5 +1,9 @@
 #!/usr/bin/python
 
+"""
+Basic glance amulet functional tests.
+"""
+
 import amulet
 import os
 import time
@@ -310,13 +314,40 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             message = u.relation_error('glance amqp', ret)
             amulet.raise_status(amulet.FAIL, msg=message)
 
+    def _get_keystone_authtoken_expected_dict(self, rel_ks_gl):
+        """Return expected authtoken dict for OS release"""
+        expected = {
+            'keystone_authtoken': {
+                'signing_dir': '/var/cache/glance',
+                'admin_tenant_name': 'services',
+                'admin_user': 'glance',
+                'admin_password': rel_ks_gl['service_password'],
+                'auth_uri': u.valid_url
+            }
+        }
+
+        if self._get_openstack_release() >= self.trusty_kilo:
+            # Trusty-Kilo and later
+            expected['keystone_authtoken'].update({
+                'identity_uri': u.valid_url,
+            })
+        else:
+            # Utopic-Juno and earlier
+            expected['keystone_authtoken'].update({
+                'auth_host': rel_ks_gl['auth_host'],
+                'auth_port': rel_ks_gl['auth_port'],
+                'auth_protocol':  rel_ks_gl['auth_protocol']
+            })
+
+        return expected
+
     def test_300_glance_api_default_config(self):
         """Verify default section configs in glance-api.conf and
            compare some of the parameters to relation data."""
         u.log.debug('Checking glance api config file...')
         unit = self.glance_sentry
         unit_ks = self.keystone_sentry
-        rel_gl_mq = unit.relation('amqp', 'rabbitmq-server:amqp')
+        rel_mq_gl = self.rabbitmq_sentry.relation('amqp', 'glance:amqp')
         rel_ks_gl = unit_ks.relation('identity-service',
                                      'glance:identity-service')
         rel_my_gl = self.mysql_sentry.relation('shared-db', 'glance:shared-db')
@@ -329,9 +360,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                 'verbose': 'False',
                 'use_syslog': 'False',
                 'log_file': '/var/log/glance/api.log',
-                'default_store': 'file',
-                'filesystem_store_datadir': '/var/lib/glance/images/',
-                'rabbit_userid': rel_gl_mq['username'],
                 'bind_host': '0.0.0.0',
                 'bind_port': '9282',
                 'registry_host': '0.0.0.0',
@@ -340,28 +368,46 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                 'delayed_delete': 'False',
                 'scrub_time': '43200',
                 'notification_driver': 'rabbit',
-                'filesystem_store_datadir': '/var/lib/glance/images/',
                 'scrubber_datadir': '/var/lib/glance/scrubber',
                 'image_cache_dir': '/var/lib/glance/image-cache/',
-                'db_enforce_mysql_charset': 'False',
+                'db_enforce_mysql_charset': 'False'
+            },
+        }
+
+        expected.update(self._get_keystone_authtoken_expected_dict(rel_ks_gl))
+
+        if self._get_openstack_release() >= self.trusty_kilo:
+            # Kilo or later
+            expected['oslo_messaging_rabbit'] = {
                 'rabbit_userid': 'glance',
                 'rabbit_virtual_host': 'openstack',
-                'rabbit_password': u.not_null,
-                'rabbit_host': u.valid_ip
-            },
-            'keystone_authtoken': {
-                'admin_user': 'glance',
-                'admin_password': rel_ks_gl['service_password'],
-                'auth_uri': u.valid_url,
-                'auth_host': u.valid_ip,
-                'auth_port': '35357',
-                'auth_protocol': 'http',
-            },
-            'database': {
-                'connection': db_uri,
-                'sql_idle_timeout': '3600'
+                'rabbit_password': rel_mq_gl['password'],
+                'rabbit_host': rel_mq_gl['hostname']
             }
-        }
+            expected['glance_store'] = {
+                'filesystem_store_datadir': '/var/lib/glance/images/',
+                'stores': 'glance.store.filesystem.'
+                          'Store,glance.store.http.Store',
+                'default_store': 'file'
+            }
+            expected['database'] = {
+                'idle_timeout': '3600',
+                'connection': db_uri
+            }
+        else:
+            # Juno or earlier
+            expected['DEFAULT'].update({
+                'rabbit_userid': 'glance',
+                'rabbit_virtual_host': 'openstack',
+                'rabbit_password': rel_mq_gl['password'],
+                'rabbit_host': rel_mq_gl['hostname'],
+                'filesystem_store_datadir': '/var/lib/glance/images/',
+                'default_store': 'file',
+            })
+            expected['database'] = {
+                'sql_idle_timeout': '3600',
+                'connection': db_uri
+            }
 
         for section, pairs in expected.iteritems():
             ret = u.validate_config_data(unit, conf, section, pairs)
@@ -369,14 +415,58 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                 message = "glance api config error: {}".format(ret)
                 amulet.raise_status(amulet.FAIL, msg=message)
 
+    def test_302_glance_registry_default_config(self):
+        """Verify configs in glance-registry.conf"""
+        u.log.debug('Checking glance registry config file...')
+        unit = self.glance_sentry
+        unit_ks = self.keystone_sentry
+        rel_ks_gl = unit_ks.relation('identity-service',
+                                     'glance:identity-service')
+        rel_my_gl = self.mysql_sentry.relation('shared-db', 'glance:shared-db')
+        db_uri = "mysql://{}:{}@{}/{}".format('glance', rel_my_gl['password'],
+                                              rel_my_gl['db_host'], 'glance')
+        conf = '/etc/glance/glance-registry.conf'
+
+        expected = {
+            'DEFAULT': {
+                'use_syslog': 'False',
+                'log_file': '/var/log/glance/registry.log',
+                'debug': 'False',
+                'verbose': 'False',
+                'bind_host': '0.0.0.0',
+                'bind_port': '9191'
+            },
+        }
+
+        if self._get_openstack_release() >= self.trusty_kilo:
+            # Kilo or later
+            expected['database'] = {
+                'idle_timeout': '3600',
+                'connection': db_uri
+            }
+        else:
+            # Juno or earlier
+            expected['database'] = {
+                'idle_timeout': '3600',
+                'connection': db_uri
+            }
+
+        expected.update(self._get_keystone_authtoken_expected_dict(rel_ks_gl))
+
+        for section, pairs in expected.iteritems():
+            ret = u.validate_config_data(unit, conf, section, pairs)
+            if ret:
+                message = "glance registry paste config error: {}".format(ret)
+                amulet.raise_status(amulet.FAIL, msg=message)
+
     def _get_filter_factory_expected_dict(self):
         """Return expected authtoken filter factory dict for OS release"""
-        if self._get_openstack_release() < self.vivid_kilo:
+        if self._get_openstack_release() >= self.trusty_kilo:
+            # Kilo and later
+            val = 'keystonemiddleware.auth_token:filter_factory'
+        else:
             # Juno and earlier
             val = 'keystoneclient.middleware.auth_token:filter_factory'
-        else:
-            # Kilo and later
-            val = 'keystonemiddleware.auth_token: filter_factory'
 
         return {'filter:authtoken': {'paste.filter_factory': val}}
 
@@ -401,47 +491,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         unit = self.glance_sentry
         conf = '/etc/glance/glance-registry-paste.ini'
         expected = self._get_filter_factory_expected_dict()
-
-        for section, pairs in expected.iteritems():
-            ret = u.validate_config_data(unit, conf, section, pairs)
-            if ret:
-                message = "glance registry paste config error: {}".format(ret)
-                amulet.raise_status(amulet.FAIL, msg=message)
-
-    def test_308_glance_registry_default_config(self):
-        """Verify configs in glance-registry.conf"""
-        u.log.debug('Checking glance registry config file...')
-        unit = self.glance_sentry
-        unit_ks = self.keystone_sentry
-        rel_ks_gl = unit_ks.relation('identity-service',
-                                     'glance:identity-service')
-        rel_my_gl = self.mysql_sentry.relation('shared-db', 'glance:shared-db')
-        db_uri = "mysql://{}:{}@{}/{}".format('glance', rel_my_gl['password'],
-                                              rel_my_gl['db_host'], 'glance')
-        conf = '/etc/glance/glance-registry.conf'
-
-        expected = {
-            'DEFAULT': {
-                'use_syslog': 'False',
-                'log_file': '/var/log/glance/registry.log',
-                'debug': 'False',
-                'verbose': 'False',
-                'bind_host': '0.0.0.0',
-                'bind_port': '9191'
-            },
-            'database': {
-                'connection': db_uri,
-                'sql_idle_timeout': '3600'
-            },
-            'keystone_authtoken': {
-                'admin_user': 'glance',
-                'admin_password': rel_ks_gl['service_password'],
-                'auth_uri': u.valid_url,
-                'auth_host': u.valid_ip,
-                'auth_port': '35357',
-                'auth_protocol': 'http',
-            },
-        }
 
         for section, pairs in expected.iteritems():
             ret = u.validate_config_data(unit, conf, section, pairs)

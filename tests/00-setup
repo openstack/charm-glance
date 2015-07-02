@@ -10,5 +10,5 @@ sudo apt-get install --yes python-amulet \
                            python-glanceclient \
                            python-heatclient \
                            python-keystoneclient \
-                           python-novaclient
+                           python-novaclient \
                            python-swiftclient
