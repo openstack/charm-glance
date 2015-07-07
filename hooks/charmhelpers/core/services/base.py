@@ -128,15 +128,18 @@ class ServiceManager(object):
         """
         Handle the current hook by doing The Right Thing with the registered services.
         """
-        hook_name = hookenv.hook_name()
-        if hook_name == 'stop':
-            self.stop_services()
-        else:
-            self.reconfigure_services()
-            self.provide_data()
-        cfg = hookenv.config()
-        if cfg.implicit_save:
-            cfg.save()
+        hookenv._run_atstart()
+        try:
+            hook_name = hookenv.hook_name()
+            if hook_name == 'stop':
+                self.stop_services()
+            else:
+                self.reconfigure_services()
+                self.provide_data()
+        except SystemExit as x:
+            if x.code is None or x.code == 0:
+                hookenv._run_atexit()
+        hookenv._run_atexit()
 
     def provide_data(self):
         """

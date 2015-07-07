@@ -1,6 +1,15 @@
 This directory provides Amulet tests that focus on verification of Glance
 deployments.
 
+test_* methods are called in lexical sort order.
+
+Test name convention to ensure desired test order:
+    1xx service and endpoint checks
+    2xx relation checks
+    3xx config checks
+    4xx functional checks
+    9xx restarts and other final checks
+
 In order to run tests, you'll need charm-tools installed (in addition to
 juju, of course):
     sudo add-apt-repository ppa:juju/stable
