@@ -1,0 +1,9 @@
+#!/usr/bin/python
+
+"""Amulet tests on a basic Glance git deployment on trusty-icehouse."""
+
+from basic_deployment import GlanceBasicDeployment
+
+if __name__ == '__main__':
+    deployment = GlanceBasicDeployment(series='trusty', git=True)
+    deployment.run_tests()

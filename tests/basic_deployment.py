@@ -66,16 +66,21 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         """Configure all of the services."""
         glance_config = {}
         if self.git:
-            branch = 'stable/' + self._get_openstack_release_string()
+            release = self._get_openstack_release_string()
+            reqs_branch = 'stable/' + release
+            if self._get_openstack_release() == self.trusty_icehouse:
+                glance_branch = release + '-eol'
+            else:
+                glance_branch = 'stable/' + release
             amulet_http_proxy = os.environ.get('AMULET_HTTP_PROXY')
             openstack_origin_git = {
                 'repositories': [
                     {'name': 'requirements',
                      'repository': 'git://github.com/openstack/requirements',
-                     'branch': branch},
+                     'branch': reqs_branch},
                     {'name': 'glance',
                      'repository': 'git://github.com/openstack/glance',
-                     'branch': branch},
+                     'branch': glance_branch},
                 ],
                 'directory': '/mnt/openstack-git',
                 'http_proxy': amulet_http_proxy,
