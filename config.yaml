@@ -1,4 +1,17 @@
 options:
+  debug:
+    default: False
+    type: boolean
+    description: Enable debug logging.
+  verbose:
+    default: False
+    type: boolean
+    description: Enable verbose logging.
+  use-syslog:
+    type: boolean
+    default: False
+    description: |
+      Setting this to True will allow supporting services to log to syslog.
   openstack-origin:
     default: distro
     type: string
@@ -7,17 +20,27 @@ options:
       distro (default), ppa:somecustom/ppa, a deb url sources entry,
       or a supported Cloud Archive release pocket.
 
-      Supported Cloud Archive sources include: cloud:precise-folsom,
-      cloud:precise-folsom/updates, cloud:precise-folsom/staging,
-      cloud:precise-folsom/proposed.
+      Supported Cloud Archive sources include:
 
-      Note that updating this setting to a source that is known to
-      provide a later version of OpenStack will trigger a software
-      upgrade.
+      cloud:<series>-<openstack-release>
+      cloud:<series>-<openstack-release>/updates
+      cloud:<series>-<openstack-release>/staging
+      cloud:<series>-<openstack-release>/proposed
 
-      Note that when openstack-origin-git is specified, openstack
-      specific packages will be installed from source rather than
-      from the openstack-origin repository.
+      For series=Precise we support cloud archives for openstack-release:
+         * icehouse
+
+      For series=Trusty we support cloud archives for openstack-release:
+         * juno
+         * kilo
+         * ...
+
+      NOTE: updating this setting to a source that is known to provide
+      a later version of OpenStack will trigger a software upgrade.
+
+      NOTE: when openstack-origin-git is specified, openstack specific
+      packages will be installed from source rather than from the
+      openstack-origin repository.
   openstack-origin-git:
     default:
     type: string
@@ -49,9 +72,9 @@ options:
     type: string
     default:
     description: |
-      Comma-separated list of key=value pairs to be added to glance-registry.conf
-      where 'value' may itself be a comma-separated list of values to be
-      assigned to the 'key'.
+      Comma-separated list of key=value pairs to be added to
+      glance-registry.conf where 'value' may itself be a comma-separated list
+      of values to be assigned to the 'key'.
   region:
     default: RegionOne
     type: string
@@ -66,19 +89,6 @@ options:
       rbd pool has been created, changing this value will not have any
       effect (although it can be changed in ceph by manually configuring
       your ceph cluster).
-  use-syslog:
-    type: boolean
-    default: False
-    description: |
-      If set to True, supporting services will log to syslog.
-  debug:
-    default: False
-    type: boolean
-    description: Enable debug logging
-  verbose:
-    default: False
-    type: boolean
-    description: Enable verbose logging
   # HA configuration settings
   vip:
     type: string
@@ -92,8 +102,8 @@ options:
     type: string
     default: eth0
     description: |
-      Default network interface to use for HA vip when it cannot be automatically
-      determined.
+      Default network interface to use for HA vip when it cannot be
+      automatically determined.
   vip_cidr:
     type: int
     default: 24
@@ -122,8 +132,8 @@ options:
     type: int
     default:
     description: |
-       Client timeout configuration in ms for haproxy, used in HA configurations.
-       If not provided, default value of 30000ms is used.
+       Client timeout configuration in ms for haproxy, used in HA
+       configurations. If not provided, default value of 30000ms is used.
   ssl_cert:
     type: string
     default:
@@ -223,4 +233,3 @@ options:
     description: |
         A comma-separated list of nagios servicegroups.
         If left empty, the nagios_context will be used as the servicegroup
-
