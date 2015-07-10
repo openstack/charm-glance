@@ -1,2 +1,4 @@
 git-reinstall:
   description: Reinstall glance from the openstack-origin-git repositories.
+openstack-upgrade:
+  description: Perform openstack upgrades.
