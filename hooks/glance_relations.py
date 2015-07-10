@@ -333,10 +333,10 @@ def config_changed():
     if git_install_requested():
         if config_value_changed('openstack-origin-git'):
             git_install(config('openstack-origin-git'))
-    else:
-        if openstack_upgrade_available('glance-common'):
-            juju_log('Upgrading OpenStack release')
-            do_openstack_upgrade(CONFIGS)
+    #else:
+    #    if openstack_upgrade_available('glance-common'):
+    #        juju_log('Upgrading OpenStack release')
+    #        do_openstack_upgrade(CONFIGS)
 
     open_port(9292)
     configure_https()
