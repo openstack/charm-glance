@@ -72,12 +72,11 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             glance_repo = 'git://github.com/openstack/glance'
             if self._get_openstack_release() == self.trusty_icehouse:
                 reqs_repo = 'git://github.com/coreycb/requirements'
+                glance_repo = 'git://github.com/coreycb/glance'
 
             release = self._get_openstack_release_string()
             reqs_branch = 'stable/' + release
             glance_branch = 'stable/' + release
-            if self._get_openstack_release() == self.trusty_icehouse:
-                glance_branch = release + '-eol'
 
             openstack_origin_git = {
                 'repositories': [
