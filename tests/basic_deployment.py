@@ -74,18 +74,16 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                 reqs_repo = 'git://github.com/coreycb/requirements'
                 glance_repo = 'git://github.com/coreycb/glance'
 
-            release = self._get_openstack_release_string()
-            reqs_branch = 'stable/' + release
-            glance_branch = 'stable/' + release
+            branch = 'stable/' + self._get_openstack_release_string()
 
             openstack_origin_git = {
                 'repositories': [
                     {'name': 'requirements',
                      'repository': reqs_repo,
-                     'branch': reqs_branch},
+                     'branch': branch},
                     {'name': 'glance',
                      'repository': glance_repo,
-                     'branch': glance_branch},
+                     'branch': branch},
                 ],
                 'directory': '/mnt/openstack-git',
                 'http_proxy': amulet_http_proxy,
