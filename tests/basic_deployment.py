@@ -68,27 +68,25 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         if self.git:
             amulet_http_proxy = os.environ.get('AMULET_HTTP_PROXY')
 
+            reqs_repo = 'git://github.com/openstack/requirements'
+            glance_repo = 'git://github.com/openstack/glance'
             if self._get_openstack_release() == self.trusty_icehouse:
                 reqs_repo = 'git://github.com/coreycb/requirements'
-            else:
-                reqs_repo = 'git://github.com/openstack/requirements'
-            glance_repo = 'git://github.com/openstack/glance'
 
             release = self._get_openstack_release_string()
             reqs_branch = 'stable/' + release
+            glance_branch = 'stable/' + release
             if self._get_openstack_release() == self.trusty_icehouse:
                 glance_branch = release + '-eol'
-            else:
-                glance_branch = 'stable/' + release
 
             openstack_origin_git = {
                 'repositories': [
                     {'name': 'requirements',
                      'repository': reqs_repo,
-                     'branch': branch},
+                     'branch': reqs_branch},
                     {'name': 'glance',
                      'repository': glance_repo,
-                     'branch': branch},
+                     'branch': glance_branch},
                 ],
                 'directory': '/mnt/openstack-git',
                 'http_proxy': amulet_http_proxy,
