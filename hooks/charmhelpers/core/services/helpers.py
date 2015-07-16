@@ -239,12 +239,12 @@ class TemplateCallback(ManagerCallback):
     action.
 
     :param str source: The template source file, relative to
-    `$CHARM_DIR/templates`
-
+        `$CHARM_DIR/templates`
     :param str target: The target to write the rendered template to
     :param str owner: The owner of the rendered file
     :param str group: The group of the rendered file
     :param int perms: The permissions of the rendered file
+
     """
     def __init__(self, source, target,
                  owner='root', group='root', perms=0o444):

@@ -522,6 +522,7 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
     Clone/install all specified OpenStack repositories.
 
     The expected format of projects_yaml is:
+
         repositories:
           - {name: keystone,
              repository: 'git://git.openstack.org/openstack/keystone.git',
@@ -529,11 +530,13 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
           - {name: requirements,
              repository: 'git://git.openstack.org/openstack/requirements.git',
              branch: 'stable/icehouse'}
+
         directory: /mnt/openstack-git
         http_proxy: squid-proxy-url
         https_proxy: squid-proxy-url
 
-        The directory, http_proxy, and https_proxy keys are optional.
+    The directory, http_proxy, and https_proxy keys are optional.
+
     """
     global requirements_dir
     parent_dir = '/mnt/openstack-git'
@@ -555,10 +558,11 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
 
     pip_create_virtualenv(os.path.join(parent_dir, 'venv'))
 
-    # Upgrade setuptools from default virtualenv version. The default version
-    # in trusty breaks update.py in global requirements master branch.
-    pip_install('setuptools', upgrade=True, proxy=http_proxy,
-                venv=os.path.join(parent_dir, 'venv'))
+    # Upgrade setuptools and pip from default virtualenv versions. The default
+    # versions in trusty break master OpenStack branch deployments.
+    for p in ['pip', 'setuptools']:
+        pip_install(p, upgrade=True, proxy=http_proxy,
+                    venv=os.path.join(parent_dir, 'venv'))
 
     for p in projects['repositories']:
         repo = p['repository']
