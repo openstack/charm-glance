@@ -77,6 +77,8 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
     def can_handle(self, source):
         url_parts = self.parse_url(source)
         if url_parts.scheme not in ('http', 'https', 'ftp', 'file'):
+            # XXX: Why is this returning a boolean and a string? It's
+            # doomed to fail since "bool(can_handle('foo://'))"  will be True.
             return "Wrong source type"
         if get_archive_handler(self.base_url(source)):
             return True
@@ -155,7 +157,11 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
             else:
                 algorithms = hashlib.algorithms_available
             if key in algorithms:
-                check_hash(dld_file, value, key)
+                if len(value) != 1:
+                    raise TypeError(
+                        "Expected 1 hash value, not %d" % len(value))
+                expected = value[0]
+                check_hash(dld_file, expected, key)
         if checksum:
             check_hash(dld_file, checksum, hash_type)
         return extract(dld_file, dest)

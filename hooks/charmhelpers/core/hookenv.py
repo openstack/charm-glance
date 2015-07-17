@@ -761,6 +761,7 @@ def atstart(callback, *args, **kwargs):
 
     This is useful for modules and classes to perform initialization
     and inject behavior. In particular:
+
         - Run common code before all of your hooks, such as logging
           the hook name or interesting relation data.
         - Defer object or module initialization that requires a hook

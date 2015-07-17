@@ -60,12 +60,12 @@ KEYRING = '/etc/ceph/ceph.client.{}.keyring'
 KEYFILE = '/etc/ceph/ceph.client.{}.key'
 
 CEPH_CONF = """[global]
- auth supported = {auth}
- keyring = {keyring}
- mon host = {mon_hosts}
- log to syslog = {use_syslog}
- err to syslog = {use_syslog}
- clog to syslog = {use_syslog}
+auth supported = {auth}
+keyring = {keyring}
+mon host = {mon_hosts}
+log to syslog = {use_syslog}
+err to syslog = {use_syslog}
+clog to syslog = {use_syslog}
 """
 
 
