@@ -122,21 +122,24 @@ def config_flags_parser(config_flags):
          of specifying multiple key value pairs within the same string. For
          example, a string in the format of 'key1=value1, key2=value2' will
          return a dict of:
-         {'key1': 'value1',
-          'key2': 'value2'}.
+
+             {'key1': 'value1',
+              'key2': 'value2'}.
 
       2. A string in the above format, but supporting a comma-delimited list
          of values for the same key. For example, a string in the format of
          'key1=value1, key2=value3,value4,value5' will return a dict of:
-         {'key1', 'value1',
-          'key2', 'value2,value3,value4'}
+
+             {'key1', 'value1',
+              'key2', 'value2,value3,value4'}
 
       3. A string containing a colon character (:) prior to an equal
          character (=) will be treated as yaml and parsed as such. This can be
          used to specify more complex key value pairs. For example,
          a string in the format of 'key1: subkey1=value1, subkey2=value2' will
          return a dict of:
-         {'key1', 'subkey1=value1, subkey2=value2'}
+
+             {'key1', 'subkey1=value1, subkey2=value2'}
 
     The provided config_flags string may be a list of comma-separated values
     which themselves may be comma-separated list of values.
@@ -891,8 +894,6 @@ class NeutronContext(OSContextGenerator):
         return ctxt
 
     def __call__(self):
-        self._ensure_packages()
-
         if self.network_manager not in ['quantum', 'neutron']:
             return {}
 
