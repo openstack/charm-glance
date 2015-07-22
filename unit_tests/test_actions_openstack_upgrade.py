@@ -72,7 +72,7 @@ class TestGlanceUpgradeActions(CharmTestCase):
         openstack_upgrade.openstack_upgrade()
 
         msg = ('Openstack upgrade failed to run due to charm being installed '
-               'from source. Please use git_reinstall action instead.')
+               'from source.')
         action_fail.assert_called_with(msg)
         self.assertFalse(do_openstack_upgrade.called)
         self.assertFalse(action_set.called)
