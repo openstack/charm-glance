@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import amulet
 import json
 import logging
 import os
@@ -177,6 +178,7 @@ class OpenStackAmuletUtils(AmuletUtils):
     def authenticate_cinder_admin(self, keystone_sentry, username,
                                   password, tenant):
         """Authenticates admin user with cinder."""
+        # NOTE(beisner): cinder python client doesn't accept tokens.
         service_ip = \
             keystone_sentry.relation('shared-db',
                                      'mysql:shared-db')['private-address']
@@ -279,7 +281,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                                            msg='Image status wait')
         if not ret:
             msg = 'Glance image failed to reach expected state.'
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         # Re-validate new image
         self.log.debug('Validating image attributes...')
@@ -299,7 +301,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             self.log.debug(msg_attr)
         else:
             msg = ('Volume validation failed, {}'.format(msg_attr))
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         return image
 
@@ -362,8 +364,8 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     def create_cinder_volume(self, cinder, vol_name="demo-vol", vol_size=1,
                              img_id=None, src_vol_id=None, snap_id=None):
-        """Create cinder volume, optionally from a glance image, or
-        optionally as a clone of an existing volume, or optionally
+        """Create cinder volume, optionally from a glance image, OR
+        optionally as a clone of an existing volume, OR optionally
         from a snapshot.  Wait for the new volume status to reach
         the expected status, validate and return a resource pointer.
 
@@ -374,29 +376,33 @@ class OpenStackAmuletUtils(AmuletUtils):
         :param snap_id: optional snapshot id to use
         :returns: cinder volume pointer
         """
-        # Handle parameter input
+        # Handle parameter input and avoid impossible combinations
         if img_id and not src_vol_id and not snap_id:
-            self.log.debug('Creating cinder volume from glance image '
-                           '({})...'.format(img_id))
+            # Create volume from image
+            self.log.debug('Creating cinder volume from glance image...')
             bootable = 'true'
         elif src_vol_id and not img_id and not snap_id:
+            # Clone an existing volume
             self.log.debug('Cloning cinder volume...')
             bootable = cinder.volumes.get(src_vol_id).bootable
         elif snap_id and not src_vol_id and not img_id:
+            # Create volume from snapshot
             self.log.debug('Creating cinder volume from snapshot...')
             snap = cinder.volume_snapshots.find(id=snap_id)
             vol_size = snap.size
             snap_vol_id = cinder.volume_snapshots.get(snap_id).volume_id
             bootable = cinder.volumes.get(snap_vol_id).bootable
         elif not img_id and not src_vol_id and not snap_id:
+            # Create volume
             self.log.debug('Creating cinder volume...')
             bootable = 'false'
         else:
+            # Impossible combination of parameters
             msg = ('Invalid method use - name:{} size:{} img_id:{} '
                    'src_vol_id:{} snap_id:{}'.format(vol_name, vol_size,
                                                      img_id, src_vol_id,
                                                      snap_id))
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         # Create new volume
         try:
@@ -408,7 +414,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             vol_id = vol_new.id
         except Exception as e:
             msg = 'Failed to create volume: {}'.format(e)
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         # Wait for volume to reach available status
         ret = self.resource_reaches_status(cinder.volumes, vol_id,
@@ -416,7 +422,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                                            msg="Volume status wait")
         if not ret:
             msg = 'Cinder volume failed to reach expected state.'
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         # Re-validate new volume
         self.log.debug('Validating volume attributes...')
@@ -434,7 +440,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             self.log.debug(msg_attr)
         else:
             msg = ('Volume validation failed, {}'.format(msg_attr))
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         return vol_new
 
@@ -515,9 +521,9 @@ class OpenStackAmuletUtils(AmuletUtils):
 
     def get_ceph_osd_id_cmd(self, index):
         """Produce a shell command that will return a ceph-osd id."""
-        cmd = ("`initctl list | grep 'ceph-osd ' | awk 'NR=={} {{ print $2 }}'"
-               " | grep -o '[0-9]*'`".format(index + 1))
-        return cmd
+        return ("`initctl list | grep 'ceph-osd ' | "
+                "awk 'NR=={} {{ print $2 }}' | "
+                "grep -o '[0-9]*'`".format(index + 1))
 
     def get_ceph_pools(self, sentry_unit):
         """Return a dict of ceph pools from a single ceph unit, with
@@ -529,7 +535,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             msg = ('{} `{}` returned {} '
                    '{}'.format(sentry_unit.info['unit_name'],
                                cmd, code, output))
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
 
         # Example output: 0 data,1 metadata,2 rbd,3 cinder,4 glance,
         for pool in str(output).split(','):
@@ -555,7 +561,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             msg = ('{} `{}` returned {} '
                    '{}'.format(sentry_unit.info['unit_name'],
                                cmd, code, output))
-            raise RuntimeError(msg)
+            amulet.raise_status(amulet.FAIL, msg=msg)
         return json.loads(output)
 
     def get_ceph_pool_sample(self, sentry_unit, pool_id=0):
@@ -572,10 +578,8 @@ class OpenStackAmuletUtils(AmuletUtils):
         obj_count = df['pools'][pool_id]['stats']['objects']
         kb_used = df['pools'][pool_id]['stats']['kb_used']
         self.log.debug('Ceph {} pool (ID {}): {} objects, '
-                       '{} kb used'.format(pool_name,
-                                           pool_id,
-                                           obj_count,
-                                           kb_used))
+                       '{} kb used'.format(pool_name, pool_id,
+                                           obj_count, kb_used))
         return pool_name, obj_count, kb_used
 
     def validate_ceph_pool_samples(self, samples, sample_type="resource pool"):
@@ -592,9 +596,8 @@ class OpenStackAmuletUtils(AmuletUtils):
         original, created, deleted = range(3)
         if samples[created] <= samples[original] or \
                 samples[deleted] >= samples[created]:
-            msg = ('Ceph {} samples ({}) '
-                   'unexpected.'.format(sample_type, samples))
-            return msg
+            return ('Ceph {} samples ({}) '
+                    'unexpected.'.format(sample_type, samples))
         else:
             self.log.debug('Ceph {} samples (OK): '
                            '{}'.format(sample_type, samples))
