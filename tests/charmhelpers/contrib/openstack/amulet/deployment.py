@@ -150,8 +150,9 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             return releases[self.series]
 
     def get_ceph_expected_pools(self, radosgw=False):
-        """Return a list of expected ceph pools based on Ubuntu-OpenStack
-        release and whether ceph radosgw is flagged as present or not."""
+        """Return a list of expected ceph pools in a ceph + cinder + glance
+        test scenario, based on OpenStack release and whether ceph radosgw
+        is flagged as present or not."""
 
         if self._get_openstack_release() >= self.trusty_kilo:
             # Kilo or later

@@ -67,7 +67,7 @@ class GitUrlFetchHandler(BaseFetchHandler):
         try:
             self.clone(source, dest_dir, branch, depth)
         except GitCommandError as e:
-            raise UnhandledSource(e.message)
+            raise UnhandledSource(e)
         except OSError as e:
             raise UnhandledSource(e.strerror)
         return dest_dir
