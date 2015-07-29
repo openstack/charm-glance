@@ -29,8 +29,8 @@ from charmhelpers.contrib.openstack.utils import OPENSTACK_CODENAMES
 try:
     from jinja2 import FileSystemLoader, ChoiceLoader, Environment, exceptions
 except ImportError:
-    # python-jinja2 may not be installed yet, or we're running unittests.
-    FileSystemLoader = ChoiceLoader = Environment = exceptions = None
+    apt_install('python-jinja2', fatal=True)
+    from jinja2 import FileSystemLoader, ChoiceLoader, Environment, exceptions
 
 
 class OSConfigException(Exception):

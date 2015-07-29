@@ -21,6 +21,7 @@
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
 
 from __future__ import print_function
+import copy
 from distutils.version import LooseVersion
 from functools import wraps
 import glob
@@ -263,7 +264,7 @@ class Config(dict):
         self.path = path or self.path
         with open(self.path) as f:
             self._prev_dict = json.load(f)
-        for k, v in self._prev_dict.items():
+        for k, v in copy.deepcopy(self._prev_dict).items():
             if k not in self:
                 self[k] = v
 
