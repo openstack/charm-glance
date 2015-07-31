@@ -2,6 +2,7 @@ branch: lp:charm-helpers
 destination: hooks/charmhelpers
 include:
     - core
+    - cli
     - fetch
     - contrib.openstack|inc=*
     - contrib.hahelpers

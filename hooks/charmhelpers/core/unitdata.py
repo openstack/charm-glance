@@ -152,6 +152,7 @@ associated to the hookname.
 import collections
 import contextlib
 import datetime
+import itertools
 import json
 import os
 import pprint
@@ -164,8 +165,7 @@ __author__ = 'Kapil Thangavelu <kapil.foss@gmail.com>'
 class Storage(object):
     """Simple key value database for local unit state within charms.
 
-    Modifications are automatically committed at hook exit. That's
-    currently regardless of exit code.
+    Modifications are not persisted unless :meth:`flush` is called.
 
     To support dicts, lists, integer, floats, and booleans values
     are automatically json encoded/decoded.
@@ -173,8 +173,11 @@ class Storage(object):
     def __init__(self, path=None):
         self.db_path = path
         if path is None:
-            self.db_path = os.path.join(
-                os.environ.get('CHARM_DIR', ''), '.unit-state.db')
+            if 'UNIT_STATE_DB' in os.environ:
+                self.db_path = os.environ['UNIT_STATE_DB']
+            else:
+                self.db_path = os.path.join(
+                    os.environ.get('CHARM_DIR', ''), '.unit-state.db')
         self.conn = sqlite3.connect('%s' % self.db_path)
         self.cursor = self.conn.cursor()
         self.revision = None
@@ -189,15 +192,8 @@ class Storage(object):
         self.conn.close()
         self._closed = True
 
-    def _scoped_query(self, stmt, params=None):
-        if params is None:
-            params = []
-        return stmt, params
-
     def get(self, key, default=None, record=False):
-        self.cursor.execute(
-            *self._scoped_query(
-                'select data from kv where key=?', [key]))
+        self.cursor.execute('select data from kv where key=?', [key])
         result = self.cursor.fetchone()
         if not result:
             return default
@@ -206,33 +202,81 @@ class Storage(object):
         return json.loads(result[0])
 
     def getrange(self, key_prefix, strip=False):
-        stmt = "select key, data from kv where key like '%s%%'" % key_prefix
-        self.cursor.execute(*self._scoped_query(stmt))
+        """
+        Get a range of keys starting with a common prefix as a mapping of
+        keys to values.
+
+        :param str key_prefix: Common prefix among all keys
+        :param bool strip: Optionally strip the common prefix from the key
+            names in the returned dict
+        :return dict: A (possibly empty) dict of key-value mappings
+        """
+        self.cursor.execute("select key, data from kv where key like ?",
+                            ['%s%%' % key_prefix])
         result = self.cursor.fetchall()
 
         if not result:
-            return None
+            return {}
         if not strip:
             key_prefix = ''
         return dict([
             (k[len(key_prefix):], json.loads(v)) for k, v in result])
 
     def update(self, mapping, prefix=""):
+        """
+        Set the values of multiple keys at once.
+
+        :param dict mapping: Mapping of keys to values
+        :param str prefix: Optional prefix to apply to all keys in `mapping`
+            before setting
+        """
         for k, v in mapping.items():
             self.set("%s%s" % (prefix, k), v)
 
     def unset(self, key):
+        """
+        Remove a key from the database entirely.
+        """
         self.cursor.execute('delete from kv where key=?', [key])
         if self.revision and self.cursor.rowcount:
             self.cursor.execute(
                 'insert into kv_revisions values (?, ?, ?)',
                 [key, self.revision, json.dumps('DELETED')])
 
+    def unsetrange(self, keys=None, prefix=""):
+        """
+        Remove a range of keys starting with a common prefix, from the database
+        entirely.
+
+        :param list keys: List of keys to remove.
+        :param str prefix: Optional prefix to apply to all keys in ``keys``
+            before removing.
+        """
+        if keys is not None:
+            keys = ['%s%s' % (prefix, key) for key in keys]
+            self.cursor.execute('delete from kv where key in (%s)' % ','.join(['?'] * len(keys)), keys)
+            if self.revision and self.cursor.rowcount:
+                self.cursor.execute(
+                    'insert into kv_revisions values %s' % ','.join(['(?, ?, ?)'] * len(keys)),
+                    list(itertools.chain.from_iterable((key, self.revision, json.dumps('DELETED')) for key in keys)))
+        else:
+            self.cursor.execute('delete from kv where key like ?',
+                                ['%s%%' % prefix])
+            if self.revision and self.cursor.rowcount:
+                self.cursor.execute(
+                    'insert into kv_revisions values (?, ?, ?)',
+                    ['%s%%' % prefix, self.revision, json.dumps('DELETED')])
+
     def set(self, key, value):
+        """
+        Set a value in the database.
+
+        :param str key: Key to set the value for
+        :param value: Any JSON-serializable value to be set
+        """
         serialized = json.dumps(value)
 
-        self.cursor.execute(
-            'select data from kv where key=?', [key])
+        self.cursor.execute('select data from kv where key=?', [key])
         exists = self.cursor.fetchone()
 
         # Skip mutations to the same value
