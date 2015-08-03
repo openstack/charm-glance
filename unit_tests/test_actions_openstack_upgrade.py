@@ -25,13 +25,17 @@ class TestGlanceUpgradeActions(CharmTestCase):
     @patch.object(openstack_upgrade, 'action_set')
     @patch.object(openstack_upgrade, 'action_fail')
     @patch.object(openstack_upgrade, 'do_openstack_upgrade')
+    @patch.object(openstack_upgrade, 'openstack_upgrade_available')
     @patch.object(openstack_upgrade, 'config_changed')
     @patch('charmhelpers.contrib.openstack.utils.config')
     def test_openstack_upgrade(self, _config, config_changed,
+                               openstack_upgrade_available,
                                do_openstack_upgrade, action_fail,
                                action_set):
         _config.return_value = None
-        self.test_config.set('action_managed_upgrade', True)
+        openstack_upgrade_available.return_value = True
+
+        self.test_config.set('action-managed-upgrade', True)
 
         openstack_upgrade.openstack_upgrade()
 
@@ -41,53 +45,58 @@ class TestGlanceUpgradeActions(CharmTestCase):
         self.assertFalse(action_fail.called)
 
     @patch.object(openstack_upgrade, 'action_set')
-    @patch.object(openstack_upgrade, 'action_fail')
     @patch.object(openstack_upgrade, 'do_openstack_upgrade')
+    @patch.object(openstack_upgrade, 'openstack_upgrade_available')
     @patch.object(openstack_upgrade, 'config_changed')
     @patch('charmhelpers.contrib.openstack.utils.config')
     def test_openstack_upgrade_not_configured(self, _config, config_changed,
+                                              openstack_upgrade_available,
                                               do_openstack_upgrade,
-                                              action_fail, action_set):
+                                              action_set):
         _config.return_value = None
+        openstack_upgrade_available.return_value = True
+
         openstack_upgrade.openstack_upgrade()
 
-        msg = ('action_managed_upgrade set to false, OpenStack '
-               'upgrade aborted.')
-        action_fail.assert_called_with(msg)
+        msg = ('invalid config, skipped upgrade.')
+
+        action_set.assert_called_with({'outcome': msg})
         self.assertFalse(do_openstack_upgrade.called)
-        self.assertFalse(action_set.called)
 
     @patch.object(openstack_upgrade, 'action_set')
-    @patch.object(openstack_upgrade, 'action_fail')
     @patch.object(openstack_upgrade, 'do_openstack_upgrade')
+    @patch.object(openstack_upgrade, 'openstack_upgrade_available')
     @patch.object(openstack_upgrade, 'config_changed')
     @patch('charmhelpers.contrib.openstack.utils.config')
     def test_openstack_upgrade_git_install(self, _config, config_changed,
-                                           do_openstack_upgrade, action_fail,
+                                           openstack_upgrade_available,
+                                           do_openstack_upgrade,
                                            action_set):
 
-        self.test_config.set('action_managed_upgrade', True)
+        self.test_config.set('action-managed-upgrade', True)
         self.test_config.set('openstack-origin-git', True)
 
         openstack_upgrade.openstack_upgrade()
 
-        msg = ('Openstack upgrade failed to run due to charm being installed '
-               'from source.')
-        action_fail.assert_called_with(msg)
+        msg = ('installed from source, skipped upgrade.')
+        action_set.assert_called_with({'outcome': msg})
         self.assertFalse(do_openstack_upgrade.called)
-        self.assertFalse(action_set.called)
 
     @patch.object(openstack_upgrade, 'action_set')
     @patch.object(openstack_upgrade, 'action_fail')
     @patch.object(openstack_upgrade, 'do_openstack_upgrade')
+    @patch.object(openstack_upgrade, 'openstack_upgrade_available')
     @patch.object(openstack_upgrade, 'config_changed')
     @patch('traceback.format_exc')
     @patch('charmhelpers.contrib.openstack.utils.config')
     def test_openstack_upgrade_exception(self, _config, format_exc,
-                                         config_changed, do_openstack_upgrade,
+                                         config_changed,
+                                         openstack_upgrade_available,
+                                         do_openstack_upgrade,
                                          action_fail, action_set):
         _config.return_value = None
-        self.test_config.set('action_managed_upgrade', True)
+        self.test_config.set('action-managed-upgrade', True)
+        openstack_upgrade_available.return_value = True
 
         e = OSError('something bad happened')
         do_openstack_upgrade.side_effect = e

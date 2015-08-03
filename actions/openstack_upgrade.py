@@ -14,7 +14,8 @@ from glance_relations import config_changed
 
 from charmhelpers.contrib.openstack.utils import (
     juju_log,
-    git_install_requested
+    git_install_requested,
+    openstack_upgrade_available
 )
 
 from glance_utils import (
@@ -35,23 +36,24 @@ def openstack_upgrade():
     on config-changed."""
 
     if git_install_requested():
-        action_fail('Openstack upgrade failed to run due to charm being '
-                    'installed from source.')
+        action_set({'outcome': 'installed from source, skipped upgrade.'})
     else:
-        if config('action_managed_upgrade'):
-            juju_log('Upgrading OpenStack release')
+        if openstack_upgrade_available('glance-common'):
+            if config('action-managed-upgrade'):
+                juju_log('Upgrading OpenStack release')
 
-            try:
-                do_openstack_upgrade(CONFIGS)
-            except:
-                action_set({'traceback': traceback.format_exc()})
-                action_fail('do_openstack_upgrade resulted in an '
-                            'unexpected error')
+                try:
+                    do_openstack_upgrade(CONFIGS)
+                except:
+                    action_set({'traceback': traceback.format_exc()})
+                    action_fail('do_openstack_upgrade resulted in an '
+                                'unexpected error')
 
-            config_changed()
+                config_changed()
+            else:
+                action_set({'outcome': 'invalid config, skipped upgrade.'})
         else:
-            action_fail('action_managed_upgrade set to false, OpenStack '
-                        'upgrade aborted.')
+            action_set({'outcome': 'no upgrade available.'})
 
 if __name__ == '__main__':
     openstack_upgrade()
