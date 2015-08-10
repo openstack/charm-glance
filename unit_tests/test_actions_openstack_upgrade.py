@@ -41,7 +41,6 @@ class TestGlanceUpgradeActions(CharmTestCase):
 
         self.assertTrue(do_openstack_upgrade.called)
         self.assertTrue(config_changed.called)
-        self.assertFalse(action_set.called)
         self.assertFalse(action_fail.called)
 
     @patch.object(openstack_upgrade, 'action_set')
