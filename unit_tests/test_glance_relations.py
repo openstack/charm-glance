@@ -560,6 +560,15 @@ class GlanceRelationTests(CharmTestCase):
         self.assertTrue(self.do_openstack_upgrade.called)
         self.assertTrue(configure_https.called)
 
+    @patch.object(relations, 'git_install_requested')
+    def test_config_changed_with_openstack_upgrade_action(self, git_requested):
+        git_requested.return_value = False
+        self.openstack_upgrade_available.return_value = True
+        self.test_config.set('action-managed-upgrade', True)
+
+        relations.config_changed()
+        self.assertFalse(self.do_openstack_upgrade.called)
+
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'git_install_requested')
     @patch.object(relations, 'config_value_changed')

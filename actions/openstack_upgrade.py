@@ -44,7 +44,9 @@ def openstack_upgrade():
 
                 try:
                     do_openstack_upgrade(CONFIGS)
+                    action_set({'outcome': 'success, upgrade completed.'})
                 except:
+                    action_set({'outcome': 'upgrade failed, see traceback.'})
                     action_set({'traceback': traceback.format_exc()})
                     action_fail('do_openstack_upgrade resulted in an '
                                 'unexpected error')
