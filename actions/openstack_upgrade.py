@@ -53,7 +53,8 @@ def openstack_upgrade():
 
                 config_changed()
             else:
-                action_set({'outcome': 'invalid config, skipped upgrade.'})
+                action_set({'outcome': 'action-managed-upgrade config is '
+                                       'False, skipped upgrade.'})
         else:
             action_set({'outcome': 'no upgrade available.'})
 

@@ -57,7 +57,7 @@ class TestGlanceUpgradeActions(CharmTestCase):
 
         openstack_upgrade.openstack_upgrade()
 
-        msg = ('invalid config, skipped upgrade.')
+        msg = ('action-managed-upgrade config is False, skipped upgrade.')
 
         action_set.assert_called_with({'outcome': msg})
         self.assertFalse(do_openstack_upgrade.called)
