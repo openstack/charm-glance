@@ -237,9 +237,9 @@ options:
     type: boolean
     default: False
     description: |
-      If True enables openstack upgrades for this charm via juju actions. 
+      If True enables openstack upgrades for this charm via juju actions.
       You will still need to set the config variable for the openstack version
       but instead of an upgrade running automatically across all units, it will
-      wait for you to execute the openstack-upgrade action for this charm on each 
+      wait for you to execute the openstack-upgrade action for this charm on each
       unit. If False it will revert to existing behavior of upgrading all units on
-      config change. 
+      config change.
