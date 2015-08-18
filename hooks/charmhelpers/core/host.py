@@ -72,7 +72,7 @@ def service_pause(service_name, init_dir=None):
     stopped = service_stop(service_name)
     # XXX: Support systemd too
     override_path = os.path.join(
-        init_dir, '{}.conf.override'.format(service_name))
+        init_dir, '{}.override'.format(service_name))
     with open(override_path, 'w') as fh:
         fh.write("manual\n")
     return stopped
@@ -86,7 +86,7 @@ def service_resume(service_name, init_dir=None):
     if init_dir is None:
         init_dir = "/etc/init"
     override_path = os.path.join(
-        init_dir, '{}.conf.override'.format(service_name))
+        init_dir, '{}.override'.format(service_name))
     if os.path.exists(override_path):
         os.unlink(override_path)
     started = service_start(service_name)
@@ -146,6 +146,16 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False):
         subprocess.check_call(cmd)
         user_info = pwd.getpwnam(username)
     return user_info
+
+
+def user_exists(username):
+    """Check if a user exists"""
+    try:
+        pwd.getpwnam(username)
+        user_exists = True
+    except KeyError:
+        user_exists = False
+    return user_exists
 
 
 def add_group(group_name, system_group=False):
@@ -278,6 +288,17 @@ def mounts():
         system_mounts = [m[1::-1] for m in [l.strip().split()
                                             for l in f.readlines()]]
     return system_mounts
+
+
+def fstab_mount(mountpoint):
+    """Mount filesystem using fstab"""
+    cmd_args = ['mount', mountpoint]
+    try:
+        subprocess.check_output(cmd_args)
+    except subprocess.CalledProcessError as e:
+        log('Error unmounting {}\n{}'.format(mountpoint, e.output))
+        return False
+    return True
 
 
 def file_hash(path, hash_type='md5'):

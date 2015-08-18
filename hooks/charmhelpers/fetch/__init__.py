@@ -90,6 +90,14 @@ CLOUD_ARCHIVE_POCKETS = {
     'kilo/proposed': 'trusty-proposed/kilo',
     'trusty-kilo/proposed': 'trusty-proposed/kilo',
     'trusty-proposed/kilo': 'trusty-proposed/kilo',
+    # Liberty
+    'liberty': 'trusty-updates/liberty',
+    'trusty-liberty': 'trusty-updates/liberty',
+    'trusty-liberty/updates': 'trusty-updates/liberty',
+    'trusty-updates/liberty': 'trusty-updates/liberty',
+    'liberty/proposed': 'trusty-proposed/liberty',
+    'trusty-liberty/proposed': 'trusty-proposed/liberty',
+    'trusty-proposed/liberty': 'trusty-proposed/liberty',
 }
 
 # The order of this list is very important. Handlers should be listed in from

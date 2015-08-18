@@ -14,19 +14,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
-"""
-This module loads sub-modules into the python runtime so they can be
-discovered via the inspect module. In order to prevent flake8 from (rightfully)
-telling us these are unused modules, throw a ' # noqa' at the end of each import
-so that the warning is suppressed.
-"""
+from . import cmdline
+from charmhelpers.core import hookenv
 
-from . import CommandLine  # noqa
 
-"""
-Import the sub-modules which have decorated subcommands to register with chlp.
-"""
-from . import host  # noqa
-from . import benchmark  # noqa
-from . import unitdata  # noqa
-from . import hookenv  # noqa
+cmdline.subcommand('relation-id')(hookenv.relation_id._wrapped)
+cmdline.subcommand('service-name')(hookenv.service_name)
+cmdline.subcommand('remote-service-name')(hookenv.remote_service_name._wrapped)

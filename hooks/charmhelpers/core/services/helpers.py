@@ -16,7 +16,9 @@
 
 import os
 import yaml
+
 from charmhelpers.core import hookenv
+from charmhelpers.core import host
 from charmhelpers.core import templating
 
 from charmhelpers.core.services.base import ManagerCallback
@@ -240,27 +242,41 @@ class TemplateCallback(ManagerCallback):
 
     :param str source: The template source file, relative to
         `$CHARM_DIR/templates`
+
     :param str target: The target to write the rendered template to
     :param str owner: The owner of the rendered file
     :param str group: The group of the rendered file
     :param int perms: The permissions of the rendered file
-
+    :param partial on_change_action: functools partial to be executed when
+                                     rendered file changes
     """
     def __init__(self, source, target,
-                 owner='root', group='root', perms=0o444):
+                 owner='root', group='root', perms=0o444,
+                 on_change_action=None):
         self.source = source
         self.target = target
         self.owner = owner
         self.group = group
         self.perms = perms
+        self.on_change_action = on_change_action
 
     def __call__(self, manager, service_name, event_name):
+        pre_checksum = ''
+        if self.on_change_action and os.path.isfile(self.target):
+            pre_checksum = host.file_hash(self.target)
         service = manager.get_service(service_name)
         context = {}
         for ctx in service.get('required_data', []):
             context.update(ctx)
         templating.render(self.source, self.target, context,
                           self.owner, self.group, self.perms)
+        if self.on_change_action:
+            if pre_checksum == host.file_hash(self.target):
+                hookenv.log(
+                    'No change detected: {}'.format(self.target),
+                    hookenv.DEBUG)
+            else:
+                self.on_change_action()
 
 
 # Convenience aliases for templates

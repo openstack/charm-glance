@@ -152,15 +152,11 @@ class CommandLine(object):
         arguments = self.argument_parser.parse_args()
         argspec = inspect.getargspec(arguments.func)
         vargs = []
-        kwargs = {}
         for arg in argspec.args:
             vargs.append(getattr(arguments, arg))
         if argspec.varargs:
             vargs.extend(getattr(arguments, argspec.varargs))
-        if argspec.keywords:
-            for kwarg in argspec.keywords.items():
-                kwargs[kwarg] = getattr(arguments, kwarg)
-        output = arguments.func(*vargs, **kwargs)
+        output = arguments.func(*vargs)
         if getattr(arguments.func, '_cli_test_command', False):
             self.exit_code = 0 if output else 1
             output = ''
