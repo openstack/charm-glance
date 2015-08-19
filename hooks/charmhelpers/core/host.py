@@ -417,25 +417,80 @@ def pwgen(length=None):
     return(''.join(random_chars))
 
 
-def list_nics(nic_type):
+def is_phy_iface(interface):
+    """Returns True if interface is not virtual, otherwise False."""
+    if interface:
+        sys_net = '/sys/class/net'
+        if os.path.isdir(sys_net):
+            for iface in glob.glob(os.path.join(sys_net, '*')):
+                if '/virtual/' in os.path.realpath(iface):
+                    continue
+
+                if interface == os.path.basename(iface):
+                    return True
+
+    return False
+
+
+def get_bond_master(interface):
+    """Returns bond master if interface is bond slave otherwise None.
+
+    NOTE: the provided interface is expected to be physical
+    """
+    if interface:
+        iface_path = '/sys/class/net/%s' % (interface)
+        if os.path.exists(iface_path):
+            if '/virtual/' in os.path.realpath(iface_path):
+                return None
+
+            master = os.path.join(iface_path, 'master')
+            if os.path.exists(master):
+                master = os.path.realpath(master)
+                # make sure it is a bond master
+                if os.path.exists(os.path.join(master, 'bonding')):
+                    return os.path.basename(master)
+
+    return None
+
+
+def list_nics(nic_type=None):
     '''Return a list of nics of given type(s)'''
     if isinstance(nic_type, six.string_types):
         int_types = [nic_type]
     else:
         int_types = nic_type
+
     interfaces = []
-    for int_type in int_types:
-        cmd = ['ip', 'addr', 'show', 'label', int_type + '*']
+    if nic_type:
+        for int_type in int_types:
+            cmd = ['ip', 'addr', 'show', 'label', int_type + '*']
+            ip_output = subprocess.check_output(cmd).decode('UTF-8')
+            ip_output = ip_output.split('\n')
+            ip_output = (line for line in ip_output if line)
+            for line in ip_output:
+                if line.split()[1].startswith(int_type):
+                    matched = re.search('.*: (' + int_type +
+                                        r'[0-9]+\.[0-9]+)@.*', line)
+                    if matched:
+                        iface = matched.groups()[0]
+                    else:
+                        iface = line.split()[1].replace(":", "")
+
+                    if iface not in interfaces:
+                        interfaces.append(iface)
+    else:
+        cmd = ['ip', 'a']
         ip_output = subprocess.check_output(cmd).decode('UTF-8').split('\n')
-        ip_output = (line for line in ip_output if line)
+        ip_output = (line.strip() for line in ip_output if line)
+
+        key = re.compile('^[0-9]+:\s+(.+):')
         for line in ip_output:
-            if line.split()[1].startswith(int_type):
-                matched = re.search('.*: (' + int_type + r'[0-9]+\.[0-9]+)@.*', line)
-                if matched:
-                    interface = matched.groups()[0]
-                else:
-                    interface = line.split()[1].replace(":", "")
-                interfaces.append(interface)
+            matched = re.search(key, line)
+            if matched:
+                iface = matched.group(1)
+                iface = iface.partition("@")[0]
+                if iface not in interfaces:
+                    interfaces.append(iface)
 
     return interfaces
 
