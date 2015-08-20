@@ -485,13 +485,15 @@ class CephContext(OSContextGenerator):
 
         log('Generating template context for ceph', level=DEBUG)
         mon_hosts = []
-        auth = None
-        key = None
-        use_syslog = str(config('use-syslog')).lower()
+        ctxt = {
+            'use_syslog': str(config('use-syslog')).lower()
+        }
         for rid in relation_ids('ceph'):
             for unit in related_units(rid):
-                auth = relation_get('auth', rid=rid, unit=unit)
-                key = relation_get('key', rid=rid, unit=unit)
+                if not ctxt.get('auth'):
+                    ctxt['auth'] = relation_get('auth', rid=rid, unit=unit)
+                if not ctxt.get('key'):
+                    ctxt['key'] = relation_get('key', rid=rid, unit=unit)
                 ceph_pub_addr = relation_get('ceph-public-address', rid=rid,
                                              unit=unit)
                 unit_priv_addr = relation_get('private-address', rid=rid,
@@ -500,10 +502,7 @@ class CephContext(OSContextGenerator):
                 ceph_addr = format_ipv6_addr(ceph_addr) or ceph_addr
                 mon_hosts.append(ceph_addr)
 
-        ctxt = {'mon_hosts': ' '.join(sorted(mon_hosts)),
-                'auth': auth,
-                'key': key,
-                'use_syslog': use_syslog}
+        ctxt['mon_hosts'] = ' '.join(sorted(mon_hosts))
 
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
