@@ -254,32 +254,25 @@ def ceph_changed():
         return
 
     settings = relation_get()
-    cluster_rid = relation_ids('cluster')[0]
-    pending_request = relation_get(attribute='broker_rq_id', unit=local_unit(), rid=cluster_rid)
- 
     if settings and 'broker_rsp' in settings:
         rsp = CephBrokerRsp(settings['broker_rsp'])
-        # Non-zero return code implies failure
-        if rsp.exit_code:
-            juju_log("Ceph broker request failed (rc=%s, msg=%s)" %
-                     (rsp.exit_code, rsp.exit_msg), level=ERROR)
+        if rsp.validate_request_id() == rsp.VALID:
+            if rsp.exit_code:
+                juju_log("Ceph broker request failed (rc=%s, msg=%s)" %
+                         (rsp.exit_code, rsp.exit_msg), level=ERROR)
+                return
+            CONFIGS.write(GLANCE_API_CONF)
+            CONFIGS.write(ceph_config_file())
+            # Ensure that glance-api is restarted since only now can we
+            # guarantee that ceph resources are ready.
+            service_restart('glance-api')
+        else:
+            # I would have set an id so if one is absent rq wasn't from me
             return
-        if rsp.req_id and rsp.req_id != pending_request:
-            juju_log("Request id from ceph ({}) does not match pending request ({})".format(rsp.req_id, pending_request))
-            return
-        juju_log("Ceph broker request succeeded (rc=%s, msg=%s)" %
-                 (rsp.exit_code, rsp.exit_msg), level=INFO)
-        CONFIGS.write(GLANCE_API_CONF)
-        CONFIGS.write(ceph_config_file())
-        # Ensure that glance-api is restarted since only now can we
-        # guarantee that ceph resources are ready.
-        service_restart('glance-api')
-        relation_set(relation_id=cluster_rid, broker_rq_id=None)
     else:
         rq = CephBrokerRq()
         replicas = config('ceph-osd-replication-count')
         rq.add_op_create_pool(name=service, replica_count=replicas)
-        relation_set(relation_id=cluster_rid, broker_rq_id=rq.rq_id)
         for rid in relation_ids('ceph'):
             relation_set(relation_id=rid, broker_req=rq.request)
             juju_log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
