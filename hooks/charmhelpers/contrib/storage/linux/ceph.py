@@ -463,10 +463,14 @@ class CephBrokerRsp(object):
             pending_request = json.loads(pending_request_raw)
             pending_request_id = pending_request.get('request-id')
         if not self.request_id:
+            log('Request has no request-id'.format(svc), level=DEBUG)
             # back compat
             return self.ABSENT
 
         if pending_request_id and self.request_id != pending_request_id:
+            log('request-id {} does not match expected request-id '
+                '{}'.format(self.request_id, pending_request_id), level=DEBUG)
             return self.INVALID
 
+        log('request-id {} is expected'.format(self.request_id)
         return self.VALID
