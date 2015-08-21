@@ -472,5 +472,5 @@ class CephBrokerRsp(object):
                 '{}'.format(self.request_id, pending_request_id), level=DEBUG)
             return self.INVALID
 
-        log('request-id {} is expected'.format(self.request_id)
+        log('request-id {} is expected'.format(self.request_id))
         return self.VALID
