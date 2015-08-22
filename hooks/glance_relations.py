@@ -66,6 +66,7 @@ from charmhelpers.contrib.openstack.utils import (
     sync_db_with_multi_ipv6_addresses,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
+    duplicate_broker_requests,
     ensure_ceph_keyring,
     CephBrokerRq,
     CephBrokerRsp,
@@ -254,13 +255,15 @@ def ceph_changed():
         return
 
     settings = relation_get()
-    if settings and 'broker_rsp' in settings:
-        rsp = CephBrokerRsp(settings['broker_rsp'])
+    broker_rsp_key = 'broker_rsp_' + local_unit().replace('/', '-')
+    if settings and broker_rsp_key in settings:
+        rsp = CephBrokerRsp(settings[broker_rsp_key])
         if rsp.validate_request_id() == rsp.VALID:
             if rsp.exit_code:
                 juju_log("Ceph broker request failed (rc=%s, msg=%s)" %
                          (rsp.exit_code, rsp.exit_msg), level=ERROR)
                 return
+            juju_log("Ceph Broker request was sucessfully processed")
             CONFIGS.write(GLANCE_API_CONF)
             CONFIGS.write(ceph_config_file())
             # Ensure that glance-api is restarted since only now can we
@@ -274,8 +277,12 @@ def ceph_changed():
         replicas = config('ceph-osd-replication-count')
         rq.add_op_create_pool(name=service, replica_count=replicas)
         for rid in relation_ids('ceph'):
-            relation_set(relation_id=rid, broker_req=rq.request)
-            juju_log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
+            previous_request = relation_get(attribute='broker_req', rid=rid, unit=local_unit())
+            if duplicate_broker_requests(previous_request, rq.request):
+                juju_log("Request not sent to  ceph broker, it is a duplicate of previos request")
+            else:
+                relation_set(relation_id=rid, broker_req=rq.request)
+                juju_log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
 
 
 @hooks.hook('ceph-relation-broken')
