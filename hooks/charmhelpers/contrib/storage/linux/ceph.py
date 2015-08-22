@@ -476,23 +476,43 @@ class CephBrokerRsp(object):
         log('request-id {} is expected'.format(self.request_id))
         return self.VALID
 
+def request_state(request_needed):
+    complete = []
+    issued = {}
+    request_state = {}
+    for rid in relation_ids('ceph'):
+        complete = False
+        previous_request = relation_get(attribute='broker_req', rid=rid, unit=local_unit())
+        sent = equivalent_broker_requests(previous_request, request_needed.request)
+        if sent:
+            complete = broker_request_completed(previous_request, rid)
+        else:
+            complete = False
+        request_state[rid] = {
+            'sent': sent,
+            'complete': complete,
+        }
+    return request_state
+
+def request_sent(request_needed):
+    states = request_state(request_needed)
+    for rid in states.keys():
+        if not states[rid]['sent']:
+            return False
+    return True
+
 def request_complete(request_needed):
-    return broker_request_completed(request_needed.request) 
-#    request_needed = get_ceph_request()
-#    previous_request = relation_get(attribute='broker_req', rid=rid, unit=local_unit())
-#    if equivalent_broker_requests(previous_request, request_needed.request):
-#        if broker_request_completed(previous_request):
-#            return True
-#    else:
-#        return False
+    states = request_state(request_needed)
+    for rid in states.keys():
+        if not states[rid]['complete']:
+            return False
+    return True
 
 def equivalent_broker_requests(encoded_req1, encoded_req2):
     if not encoded_req1 or not encoded_req2:
         return False
     req1 = json.loads(encoded_req1)
     req2 = json.loads(encoded_req2)
-    print req1
-    print req2
     if len(req1['ops']) != len(req2['ops']):
         return False
     for req_no in range(0,len(req1['ops'])):
@@ -501,19 +521,26 @@ def equivalent_broker_requests(encoded_req1, encoded_req2):
                 return False
     return True
 
-def broker_request_completed(encoded_req):
-# XX This needs work to fallback to broker_rq without unit name
+def broker_request_completed(encoded_req, rid):
+    # XXX This needs work to fallback to broker_rq without unit name
     req = json.loads(encoded_req)
     broker_key = get_broker_rsp_key()
-    for rid in relation_ids('ceph'):
-        for unit in related_units(rid):
-            rdata = relation_get(attribute=broker_key, rid=rid, unit=unit)
-            if rdata:
-                rsp = CephBrokerRsp(rdata)        
-                if rsp.request_id == req.get('request-id'):
-                    if not rsp.exit_code:
-                        return True
+    for unit in related_units(rid):
+        rdata = relation_get(attribute=broker_key, rid=rid, unit=unit)
+        if rdata:
+            rsp = CephBrokerRsp(rdata)        
+            if rsp.request_id == req.get('request-id'):
+                if not rsp.exit_code:
+                    return True
     return False
 
 def get_broker_rsp_key():
     return 'broker_rsp_' + local_unit().replace('/', '-')
+
+def send_request_if_needed(rq):
+    if request_sent(get_ceph_request()):
+        juju_log('Request already sent but not complete, not sending new request')
+    else:
+        for rid in relation_ids('ceph'):
+            juju_log('Sending request {}'.format(rq.request_id))
+            relation_set(relation_id=rid, broker_req=rq.request)
