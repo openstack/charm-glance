@@ -40,6 +40,7 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     related_units,
+    remote_unit,
     log,
     DEBUG,
     INFO,
@@ -474,3 +475,14 @@ class CephBrokerRsp(object):
 
         log('request-id {} is expected'.format(self.request_id))
         return self.VALID
+
+def duplicate_broker_requests(encoded_req1, encoded_req2):
+    req1 = json.loads(encoded_req1)
+    req2 = json.loads(encoded_req2)
+    if len(req1['ops']) != len(req2['ops']):
+        return False
+    for req_no in range(0,len(req1['ops'])):
+        for key in ['replicas', 'name', 'op']:
+            if req1['ops'][req_no][key] != req2['ops'][req_no][key]:
+                return False
+    return True
