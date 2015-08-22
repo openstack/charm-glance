@@ -476,11 +476,23 @@ class CephBrokerRsp(object):
         log('request-id {} is expected'.format(self.request_id))
         return self.VALID
 
-def duplicate_broker_requests(encoded_req1, encoded_req2):
+def request_complete(request_needed):
+    return broker_request_completed(request_needed.request) 
+#    request_needed = get_ceph_request()
+#    previous_request = relation_get(attribute='broker_req', rid=rid, unit=local_unit())
+#    if equivalent_broker_requests(previous_request, request_needed.request):
+#        if broker_request_completed(previous_request):
+#            return True
+#    else:
+#        return False
+
+def equivalent_broker_requests(encoded_req1, encoded_req2):
     if not encoded_req1 or not encoded_req2:
         return False
     req1 = json.loads(encoded_req1)
     req2 = json.loads(encoded_req2)
+    print req1
+    print req2
     if len(req1['ops']) != len(req2['ops']):
         return False
     for req_no in range(0,len(req1['ops'])):
@@ -490,15 +502,17 @@ def duplicate_broker_requests(encoded_req1, encoded_req2):
     return True
 
 def broker_request_completed(encoded_req):
+# XX This needs work to fallback to broker_rq without unit name
     req = json.loads(encoded_req)
     broker_key = get_broker_rsp_key()
     for rid in relation_ids('ceph'):
         for unit in related_units(rid):
             rdata = relation_get(attribute=broker_key, rid=rid, unit=unit)
             if rdata:
-                rsp = CephBrokerRsp(rdata)
-                if not rsp.exit_code:
-                    return True
+                rsp = CephBrokerRsp(rdata)        
+                if rsp.request_id == req.get('request-id'):
+                    if not rsp.exit_code:
+                        return True
     return False
 
 def get_broker_rsp_key():
