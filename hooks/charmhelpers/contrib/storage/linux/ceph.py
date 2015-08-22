@@ -488,3 +488,18 @@ def duplicate_broker_requests(encoded_req1, encoded_req2):
             if req1['ops'][req_no][key] != req2['ops'][req_no][key]:
                 return False
     return True
+
+def broker_request_completed(encoded_req):
+    req = json.loads(encoded_req)
+    broker_key = get_broker_rsp_key()
+    for rid in relation_ids('ceph'):
+        for unit in related_units(rid):
+            rdata = relation_get(attribute=broker_key, rid=rid, unit=unit)
+            if rdata:
+                rsp = CephBrokerRsp(rdata)
+                if not rsp.exit_code:
+                    return True
+    return False
+
+def get_broker_rsp_key():
+    return 'broker_rsp_' + local_unit().replace('/', '-')
