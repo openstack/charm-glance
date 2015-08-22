@@ -477,6 +477,8 @@ class CephBrokerRsp(object):
         return self.VALID
 
 def duplicate_broker_requests(encoded_req1, encoded_req2):
+    if not encoded_req1 or not encoded_req2:
+        return False
     req1 = json.loads(encoded_req1)
     req2 = json.loads(encoded_req2)
     if len(req1['ops']) != len(req2['ops']):
