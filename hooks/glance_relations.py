@@ -67,6 +67,8 @@ from charmhelpers.contrib.openstack.utils import (
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     duplicate_broker_requests,
+    broker_request_completed,
+    get_broker_rsp_key,
     ensure_ceph_keyring,
     CephBrokerRq,
     CephBrokerRsp,
@@ -255,7 +257,7 @@ def ceph_changed():
         return
 
     settings = relation_get()
-    broker_rsp_key = 'broker_rsp_' + local_unit().replace('/', '-')
+    broker_rsp_key = get_broker_rsp_key()
     if settings and broker_rsp_key in settings:
         rsp = CephBrokerRsp(settings[broker_rsp_key])
         if rsp.validate_request_id() == rsp.VALID:
@@ -279,7 +281,10 @@ def ceph_changed():
         for rid in relation_ids('ceph'):
             previous_request = relation_get(attribute='broker_req', rid=rid, unit=local_unit())
             if duplicate_broker_requests(previous_request, rq.request):
-                juju_log("Request not sent to  ceph broker, it is a duplicate of previos request")
+                if broker_request_completed(previous_request):
+                    CONFIGS.write(GLANCE_API_CONF)
+                    CONFIGS.write(ceph_config_file())
+                juju_log("Request not sent to  ceph broker, it is a duplicate of previous request")
             else:
                 relation_set(relation_id=rid, broker_req=rq.request)
                 juju_log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
