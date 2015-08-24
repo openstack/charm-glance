@@ -39,6 +39,7 @@ from charmhelpers.core.hookenv import (
     local_unit,
     relation_get,
     relation_ids,
+    relation_set,
     related_units,
     remote_unit,
     log,
@@ -476,10 +477,11 @@ class CephBrokerRsp(object):
         log('request-id {} is expected'.format(self.request_id))
         return self.VALID
 
-def request_state(request_needed):
+def request_states(request_needed):
+    """Return dict showing if a request has been sent and completed per rid"""
     complete = []
     issued = {}
-    request_state = {}
+    requests = {}
     for rid in relation_ids('ceph'):
         complete = False
         previous_request = relation_get(attribute='broker_req', rid=rid, unit=local_unit())
@@ -488,27 +490,30 @@ def request_state(request_needed):
             complete = broker_request_completed(previous_request, rid)
         else:
             complete = False
-        request_state[rid] = {
+        requests[rid] = {
             'sent': sent,
             'complete': complete,
         }
-    return request_state
+    return requests
 
 def request_sent(request_needed):
-    states = request_state(request_needed)
+    """Check to see if a matching request has been sent""" 
+    states = request_states(request_needed)
     for rid in states.keys():
         if not states[rid]['sent']:
             return False
     return True
 
 def request_complete(request_needed):
-    states = request_state(request_needed)
+    """Check to see if a matching request has been completed""" 
+    states = request_states(request_needed)
     for rid in states.keys():
         if not states[rid]['complete']:
             return False
     return True
 
 def equivalent_broker_requests(encoded_req1, encoded_req2):
+    """Check to see if two requests are equivalent (ignore request id)"""
     if not encoded_req1 or not encoded_req2:
         return False
     req1 = json.loads(encoded_req1)
@@ -522,25 +527,41 @@ def equivalent_broker_requests(encoded_req1, encoded_req2):
     return True
 
 def broker_request_completed(encoded_req, rid):
-    # XXX This needs work to fallback to broker_rq without unit name
+    """Check if a given request has been completed on the given relation"""
     req = json.loads(encoded_req)
     broker_key = get_broker_rsp_key()
     for unit in related_units(rid):
-        rdata = relation_get(attribute=broker_key, rid=rid, unit=unit)
-        if rdata:
-            rsp = CephBrokerRsp(rdata)        
+        rdata = relation_get(rid=rid, unit=unit)
+        if rdata.get(broker_key):
+            rsp = CephBrokerRsp(rdata.get(broker_key))
             if rsp.request_id == req.get('request-id'):
                 if not rsp.exit_code:
                     return True
+        else:
+            # The remote unit sent no reply targeted at this unit so either the
+            # remote ceph cluster does not support unit targeted replies or it
+            # has not processed our request yet.
+            if rdata.get('broker_rsp'):
+                if rdata.get('unit-targeted-reponses'):
+                    log('Ignoring legacy broker_rsp without unit key as remote '
+                        'service supports unit specific replies')
+                else:
+                    log('Using legacy broker_rsp as remote service does not '
+                        'supports unit specific replies')
+                    rsp = CephBrokerRsp(rdata['broker_rsp'])
+                    if not rsp.exit_code:
+                        return True
     return False
 
 def get_broker_rsp_key():
-    return 'broker_rsp_' + local_unit().replace('/', '-')
+    """Return broker request key for this unit"""
+    return 'broker-rsp-' + local_unit().replace('/', '-')
 
 def send_request_if_needed(rq):
-    if request_sent(get_ceph_request()):
-        juju_log('Request already sent but not complete, not sending new request')
+    """Send broker request if one has not already been sent"""
+    if request_sent(rq):
+        log('Request already sent but not complete, not sending new request')
     else:
         for rid in relation_ids('ceph'):
-            juju_log('Sending request {}'.format(rq.request_id))
+            log('Sending request {}'.format(rq.request_id))
             relation_set(relation_id=rid, broker_req=rq.request)
