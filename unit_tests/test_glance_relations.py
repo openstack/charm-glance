@@ -86,11 +86,10 @@ class GlanceRelationTests(CharmTestCase):
         relations.install_hook()
         self.configure_installation_source.assert_called_with(repo)
         self.apt_update.assert_called_with(fatal=True)
-        self.apt_install.assert_called_with(['haproxy', 'python-six', 'uuid',
-                                             'python-mysqldb', 'apache2',
-                                             'python-psycopg2', 'glance',
-                                             'python-keystone',
-                                             'python-swiftclient'], fatal=True)
+        self.apt_install.assert_called_with(
+            ['apache2', 'glance', 'haproxy', 'python-keystone',
+             'python-mysqldb', 'python-psycopg2', 'python-six',
+             'python-swiftclient', 'uuid'], fatal=True)
         self.assertTrue(self.execd_preinstall.called)
         self.git_install.assert_called_with(None)
 
@@ -128,17 +127,12 @@ class GlanceRelationTests(CharmTestCase):
         self.assertTrue(self.execd_preinstall.called)
         self.configure_installation_source.assert_called_with(repo)
         self.apt_update.assert_called_with(fatal=True)
-        self.apt_install.assert_called_with(['haproxy', 'python-setuptools',
-                                             'python-six', 'uuid',
-                                             'python-mysqldb',
-                                             'libmysqlclient-dev',
-                                             'libssl-dev', 'libffi-dev',
-                                             'apache2', 'python-pip',
-                                             'libxslt1-dev', 'libyaml-dev',
-                                             'python-psycopg2',
-                                             'zlib1g-dev', 'python-dev',
-                                             'libxml2-dev'],
-                                            fatal=True)
+        self.apt_install.assert_called_with(
+            ['apache2', 'haproxy', 'libffi-dev', 'libmysqlclient-dev',
+             'libssl-dev', 'libxml2-dev', 'libxslt1-dev', 'libyaml-dev',
+             'python-dev', 'python-mysqldb', 'python-pip', 'python-psycopg2',
+             'python-setuptools', 'python-six', 'uuid', 'zlib1g-dev'],
+            fatal=True)
         self.git_install.assert_called_with(projects_yaml)
 
     def test_db_joined(self):
@@ -475,8 +469,9 @@ class GlanceRelationTests(CharmTestCase):
     @patch('charmhelpers.contrib.openstack.ip.is_clustered')
     @patch('charmhelpers.contrib.openstack.ip.unit_get')
     @patch('charmhelpers.contrib.openstack.ip.config')
-    def test_keystone_joined_public_endpoint(self, _config, _unit_get,
-                                             _is_clustered):
+    @patch('charmhelpers.contrib.openstack.ip.resolve_address')
+    def test_keystone_joined_public_endpoint(self, _resolve_address, _config,
+                                             _unit_get, _is_clustered):
         _unit_get.return_value = 'glancehost'
         _is_clustered.return_value = False
         self.test_config.set('os-public-hostname', 'glance.example.com')
