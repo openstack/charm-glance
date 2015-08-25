@@ -29,7 +29,6 @@ from charmhelpers.core.hookenv import (
     config,
     Hooks,
     log as juju_log,
-    INFO,
     ERROR,
     open_port,
     is_relation_made,
@@ -67,13 +66,9 @@ from charmhelpers.contrib.openstack.utils import (
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
-    broker_request_completed,
-    get_broker_rsp_key,
     request_complete,
-    request_sent,
     ensure_ceph_keyring,
     CephBrokerRq,
-    CephBrokerRsp,
     delete_keyring,
 )
 from charmhelpers.payload.execd import (
@@ -275,7 +270,7 @@ def ceph_changed():
         service_restart('glance-api')
     else:
         send_request_if_needed(get_ceph_request())
-        
+
 
 @hooks.hook('ceph-relation-broken')
 def ceph_broken():
