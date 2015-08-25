@@ -227,15 +227,13 @@ def register_configs():
 #                  mysql might be restarting or suchlike.
 @retry_on_exception(5, base_delay=3, exc_type=subprocess.CalledProcessError)
 def determine_packages():
-    packages = [] + PACKAGES
+    packages = set(PACKAGES)
 
     if git_install_requested():
-        packages.extend(BASE_GIT_PACKAGES)
-        # don't include packages that will be installed from git
-        for p in GIT_PACKAGE_BLACKLIST:
-            packages.remove(p)
+        packages |= set(BASE_GIT_PACKAGES)
+        packages -= set(GIT_PACKAGE_BLACKLIST)
 
-    return list(set(packages))
+    return sorted(packages)
 
 
 def migrate_database():

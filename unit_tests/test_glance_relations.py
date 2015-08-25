@@ -468,7 +468,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch('charmhelpers.contrib.openstack.ip.is_clustered')
     @patch('charmhelpers.contrib.openstack.ip.unit_get')
-    @patch('charmhelpers.contrib.openstack.ip.config')
+    @patch('charmhelpers.core.hookenv.config')
     @patch('charmhelpers.contrib.openstack.ip.resolve_address')
     def test_keystone_joined_public_endpoint(self, _resolve_address, _config,
                                              _unit_get, _is_clustered):
