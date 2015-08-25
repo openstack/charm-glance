@@ -6,7 +6,7 @@ from subprocess import (
     check_call,
 )
 
-from glance_utils import (
+from hooks.glance_utils import (
     do_openstack_upgrade,
     git_install,
     migrate_database,
