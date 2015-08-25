@@ -1,5 +1,4 @@
 from mock import call, patch, MagicMock
-import json
 import os
 import yaml
 
@@ -398,42 +397,43 @@ class GlanceRelationTests(CharmTestCase):
             'Could not create ceph keyring: peer not ready?'
         )
 
-    @patch("glance_relations.relation_set")
-    @patch("glance_relations.relation_get")
+    @patch("glance_relations.get_ceph_request")
+    @patch("glance_relations.send_request_if_needed")
+    @patch("glance_relations.request_complete")
     @patch.object(relations, 'CONFIGS')
-    def test_ceph_changed_broker_send_rq(self, configs, mock_relation_get,
-                                         mock_relation_set):
-        configs.complete_contexts.return_value = ['ceph']
+    def test_ceph_changed_broker_send_rq(self, configs, mock_request_complete,
+                                         mock_send_request_if_needed,
+                                         mock_get_ceph_request):
         self.service_name.return_value = 'glance'
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['ceph']
+        mock_get_ceph_request.return_value = 'cephrq'
         self.ensure_ceph_keyring.return_value = True
-        self.relation_ids.return_value = ['ceph:0']
+        mock_request_complete.return_value = False
         relations.hooks.execute(['hooks/ceph-relation-changed'])
         self.ensure_ceph_keyring.assert_called_with(service='glance',
                                                     user='glance',
                                                     group='glance')
-        req = {'api-version': 1,
-               'ops': [{"op": "create-pool", "name": "glance", "replicas": 3}]}
-        broker_dict = json.dumps(req)
-        mock_relation_set.assert_called_with(broker_req=broker_dict,
-                                             relation_id='ceph:0')
         for c in [call('/etc/glance/glance.conf')]:
             self.assertNotIn(c, configs.write.call_args_list)
 
-    @patch("charmhelpers.core.host.service")
-    @patch("glance_relations.relation_get", autospec=True)
+    @patch("glance_relations.get_ceph_request")
+    @patch("glance_relations.send_request_if_needed")
+    @patch("glance_relations.request_complete")
     @patch.object(relations, 'CONFIGS')
-    def test_ceph_changed_with_key_and_relation_data(self, configs,
-                                                     mock_relation_get,
-                                                     mock_service):
+    def test_ceph_changed_key_and_relation_data(self, configs,
+                                                mock_request_complete,
+                                                mock_send_request_if_needed,
+                                                mock_service):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['ceph']
         configs.write = MagicMock()
         self.ensure_ceph_keyring.return_value = True
-        mock_relation_get.return_value = {'broker_rsp':
-                                          json.dumps({'exit-code': 0})}
+        mock_request_complete.return_value = True
+        self.ceph_config_file.return_value = '/etc/ceph/ceph.conf'
         relations.ceph_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
-                           call(self.ceph_config_file())],
+                           call('/etc/ceph/ceph.conf')],
                           configs.write.call_args_list)
         self.service_restart.assert_called_with('glance-api')
 
