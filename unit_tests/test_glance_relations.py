@@ -6,7 +6,7 @@ import yaml
 from test_utils import CharmTestCase
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
-import glance_utils as utils
+import hooks.glance_utils as utils
 
 _reg = utils.register_configs
 _map = utils.restart_map
@@ -14,7 +14,7 @@ _map = utils.restart_map
 utils.register_configs = MagicMock()
 utils.restart_map = MagicMock()
 
-import glance_relations as relations
+import hooks.glance_relations as relations
 
 relations.hooks._config_save = False
 
@@ -47,7 +47,7 @@ TO_PATCH = [
     'openstack_upgrade_available',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'is_elected_leader',
-    # glance_utils
+    # hooks.glance_utils
     'restart_map',
     'register_configs',
     'do_openstack_upgrade',
@@ -398,8 +398,8 @@ class GlanceRelationTests(CharmTestCase):
             'Could not create ceph keyring: peer not ready?'
         )
 
-    @patch("glance_relations.relation_set")
-    @patch("glance_relations.relation_get")
+    @patch("hooks.glance_relations.relation_set")
+    @patch("hooks.glance_relations.relation_get")
     @patch.object(relations, 'CONFIGS')
     def test_ceph_changed_broker_send_rq(self, configs, mock_relation_get,
                                          mock_relation_set):
@@ -420,7 +420,7 @@ class GlanceRelationTests(CharmTestCase):
             self.assertNotIn(c, configs.write.call_args_list)
 
     @patch("charmhelpers.core.host.service")
-    @patch("glance_relations.relation_get", autospec=True)
+    @patch("hooks.glance_relations.relation_get", autospec=True)
     @patch.object(relations, 'CONFIGS')
     def test_ceph_changed_with_key_and_relation_data(self, configs,
                                                      mock_relation_get,

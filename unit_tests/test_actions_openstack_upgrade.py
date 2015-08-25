@@ -3,8 +3,7 @@ import os
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
 
-with patch('hooks.glance_utils.register_configs') as register_configs:
-    register_configs.return_value = None
+with patch('glance_utils.register_configs') as register_configs:
     import openstack_upgrade
 
 from test_utils import (
