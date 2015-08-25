@@ -1,8 +1,6 @@
 #!/usr/bin/python
-import sys
-import traceback
 
-sys.path.append('hooks/')
+import traceback
 
 from charmhelpers.contrib.openstack.utils import (
     git_install_requested,
@@ -14,11 +12,11 @@ from charmhelpers.core.hookenv import (
     config,
 )
 
-from glance_utils import (
+from hooks.glance_utils import (
     git_install,
 )
 
-from glance_relations import (
+from hooks.glance_relations import (
     config_changed,
 )
 
