@@ -41,7 +41,6 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     relation_set,
     related_units,
-    remote_unit,
     log,
     DEBUG,
     INFO,
@@ -437,9 +436,6 @@ class CephBrokerRsp(object):
 
     The API is versioned and defaults to version 1.
     """
-    VALID = 0
-    ABSENT = 1
-    INVALID = 2
 
     def __init__(self, encoded_rsp):
         self.api_version = None
@@ -457,30 +453,10 @@ class CephBrokerRsp(object):
     def exit_msg(self):
         return self.rsp.get('stderr')
 
-    def validate_request_id(self):
-        pending_request_id = None
-        pending_request_raw = relation_get(attribute='broker_req',
-                                           unit=local_unit())
-        if pending_request_raw:
-            pending_request = json.loads(pending_request_raw)
-            pending_request_id = pending_request.get('request-id')
-        if not self.request_id:
-            log('Request has no request-id'.format(svc), level=DEBUG)
-            # back compat
-            return self.ABSENT
-
-        if pending_request_id and self.request_id != pending_request_id:
-            log('request-id {} does not match expected request-id '
-                '{}'.format(self.request_id, pending_request_id), level=DEBUG)
-            return self.INVALID
-
-        log('request-id {} is expected'.format(self.request_id))
-        return self.VALID
 
 def request_states(request_needed):
     """Return dict showing if a request has been sent and completed per rid"""
     complete = []
-    issued = {}
     requests = {}
     for rid in relation_ids('ceph'):
         complete = False
@@ -496,21 +472,24 @@ def request_states(request_needed):
         }
     return requests
 
+
 def request_sent(request_needed):
-    """Check to see if a matching request has been sent""" 
+    """Check to see if a matching request has been sent"""
     states = request_states(request_needed)
     for rid in states.keys():
         if not states[rid]['sent']:
             return False
     return True
 
+
 def request_complete(request_needed):
-    """Check to see if a matching request has been completed""" 
+    """Check to see if a matching request has been completed"""
     states = request_states(request_needed)
     for rid in states.keys():
         if not states[rid]['complete']:
             return False
     return True
+
 
 def equivalent_broker_requests(encoded_req1, encoded_req2):
     """Check to see if two requests are equivalent (ignore request id)"""
@@ -520,11 +499,12 @@ def equivalent_broker_requests(encoded_req1, encoded_req2):
     req2 = json.loads(encoded_req2)
     if len(req1['ops']) != len(req2['ops']):
         return False
-    for req_no in range(0,len(req1['ops'])):
+    for req_no in range(0, len(req1['ops'])):
         for key in ['replicas', 'name', 'op']:
             if req1['ops'][req_no][key] != req2['ops'][req_no][key]:
                 return False
     return True
+
 
 def broker_request_completed(encoded_req, rid):
     """Check if a given request has been completed on the given relation"""
@@ -553,9 +533,11 @@ def broker_request_completed(encoded_req, rid):
                         return True
     return False
 
+
 def get_broker_rsp_key():
     """Return broker request key for this unit"""
     return 'broker-rsp-' + local_unit().replace('/', '-')
+
 
 def send_request_if_needed(rq):
     """Send broker request if one has not already been sent"""
