@@ -2,3 +2,7 @@ git-reinstall:
   description: Reinstall glance from the openstack-origin-git repositories.
 openstack-upgrade:
   description: Perform openstack upgrades. Config option action-managed-upgrade must be set to True.
+pause:
+  description: Pause glance service.
+resume:
+  description: Resume glance service.
