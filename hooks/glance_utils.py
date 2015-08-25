@@ -4,7 +4,7 @@ import os
 import shutil
 import subprocess
 
-import glance_contexts
+from hooks import glance_contexts
 
 from collections import OrderedDict
 
