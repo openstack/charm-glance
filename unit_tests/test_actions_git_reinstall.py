@@ -3,8 +3,9 @@ import os
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
 
-with patch('hooks.glance_utils.register_configs') as register_configs:
-    from actions import git_reinstall
+with patch('charmhelpers.core.hookenv.config') as config:
+    with patch('hooks.glance_utils.register_configs') as register_configs:
+        from actions import git_reinstall
 
 from test_utils import (
     CharmTestCase
@@ -35,10 +36,9 @@ class TestGlanceActions(CharmTestCase):
     @patch.object(git_reinstall, 'action_fail')
     @patch.object(git_reinstall, 'git_install')
     @patch.object(git_reinstall, 'config_changed')
-    @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_git_reinstall(self, _config, config_changed, git_install,
-                           action_fail, action_set):
-        _config.return_value = openstack_origin_git
+    def test_git_reinstall(self, config_changed, git_install, action_fail,
+                           action_set):
+        config.return_value = openstack_origin_git
         self.test_config.set('openstack-origin-git', openstack_origin_git)
 
         git_reinstall.git_reinstall()
@@ -53,11 +53,9 @@ class TestGlanceActions(CharmTestCase):
     @patch.object(git_reinstall, 'action_fail')
     @patch.object(git_reinstall, 'git_install')
     @patch.object(git_reinstall, 'config_changed')
-    @patch('charmhelpers.contrib.openstack.config')
-    def test_git_reinstall_not_configured(self, _config, config_changed,
-                                          git_install, action_fail,
-                                          action_set):
-        _config.return_value = None
+    def test_git_reinstall_not_configured(self, config_changed, git_install,
+                                          action_fail, action_set):
+        config.return_value = None
 
         git_reinstall.git_reinstall()
 
@@ -71,11 +69,9 @@ class TestGlanceActions(CharmTestCase):
     @patch.object(git_reinstall, 'git_install')
     @patch.object(git_reinstall, 'config_changed')
     @patch('traceback.format_exc')
-    @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_git_reinstall_exception(self, _config, format_exc,
-                                     config_changed, git_install, action_fail,
-                                     action_set):
-        _config.return_value = openstack_origin_git
+    def test_git_reinstall_exception(self, format_exc, config_changed,
+                                     git_install, action_fail, action_set):
+        config.return_value = openstack_origin_git
         e = OSError('something bad happened')
         git_install.side_effect = e
         traceback = (
