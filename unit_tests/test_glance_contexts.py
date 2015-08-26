@@ -1,5 +1,8 @@
-from hooks import glance_contexts as contexts
 from mock import patch, MagicMock
+
+with patch('charmhelpers.core.hookenv.config') as config:
+    from hooks import glance_contexts as contexts
+
 
 from test_utils import (
     CharmTestCase
@@ -85,21 +88,17 @@ class TestGlanceContexts(CharmTestCase):
         self.assertTrue(mock_https.called)
         mock_unit_get.assert_called_with('private-address')
 
-    @patch('charmhelpers.contrib.openstack.context.config')
     @patch('hooks.glance_contexts.config')
-    def test_glance_ipv6_context_service_enabled(self, mock_config,
-                                                 mock_context_config):
-        mock_config.return_value = True
+    def test_glance_ipv6_context_service_enabled(self, mock_context_config):
+        config.return_value = True
         mock_context_config.return_value = True
         ctxt = contexts.GlanceIPv6Context()
         self.assertEquals(ctxt(), {'bind_host': '::',
                                    'registry_host': '[::]'})
 
-    @patch('charmhelpers.contrib.openstack.context.config')
     @patch('hooks.glance_contexts.config')
-    def test_glance_ipv6_context_service_disabled(self, mock_config,
-                                                  mock_context_config):
-        mock_config.return_value = False
+    def test_glance_ipv6_context_service_disabled(self, mock_context_config):
+        config.return_value = False
         mock_context_config.return_value = False
         ctxt = contexts.GlanceIPv6Context()
         self.assertEquals(ctxt(), {'bind_host': '0.0.0.0',
