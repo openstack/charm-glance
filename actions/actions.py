@@ -6,7 +6,7 @@ import os
 from charmhelpers.core.host import service_pause, service_resume
 from charmhelpers.core.hookenv import action_fail, status_set
 
-from hooks.glance_utils import SERVICES
+from hooks.glance_utils import services
 
 
 def pause(args):
@@ -14,7 +14,7 @@ def pause(args):
 
     @raises Exception if any services fail to stop
     """
-    for service in SERVICES:
+    for service in services():
         stopped = service_pause(service)
         if not stopped:
             raise Exception("{} didn't stop cleanly.".format(service))
@@ -27,7 +27,7 @@ def resume(args):
 
     @raises Exception if any services fail to start
     """
-    for service in SERVICES:
+    for service in services():
         started = service_resume(service)
         if not started:
             raise Exception("{} didn't start cleanly.".format(service))
