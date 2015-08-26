@@ -25,7 +25,9 @@ class PauseTestCase(CharmTestCase):
         self.service_pause.side_effect = fake_service_pause
 
         actions.actions.pause([])
-        self.assertEqual(pause_calls, ['glance-api', 'glance-registry'])
+        self.assertItemsEqual(
+            pause_calls,
+            ['glance-api', 'glance-registry', 'haproxy', 'apache2'])
 
     def test_bails_out_early_on_error(self):
         """Pause action fails early if there are errors stopping a service."""
@@ -42,7 +44,7 @@ class PauseTestCase(CharmTestCase):
         self.assertRaisesRegexp(
             Exception, "glance-registry didn't stop cleanly.",
             actions.actions.pause, [])
-        self.assertEqual(pause_calls, ['glance-api'])
+        self.assertEqual(pause_calls, ['haproxy', 'glance-api'])
 
     def test_status_mode(self):
         """Pause action sets the status to maintenance."""
@@ -81,7 +83,9 @@ class ResumeTestCase(CharmTestCase):
 
         self.service_resume.side_effect = fake_service_resume
         actions.actions.resume([])
-        self.assertEqual(resume_calls, ['glance-api', 'glance-registry'])
+        self.assertItemsEqual(
+            resume_calls,
+            ['glance-api', 'glance-registry', 'haproxy', 'apache2'])
 
     def test_bails_out_early_on_error(self):
         """Resume action fails early if there are errors starting a service."""
@@ -98,7 +102,7 @@ class ResumeTestCase(CharmTestCase):
         self.assertRaisesRegexp(
             Exception, "glance-registry didn't start cleanly.",
             actions.actions.resume, [])
-        self.assertEqual(resume_calls, ['glance-api'])
+        self.assertEqual(resume_calls, ['haproxy', 'glance-api'])
 
     def test_status_mode(self):
         """Resume action sets the status to maintenance."""
