@@ -466,16 +466,14 @@ class GlanceRelationTests(CharmTestCase):
         }
         self.relation_set.assert_called_with(**ex)
 
-    @patch('charmhelpers.contrib.openstack.ip.is_clustered')
-    @patch('charmhelpers.contrib.openstack.ip.unit_get')
-    @patch('charmhelpers.core.hookenv.config')
-    @patch('charmhelpers.contrib.openstack.ip.resolve_address')
-    def test_keystone_joined_public_endpoint(self, _resolve_address, _config,
-                                             _unit_get, _is_clustered):
-        _unit_get.return_value = 'glancehost'
-        _is_clustered.return_value = False
+    @patch.object(relations, 'canonical_url')
+    def test_keystone_joined_public_endpoint(self, _canonical_url):
+        def fake_canonical_url(configs, endpoint_type):
+            return {"public": "http://glance.example.com",
+                    "int": "http://glancehost",
+                    "admin": "http://glancehost"}[endpoint_type]
+        _canonical_url.side_effect = fake_canonical_url
         self.test_config.set('os-public-hostname', 'glance.example.com')
-        _config.side_effect = self.test_config.get
         relations.keystone_joined()
         ex = {
             'region': 'RegionOne',
