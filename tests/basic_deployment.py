@@ -28,6 +28,8 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
     relations, service status, endpoint service catalog, create and
     delete new image."""
 
+    SERVICES = ('glance-api', 'glance-registry')
+
     def __init__(self, series=None, openstack=None, source=None, git=False,
                  stable=False):
         """Deploy the entire test environment."""
@@ -39,6 +41,20 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         self._configure_services()
         self._deploy()
         self._initialize_tests()
+
+    def _assert_services(self, should_run):
+        u.get_unit_process_ids(
+            {self.glance_sentry: self.services}, expect_success=should_run)
+
+    def get_service_overrides(self, unit):
+        """
+        Return a dict mapping service names to a boolean indicating whether
+        an override file exists for that service.
+        """
+        init_contents = unit.directory_contents("/etc/init/")
+        return {
+            service: "{}.override".format(service) in init_contents["files"]
+            for service in self.SERVICES}
 
     def _add_services(self):
         """Add services
@@ -526,15 +542,12 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         # Config file affected by juju set config change
         conf_file = '/etc/glance/glance-api.conf'
 
-        # Services which are expected to restart upon config change
-        services = ['glance-api', 'glance-registry']
-
         # Make config change, check for service restarts
         u.log.debug('Making config change on {}...'.format(juju_service))
         self.d.configure(juju_service, set_alternate)
 
         sleep_time = 30
-        for s in services:
+        for s in self.SERVICES:
             u.log.debug("Checking that service restarted: {}".format(s))
             if not u.service_restarted(sentry, s,
                                        conf_file, sleep_time=sleep_time):
@@ -544,3 +557,21 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             sleep_time = 0
 
         self.d.configure(juju_service, set_default)
+
+    def test_901_pause_resume(self):
+        """Test pause and resume actions."""
+        unit_name = "glance/0"
+        unit = self.d.sentry.unit[unit_name]
+        self._assert_services(should_run=True)
+        action_id = u.run_action(unit, "pause")
+        assert u.wait_on_action(action_id), "Pause action failed."
+
+        self._assert_services(should_run=False)
+        assert all(self.get_service_overrides(unit).itervalues()), \
+            "Not all override files were created."
+
+        action_id = u.run_action(unit, "resume")
+        assert u.wait_on_action(action_id), "Resume action failed"
+        assert not any(self.get_service_overrides(unit).itervalues()), \
+            "Not all override files were removed."
+        self._assert_services(should_run=True)
