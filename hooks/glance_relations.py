@@ -6,7 +6,7 @@ from subprocess import (
     check_call,
 )
 
-from hooks.glance_utils import (
+from .glance_utils import (
     do_openstack_upgrade,
     git_install,
     migrate_database,
@@ -89,6 +89,8 @@ from charmhelpers.contrib.openstack.context import (
     ADDRESS_TYPES
 )
 from charmhelpers.contrib.charmsupport import nrpe
+
+print register_configs.__module__
 
 
 hooks = Hooks()

@@ -4,7 +4,7 @@ import os
 os.environ['JUJU_UNIT_NAME'] = 'glance'
 
 with patch('charmhelpers.core.hookenv.config') as config:
-    with patch('hooks.glance_utils.register_configs') as register_configs:
+    with patch('actions.hooks.glance_utils.register_configs') as register_configs:
         from actions import git_reinstall
 
 from test_utils import (
