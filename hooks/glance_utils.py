@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from itertools import chain
 
-from .import glance_contexts
+import glance_contexts
 
 from collections import OrderedDict
 
