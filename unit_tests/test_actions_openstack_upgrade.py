@@ -68,11 +68,12 @@ class TestGlanceUpgradeActions(CharmTestCase):
     @patch.object(openstack_upgrade, 'do_openstack_upgrade')
     @patch.object(openstack_upgrade, 'openstack_upgrade_available')
     @patch.object(openstack_upgrade, 'config_changed')
-    def test_openstack_upgrade_git_install(self, config_changed,
+    @patch.object(openstack_upgrade, 'git_install_requested')
+    def test_openstack_upgrade_git_install(self, git_install_requested,
+                                           config_changed,
                                            openstack_upgrade_available,
                                            do_openstack_upgrade, action_set):
-        self.test_config.set('action-managed-upgrade', True)
-        self.test_config.set('openstack-origin-git', True)
+        git_install_requested.return_value = True
 
         openstack_upgrade.openstack_upgrade()
 
