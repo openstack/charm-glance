@@ -3,8 +3,9 @@ import os
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
 
-with patch('hooks.glance_utils.register_configs'):
-    from actions import openstack_upgrade
+with patch('actions.hooks.glance_utils.register_configs'):
+    with patch('hooks.glance_utils.register_configs'):
+        from actions import openstack_upgrade
 
 from test_utils import (
     CharmTestCase
@@ -27,12 +28,12 @@ class TestGlanceUpgradeActions(CharmTestCase):
     @patch.object(openstack_upgrade, 'do_openstack_upgrade')
     @patch.object(openstack_upgrade, 'openstack_upgrade_available')
     @patch.object(openstack_upgrade, 'config_changed')
-    @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_openstack_upgrade(self, _config, config_changed,
+    @patch('subprocess.check_output')
+    def test_openstack_upgrade(self, _check_output, config_changed,
                                openstack_upgrade_available,
                                do_openstack_upgrade, action_fail,
                                action_set):
-        _config.return_value = None
+        _check_output.return_value = 'null'
         openstack_upgrade_available.return_value = True
 
         self.test_config.set('action-managed-upgrade', True)
@@ -47,12 +48,13 @@ class TestGlanceUpgradeActions(CharmTestCase):
     @patch.object(openstack_upgrade, 'do_openstack_upgrade')
     @patch.object(openstack_upgrade, 'openstack_upgrade_available')
     @patch.object(openstack_upgrade, 'config_changed')
-    @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_openstack_upgrade_not_configured(self, _config, config_changed,
+    @patch('subprocess.check_output')
+    def test_openstack_upgrade_not_configured(self, _check_output,
+                                              config_changed,
                                               openstack_upgrade_available,
                                               do_openstack_upgrade,
                                               action_set):
-        _config.return_value = None
+        _check_output.return_value = 'null'
         openstack_upgrade_available.return_value = True
 
         openstack_upgrade.openstack_upgrade()
@@ -66,12 +68,9 @@ class TestGlanceUpgradeActions(CharmTestCase):
     @patch.object(openstack_upgrade, 'do_openstack_upgrade')
     @patch.object(openstack_upgrade, 'openstack_upgrade_available')
     @patch.object(openstack_upgrade, 'config_changed')
-    @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_openstack_upgrade_git_install(self, _config, config_changed,
+    def test_openstack_upgrade_git_install(self, config_changed,
                                            openstack_upgrade_available,
-                                           do_openstack_upgrade,
-                                           action_set):
-
+                                           do_openstack_upgrade, action_set):
         self.test_config.set('action-managed-upgrade', True)
         self.test_config.set('openstack-origin-git', True)
 
@@ -87,7 +86,7 @@ class TestGlanceUpgradeActions(CharmTestCase):
     @patch.object(openstack_upgrade, 'openstack_upgrade_available')
     @patch.object(openstack_upgrade, 'config_changed')
     @patch('traceback.format_exc')
-    @patch('charmhelpers.contrib.openstack.utils.config')
+    @patch('charmhelpers.core.hookenv.config')
     def test_openstack_upgrade_exception(self, _config, format_exc,
                                          config_changed,
                                          openstack_upgrade_available,
