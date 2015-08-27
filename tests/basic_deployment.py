@@ -55,7 +55,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         init_contents = unit.directory_contents("/etc/init/")
         return {
             service: "{}.override".format(service) in init_contents["files"]
-            for service in self.SERVICES},
+            for service in self.SERVICES}
 
     def _add_services(self):
         """Add services
