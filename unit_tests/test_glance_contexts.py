@@ -81,7 +81,7 @@ class TestGlanceContexts(CharmTestCase):
                                    'ext_ports': [9282],
                                    'namespace': 'glance'})
 
-    @patch("charmhelpers.core.hookenv.subprocess.check_output")
+    @patch("subprocess.check_output")
     def test_glance_ipv6_context_service_enabled(self, mock_subprocess):
         self.config.return_value = True
         mock_subprocess.return_value = 'true'
@@ -89,7 +89,7 @@ class TestGlanceContexts(CharmTestCase):
         self.assertEquals(ctxt(), {'bind_host': '::',
                                    'registry_host': '[::]'})
 
-    @patch("charmhelpers.core.hookenv.subprocess.check_output")
+    @patch("subprocess.check_output")
     def test_glance_ipv6_context_service_disabled(self, mock_subprocess):
         self.config.return_value = False
         mock_subprocess.return_value = 'false'
