@@ -3,6 +3,13 @@ git-reinstall:
 openstack-upgrade:
   description: Perform openstack upgrades. Config option action-managed-upgrade must be set to True.
 pause:
-  description: Pause glance service.
+  description: |
+    Pause glance services.
+    If the glance deployment is clustered using the hacluster charm, the
+    corresponding hacluster unit on the node must first be paused as well.
+    Not doing so may lead to an interruption of service.
 resume:
-  description: Resume glance service.
+  description: |
+    Resume glance services.
+    If the glance deployment is clustered using the hacluster charm, the
+    corresponding hacluster unit on the node must be resumed as well.
