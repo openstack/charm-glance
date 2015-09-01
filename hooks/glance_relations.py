@@ -90,8 +90,6 @@ from charmhelpers.contrib.openstack.context import (
 )
 from charmhelpers.contrib.charmsupport import nrpe
 
-print register_configs.__module__
-
 
 hooks = Hooks()
 CONFIGS = register_configs()
