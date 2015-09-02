@@ -105,7 +105,7 @@ class ResumeTestCase(CharmTestCase):
         self.assertEqual(resume_calls, ['haproxy', 'glance-api'])
 
     def test_status_mode(self):
-        """Resume action sets the status to maintenance."""
+        """Resume action sets the status to active."""
         status_calls = []
         self.status_set.side_effect = lambda state, msg: status_calls.append(
             state)
