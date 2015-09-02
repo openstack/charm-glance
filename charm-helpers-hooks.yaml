@@ -1,5 +1,5 @@
 branch: lp:charm-helpers
-destination: hooks/charmhelpers
+destination: charmhelpers
 include:
     - core
     - cli

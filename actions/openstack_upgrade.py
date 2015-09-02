@@ -1,8 +1,7 @@
 #!/usr/bin/python
-import sys
+
 import traceback
 
-sys.path.append('hooks/')
 
 from charmhelpers.core.hookenv import (
     action_set,
@@ -10,7 +9,7 @@ from charmhelpers.core.hookenv import (
     config
 )
 
-from glance_relations import config_changed
+from hooks.glance_relations import config_changed
 
 from charmhelpers.contrib.openstack.utils import (
     juju_log,
@@ -18,7 +17,7 @@ from charmhelpers.contrib.openstack.utils import (
     openstack_upgrade_available
 )
 
-from glance_utils import (
+from hooks.glance_utils import (
     do_openstack_upgrade,
     register_configs
 )

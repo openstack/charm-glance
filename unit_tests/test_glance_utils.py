@@ -4,7 +4,9 @@ from collections import OrderedDict
 import os
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
-import glance_utils as utils
+
+with patch('charmhelpers.core.hookenv.config') as config:
+    import hooks.glance_utils as utils
 
 from test_utils import (
     CharmTestCase,
@@ -131,16 +133,16 @@ class TestGlanceUtils(CharmTestCase):
         ])
         self.assertEquals(ex_map, utils.restart_map())
 
-    @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_determine_packages(self, _config):
-        _config.return_value = None
+    @patch.object(utils, 'git_install_requested')
+    def test_determine_packages(self, git_install_requested):
+        git_install_requested.return_value = False
         result = utils.determine_packages()
         ex = utils.PACKAGES
         self.assertEquals(set(ex), set(result))
 
-    @patch('charmhelpers.contrib.openstack.utils.config')
-    def test_determine_packages_git(self, _config):
-        _config.return_value = openstack_origin_git
+    @patch.object(utils, 'git_install_requested')
+    def test_determine_packages_git(self, git_install_requested):
+        git_install_requested.return_value = True
         result = utils.determine_packages()
         ex = utils.PACKAGES + utils.BASE_GIT_PACKAGES
         for p in utils.GIT_PACKAGE_BLACKLIST:

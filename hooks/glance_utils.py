@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+from itertools import chain
 
 import glance_contexts
 
@@ -227,15 +228,13 @@ def register_configs():
 #                  mysql might be restarting or suchlike.
 @retry_on_exception(5, base_delay=3, exc_type=subprocess.CalledProcessError)
 def determine_packages():
-    packages = [] + PACKAGES
+    packages = set(PACKAGES)
 
     if git_install_requested():
-        packages.extend(BASE_GIT_PACKAGES)
-        # don't include packages that will be installed from git
-        for p in GIT_PACKAGE_BLACKLIST:
-            packages.remove(p)
+        packages |= set(BASE_GIT_PACKAGES)
+        packages -= set(GIT_PACKAGE_BLACKLIST)
 
-    return list(set(packages))
+    return sorted(packages)
 
 
 def migrate_database():
@@ -296,11 +295,8 @@ def restart_map():
 
 
 def services():
-    ''' Returns a list of services associate with this charm '''
-    _services = []
-    for v in restart_map().values():
-        _services = _services + v
-    return list(set(_services))
+    ''' Returns a list of (unique) services associate with this charm '''
+    return list(set(chain(*restart_map().values())))
 
 
 def setup_ipv6():

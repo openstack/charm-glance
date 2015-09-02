@@ -6,7 +6,7 @@ import yaml
 from test_utils import CharmTestCase
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
-import glance_utils as utils
+import hooks.glance_utils as utils
 
 _reg = utils.register_configs
 _map = utils.restart_map
@@ -14,7 +14,7 @@ _map = utils.restart_map
 utils.register_configs = MagicMock()
 utils.restart_map = MagicMock()
 
-import glance_relations as relations
+import hooks.glance_relations as relations
 
 relations.hooks._config_save = False
 
@@ -47,7 +47,7 @@ TO_PATCH = [
     'openstack_upgrade_available',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'is_elected_leader',
-    # glance_utils
+    # hooks.glance_utils
     'restart_map',
     'register_configs',
     'do_openstack_upgrade',
@@ -86,11 +86,10 @@ class GlanceRelationTests(CharmTestCase):
         relations.install_hook()
         self.configure_installation_source.assert_called_with(repo)
         self.apt_update.assert_called_with(fatal=True)
-        self.apt_install.assert_called_with(['haproxy', 'python-six', 'uuid',
-                                             'python-mysqldb', 'apache2',
-                                             'python-psycopg2', 'glance',
-                                             'python-keystone',
-                                             'python-swiftclient'], fatal=True)
+        self.apt_install.assert_called_with(
+            ['apache2', 'glance', 'haproxy', 'python-keystone',
+             'python-mysqldb', 'python-psycopg2', 'python-six',
+             'python-swiftclient', 'uuid'], fatal=True)
         self.assertTrue(self.execd_preinstall.called)
         self.git_install.assert_called_with(None)
 
@@ -128,17 +127,12 @@ class GlanceRelationTests(CharmTestCase):
         self.assertTrue(self.execd_preinstall.called)
         self.configure_installation_source.assert_called_with(repo)
         self.apt_update.assert_called_with(fatal=True)
-        self.apt_install.assert_called_with(['haproxy', 'python-setuptools',
-                                             'python-six', 'uuid',
-                                             'python-mysqldb',
-                                             'libmysqlclient-dev',
-                                             'libssl-dev', 'libffi-dev',
-                                             'apache2', 'python-pip',
-                                             'libxslt1-dev', 'libyaml-dev',
-                                             'python-psycopg2',
-                                             'zlib1g-dev', 'python-dev',
-                                             'libxml2-dev'],
-                                            fatal=True)
+        self.apt_install.assert_called_with(
+            ['apache2', 'haproxy', 'libffi-dev', 'libmysqlclient-dev',
+             'libssl-dev', 'libxml2-dev', 'libxslt1-dev', 'libyaml-dev',
+             'python-dev', 'python-mysqldb', 'python-pip', 'python-psycopg2',
+             'python-setuptools', 'python-six', 'uuid', 'zlib1g-dev'],
+            fatal=True)
         self.git_install.assert_called_with(projects_yaml)
 
     def test_db_joined(self):
@@ -398,8 +392,8 @@ class GlanceRelationTests(CharmTestCase):
             'Could not create ceph keyring: peer not ready?'
         )
 
-    @patch("glance_relations.relation_set")
-    @patch("glance_relations.relation_get")
+    @patch("hooks.glance_relations.relation_set")
+    @patch("hooks.glance_relations.relation_get")
     @patch.object(relations, 'CONFIGS')
     def test_ceph_changed_broker_send_rq(self, configs, mock_relation_get,
                                          mock_relation_set):
@@ -420,7 +414,7 @@ class GlanceRelationTests(CharmTestCase):
             self.assertNotIn(c, configs.write.call_args_list)
 
     @patch("charmhelpers.core.host.service")
-    @patch("glance_relations.relation_get", autospec=True)
+    @patch("hooks.glance_relations.relation_get", autospec=True)
     @patch.object(relations, 'CONFIGS')
     def test_ceph_changed_with_key_and_relation_data(self, configs,
                                                      mock_relation_get,
@@ -472,15 +466,14 @@ class GlanceRelationTests(CharmTestCase):
         }
         self.relation_set.assert_called_with(**ex)
 
-    @patch('charmhelpers.contrib.openstack.ip.is_clustered')
-    @patch('charmhelpers.contrib.openstack.ip.unit_get')
-    @patch('charmhelpers.contrib.openstack.ip.config')
-    def test_keystone_joined_public_endpoint(self, _config, _unit_get,
-                                             _is_clustered):
-        _unit_get.return_value = 'glancehost'
-        _is_clustered.return_value = False
+    @patch.object(relations, 'canonical_url')
+    def test_keystone_joined_public_endpoint(self, _canonical_url):
+        def fake_canonical_url(configs, endpoint_type):
+            return {"public": "http://glance.example.com",
+                    "int": "http://glancehost",
+                    "admin": "http://glancehost"}[endpoint_type]
+        _canonical_url.side_effect = fake_canonical_url
         self.test_config.set('os-public-hostname', 'glance.example.com')
-        _config.side_effect = self.test_config.get
         relations.keystone_joined()
         ex = {
             'region': 'RegionOne',
