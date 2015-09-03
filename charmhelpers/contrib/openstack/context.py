@@ -895,6 +895,18 @@ class NeutronContext(OSContextGenerator):
                 'neutron_url': '%s://%s:%s' % (proto, host, '9696')}
         return ctxt
 
+    def pg_ctxt(self):
+        driver = neutron_plugin_attribute(self.plugin, 'driver',
+                                          self.network_manager)
+        config = neutron_plugin_attribute(self.plugin, 'config',
+                                          self.network_manager)
+        ovs_ctxt = {'core_plugin': driver,
+                    'neutron_plugin': 'plumgrid',
+                    'neutron_security_groups': self.neutron_security_groups,
+                    'local_ip': unit_private_ip(),
+                    'config': config}
+        return ovs_ctxt
+
     def __call__(self):
         if self.network_manager not in ['quantum', 'neutron']:
             return {}
@@ -914,6 +926,8 @@ class NeutronContext(OSContextGenerator):
             ctxt.update(self.calico_ctxt())
         elif self.plugin == 'vsp':
             ctxt.update(self.nuage_ctxt())
+        elif self.plugin == 'plumgrid':
+            ctxt.update(self.pg_ctxt())
 
         alchemy_flags = config('neutron-alchemy-flags')
         if alchemy_flags:

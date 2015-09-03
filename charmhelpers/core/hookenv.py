@@ -767,21 +767,23 @@ def status_set(workload_state, message):
 
 
 def status_get():
-    """Retrieve the previously set juju workload state
+    """Retrieve the previously set juju workload state and message
 
-    If the status-set command is not found then assume this is juju < 1.23 and
-    return 'unknown'
+    If the status-get command is not found then assume this is juju < 1.23 and
+    return 'unknown', ""
+
     """
-    cmd = ['status-get']
+    cmd = ['status-get', "--format=json", "--include-data"]
     try:
-        raw_status = subprocess.check_output(cmd, universal_newlines=True)
-        status = raw_status.rstrip()
-        return status
+        raw_status = subprocess.check_output(cmd)
     except OSError as e:
         if e.errno == errno.ENOENT:
-            return 'unknown'
+            return ('unknown', "")
         else:
             raise
+    else:
+        status = json.loads(raw_status.decode("UTF-8"))
+        return (status["status"], status["message"])
 
 
 def translate_exc(from_exc, to_exc):

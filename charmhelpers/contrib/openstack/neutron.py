@@ -195,6 +195,20 @@ def neutron_plugins():
             'packages': [],
             'server_packages': ['neutron-server', 'neutron-plugin-nuage'],
             'server_services': ['neutron-server']
+        },
+        'plumgrid': {
+            'config': '/etc/neutron/plugins/plumgrid/plumgrid.ini',
+            'driver': 'neutron.plugins.plumgrid.plumgrid_plugin.plumgrid_plugin.NeutronPluginPLUMgridV2',
+            'contexts': [
+                context.SharedDBContext(user=config('database-user'),
+                                        database=config('database'),
+                                        ssl_dir=NEUTRON_CONF_DIR)],
+            'services': [],
+            'packages': [['plumgrid-lxc'],
+                         ['iovisor-dkms']],
+            'server_packages': ['neutron-server',
+                                'neutron-plugin-plumgrid'],
+            'server_services': ['neutron-server']
         }
     }
     if release >= 'icehouse':

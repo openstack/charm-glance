@@ -435,8 +435,12 @@ def get_hostname(address, fqdn=True):
 
         rev = dns.reversename.from_address(address)
         result = ns_query(rev)
+
         if not result:
-            return None
+            try:
+                result = socket.gethostbyaddr(address)[0]
+            except:
+                return None
     else:
         result = address
 
