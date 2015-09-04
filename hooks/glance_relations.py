@@ -66,7 +66,7 @@ from charmhelpers.contrib.openstack.utils import (
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
-    request_complete,
+    is_request_complete,
     ensure_ceph_keyring,
     CephBrokerRq,
     delete_keyring,
