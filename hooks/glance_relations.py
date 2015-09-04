@@ -261,7 +261,7 @@ def ceph_changed():
         juju_log('Could not create ceph keyring: peer not ready?')
         return
 
-    if request_complete(get_ceph_request()):
+    if is_request_complete(get_ceph_request()):
         juju_log('Request complete')
         CONFIGS.write(GLANCE_API_CONF)
         CONFIGS.write(ceph_config_file())
