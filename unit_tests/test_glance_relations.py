@@ -399,7 +399,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch("glance_relations.get_ceph_request")
     @patch("glance_relations.send_request_if_needed")
-    @patch("glance_relations.request_complete")
+    @patch("glance_relations.is_request_complete")
     @patch.object(relations, 'CONFIGS')
     def test_ceph_changed_broker_send_rq(self, configs, mock_request_complete,
                                          mock_send_request_if_needed,
@@ -419,7 +419,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch("glance_relations.get_ceph_request")
     @patch("glance_relations.send_request_if_needed")
-    @patch("glance_relations.request_complete")
+    @patch("glance_relations.is_request_complete")
     @patch.object(relations, 'CONFIGS')
     def test_ceph_changed_key_and_relation_data(self, configs,
                                                 mock_request_complete,
