@@ -1,4 +1,4 @@
-branch: lp:~gnuoy/charm-helpers/cepg-broker
+branch: lp:charm-helpers
 destination: hooks/charmhelpers
 include:
     - core
