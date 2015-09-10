@@ -19,9 +19,11 @@ import json
 import logging
 import os
 import re
+import socket
 import subprocess
 import sys
 import time
+import uuid
 
 import amulet
 import distro_info
@@ -114,7 +116,7 @@ class AmuletUtils(object):
         # /!\ DEPRECATION WARNING (beisner):
         # New and existing tests should be rewritten to use
         # validate_services_by_name() as it is aware of init systems.
-        self.log.warn('/!\\ DEPRECATION WARNING:  use '
+        self.log.warn('DEPRECATION WARNING:  use '
                       'validate_services_by_name instead of validate_services '
                       'due to init system differences.')
 
@@ -269,33 +271,52 @@ class AmuletUtils(object):
         """Get last modification time of directory."""
         return sentry_unit.directory_stat(directory)['mtime']
 
-    def _get_proc_start_time(self, sentry_unit, service, pgrep_full=False):
-        """Get process' start time.
+    def _get_proc_start_time(self, sentry_unit, service, pgrep_full=None):
+        """Get start time of a process based on the last modification time
+           of the /proc/pid directory.
 
-           Determine start time of the process based on the last modification
-           time of the /proc/pid directory. If pgrep_full is True, the process
-           name is matched against the full command line.
-           """
-        if pgrep_full:
-            cmd = 'pgrep -o -f {}'.format(service)
-        else:
-            cmd = 'pgrep -o {}'.format(service)
-        cmd = cmd + '  | grep  -v pgrep || exit 0'
-        cmd_out = sentry_unit.run(cmd)
-        self.log.debug('CMDout: ' + str(cmd_out))
-        if cmd_out[0]:
-            self.log.debug('Pid for %s %s' % (service, str(cmd_out[0])))
-            proc_dir = '/proc/{}'.format(cmd_out[0].strip())
-            return self._get_dir_mtime(sentry_unit, proc_dir)
+        :sentry_unit:  The sentry unit to check for the service on
+        :service:  service name to look for in process table
+        :pgrep_full:  [Deprecated] Use full command line search mode with pgrep
+        :returns:  epoch time of service process start
+        :param commands:  list of bash commands
+        :param sentry_units:  list of sentry unit pointers
+        :returns:  None if successful; Failure message otherwise
+        """
+        if pgrep_full is not None:
+            # /!\ DEPRECATION WARNING (beisner):
+            # No longer implemented, as pidof is now used instead of pgrep.
+            # https://bugs.launchpad.net/charm-helpers/+bug/1474030
+            self.log.warn('DEPRECATION WARNING:  pgrep_full bool is no '
+                          'longer implemented re: lp 1474030.')
+
+        pid_list = self.get_process_id_list(sentry_unit, service)
+        pid = pid_list[0]
+        proc_dir = '/proc/{}'.format(pid)
+        self.log.debug('Pid for {} on {}: {}'.format(
+            service, sentry_unit.info['unit_name'], pid))
+
+        return self._get_dir_mtime(sentry_unit, proc_dir)
 
     def service_restarted(self, sentry_unit, service, filename,
-                          pgrep_full=False, sleep_time=20):
+                          pgrep_full=None, sleep_time=20):
         """Check if service was restarted.
 
            Compare a service's start time vs a file's last modification time
            (such as a config file for that service) to determine if the service
            has been restarted.
            """
+        # /!\ DEPRECATION WARNING (beisner):
+        # This method is prone to races in that no before-time is known.
+        # Use validate_service_config_changed instead.
+
+        # NOTE(beisner) pgrep_full is no longer implemented, as pidof is now
+        # used instead of pgrep.  pgrep_full is still passed through to ensure
+        # deprecation WARNS.  lp1474030
+        self.log.warn('DEPRECATION WARNING:  use '
+                      'validate_service_config_changed instead of '
+                      'service_restarted due to known races.')
+
         time.sleep(sleep_time)
         if (self._get_proc_start_time(sentry_unit, service, pgrep_full) >=
                 self._get_file_mtime(sentry_unit, filename)):
@@ -304,15 +325,15 @@ class AmuletUtils(object):
             return False
 
     def service_restarted_since(self, sentry_unit, mtime, service,
-                                pgrep_full=False, sleep_time=20,
-                                retry_count=2):
+                                pgrep_full=None, sleep_time=20,
+                                retry_count=2, retry_sleep_time=30):
         """Check if service was been started after a given time.
 
         Args:
           sentry_unit (sentry): The sentry unit to check for the service on
           mtime (float): The epoch time to check against
           service (string): service name to look for in process table
-          pgrep_full (boolean): Use full command line search mode with pgrep
+          pgrep_full: [Deprecated] Use full command line search mode with pgrep
           sleep_time (int): Seconds to sleep before looking for process
           retry_count (int): If service is not found, how many times to retry
 
@@ -321,30 +342,44 @@ class AmuletUtils(object):
                 False if service is older than mtime or if service was
                 not found.
         """
-        self.log.debug('Checking %s restarted since %s' % (service, mtime))
+        # NOTE(beisner) pgrep_full is no longer implemented, as pidof is now
+        # used instead of pgrep.  pgrep_full is still passed through to ensure
+        # deprecation WARNS.  lp1474030
+
+        unit_name = sentry_unit.info['unit_name']
+        self.log.debug('Checking that %s service restarted since %s on '
+                       '%s' % (service, mtime, unit_name))
         time.sleep(sleep_time)
-        proc_start_time = self._get_proc_start_time(sentry_unit, service,
-                                                    pgrep_full)
-        while retry_count > 0 and not proc_start_time:
-            self.log.debug('No pid file found for service %s, will retry %i '
-                           'more times' % (service, retry_count))
-            time.sleep(30)
-            proc_start_time = self._get_proc_start_time(sentry_unit, service,
-                                                        pgrep_full)
-            retry_count = retry_count - 1
+        proc_start_time = None
+        tries = 0
+        while tries <= retry_count and not proc_start_time:
+            try:
+                proc_start_time = self._get_proc_start_time(sentry_unit,
+                                                            service,
+                                                            pgrep_full)
+                self.log.debug('Attempt {} to get {} proc start time on {} '
+                               'OK'.format(tries, service, unit_name))
+            except IOError:
+                # NOTE(beisner) - race avoidance, proc may not exist yet.
+                # https://bugs.launchpad.net/charm-helpers/+bug/1474030
+                self.log.debug('Attempt {} to get {} proc start time on {} '
+                               'failed'.format(tries, service, unit_name))
+                time.sleep(retry_sleep_time)
+                tries += 1
 
         if not proc_start_time:
             self.log.warn('No proc start time found, assuming service did '
                           'not start')
             return False
         if proc_start_time >= mtime:
-            self.log.debug('proc start time is newer than provided mtime'
-                           '(%s >= %s)' % (proc_start_time, mtime))
+            self.log.debug('Proc start time is newer than provided mtime'
+                           '(%s >= %s) on %s (OK)' % (proc_start_time,
+                                                      mtime, unit_name))
             return True
         else:
-            self.log.warn('proc start time (%s) is older than provided mtime '
-                          '(%s), service did not restart' % (proc_start_time,
-                                                             mtime))
+            self.log.warn('Proc start time (%s) is older than provided mtime '
+                          '(%s) on %s, service did not '
+                          'restart' % (proc_start_time, mtime, unit_name))
             return False
 
     def config_updated_since(self, sentry_unit, filename, mtime,
@@ -374,8 +409,9 @@ class AmuletUtils(object):
             return False
 
     def validate_service_config_changed(self, sentry_unit, mtime, service,
-                                        filename, pgrep_full=False,
-                                        sleep_time=20, retry_count=2):
+                                        filename, pgrep_full=None,
+                                        sleep_time=20, retry_count=2,
+                                        retry_sleep_time=30):
         """Check service and file were updated after mtime
 
         Args:
@@ -383,9 +419,10 @@ class AmuletUtils(object):
           mtime (float): The epoch time to check against
           service (string): service name to look for in process table
           filename (string): The file to check mtime of
-          pgrep_full (boolean): Use full command line search mode with pgrep
-          sleep_time (int): Seconds to sleep before looking for process
+          pgrep_full: [Deprecated] Use full command line search mode with pgrep
+          sleep_time (int): Initial sleep in seconds to pass to test helpers
           retry_count (int): If service is not found, how many times to retry
+          retry_sleep_time (int): Time in seconds to wait between retries
 
         Typical Usage:
             u = OpenStackAmuletUtils(ERROR)
@@ -402,15 +439,25 @@ class AmuletUtils(object):
                 mtime, False if service is older than mtime or if service was
                 not found or if filename was modified before mtime.
         """
-        self.log.debug('Checking %s restarted since %s' % (service, mtime))
-        time.sleep(sleep_time)
-        service_restart = self.service_restarted_since(sentry_unit, mtime,
-                                                       service,
-                                                       pgrep_full=pgrep_full,
-                                                       sleep_time=0,
-                                                       retry_count=retry_count)
-        config_update = self.config_updated_since(sentry_unit, filename, mtime,
-                                                  sleep_time=0)
+
+        # NOTE(beisner) pgrep_full is no longer implemented, as pidof is now
+        # used instead of pgrep.  pgrep_full is still passed through to ensure
+        # deprecation WARNS.  lp1474030
+
+        service_restart = self.service_restarted_since(
+            sentry_unit, mtime,
+            service,
+            pgrep_full=pgrep_full,
+            sleep_time=sleep_time,
+            retry_count=retry_count,
+            retry_sleep_time=retry_sleep_time)
+
+        config_update = self.config_updated_since(
+            sentry_unit,
+            filename,
+            mtime,
+            sleep_time=0)
+
         return service_restart and config_update
 
     def get_sentry_time(self, sentry_unit):
@@ -428,7 +475,6 @@ class AmuletUtils(object):
         """Return a list of all Ubuntu releases in order of release."""
         _d = distro_info.UbuntuDistroInfo()
         _release_list = _d.all
-        self.log.debug('Ubuntu release list: {}'.format(_release_list))
         return _release_list
 
     def file_to_url(self, file_rel_path):
@@ -568,6 +614,142 @@ class AmuletUtils(object):
 
         return None
 
+    def validate_sectionless_conf(self, file_contents, expected):
+        """A crude conf parser.  Useful to inspect configuration files which
+        do not have section headers (as would be necessary in order to use
+        the configparser).  Such as openstack-dashboard or rabbitmq confs."""
+        for line in file_contents.split('\n'):
+            if '=' in line:
+                args = line.split('=')
+                if len(args) <= 1:
+                    continue
+                key = args[0].strip()
+                value = args[1].strip()
+                if key in expected.keys():
+                    if expected[key] != value:
+                        msg = ('Config mismatch.  Expected, actual:  {}, '
+                               '{}'.format(expected[key], value))
+                        amulet.raise_status(amulet.FAIL, msg=msg)
+
+    def get_unit_hostnames(self, units):
+        """Return a dict of juju unit names to hostnames."""
+        host_names = {}
+        for unit in units:
+            host_names[unit.info['unit_name']] = \
+                str(unit.file_contents('/etc/hostname').strip())
+        self.log.debug('Unit host names: {}'.format(host_names))
+        return host_names
+
+    def run_cmd_unit(self, sentry_unit, cmd):
+        """Run a command on a unit, return the output and exit code."""
+        output, code = sentry_unit.run(cmd)
+        if code == 0:
+            self.log.debug('{} `{}` command returned {} '
+                           '(OK)'.format(sentry_unit.info['unit_name'],
+                                         cmd, code))
+        else:
+            msg = ('{} `{}` command returned {} '
+                   '{}'.format(sentry_unit.info['unit_name'],
+                               cmd, code, output))
+            amulet.raise_status(amulet.FAIL, msg=msg)
+        return str(output), code
+
+    def file_exists_on_unit(self, sentry_unit, file_name):
+        """Check if a file exists on a unit."""
+        try:
+            sentry_unit.file_stat(file_name)
+            return True
+        except IOError:
+            return False
+        except Exception as e:
+            msg = 'Error checking file {}: {}'.format(file_name, e)
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
+    def file_contents_safe(self, sentry_unit, file_name,
+                           max_wait=60, fatal=False):
+        """Get file contents from a sentry unit.  Wrap amulet file_contents
+        with retry logic to address races where a file checks as existing,
+        but no longer exists by the time file_contents is called.
+        Return None if file not found. Optionally raise if fatal is True."""
+        unit_name = sentry_unit.info['unit_name']
+        file_contents = False
+        tries = 0
+        while not file_contents and tries < (max_wait / 4):
+            try:
+                file_contents = sentry_unit.file_contents(file_name)
+            except IOError:
+                self.log.debug('Attempt {} to open file {} from {} '
+                               'failed'.format(tries, file_name,
+                                               unit_name))
+                time.sleep(4)
+                tries += 1
+
+        if file_contents:
+            return file_contents
+        elif not fatal:
+            return None
+        elif fatal:
+            msg = 'Failed to get file contents from unit.'
+            amulet.raise_status(amulet.FAIL, msg)
+
+    def port_knock_tcp(self, host="localhost", port=22, timeout=15):
+        """Open a TCP socket to check for a listening sevice on a host.
+
+        :param host: host name or IP address, default to localhost
+        :param port: TCP port number, default to 22
+        :param timeout: Connect timeout, default to 15 seconds
+        :returns: True if successful, False if connect failed
+        """
+
+        # Resolve host name if possible
+        try:
+            connect_host = socket.gethostbyname(host)
+            host_human = "{} ({})".format(connect_host, host)
+        except socket.error as e:
+            self.log.warn('Unable to resolve address: '
+                          '{} ({}) Trying anyway!'.format(host, e))
+            connect_host = host
+            host_human = connect_host
+
+        # Attempt socket connection
+        try:
+            knock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            knock.settimeout(timeout)
+            knock.connect((connect_host, port))
+            knock.close()
+            self.log.debug('Socket connect OK for host '
+                           '{} on port {}.'.format(host_human, port))
+            return True
+        except socket.error as e:
+            self.log.debug('Socket connect FAIL for'
+                           ' {} port {} ({})'.format(host_human, port, e))
+            return False
+
+    def port_knock_units(self, sentry_units, port=22,
+                         timeout=15, expect_success=True):
+        """Open a TCP socket to check for a listening sevice on each
+        listed juju unit.
+
+        :param sentry_units: list of sentry unit pointers
+        :param port: TCP port number, default to 22
+        :param timeout: Connect timeout, default to 15 seconds
+        :expect_success: True by default, set False to invert logic
+        :returns: None if successful, Failure message otherwise
+        """
+        for unit in sentry_units:
+            host = unit.info['public-address']
+            connected = self.port_knock_tcp(host, port, timeout)
+            if not connected and expect_success:
+                return 'Socket connect failed.'
+            elif connected and not expect_success:
+                return 'Socket connected unexpectedly.'
+
+    def get_uuid_epoch_stamp(self):
+        """Returns a stamp string based on uuid4 and epoch time.  Useful in
+        generating test messages which need to be unique-ish."""
+        return '[{}-{}]'.format(uuid.uuid4(), time.time())
+
+# amulet juju action helpers:
     def run_action(self, unit_sentry, action,
                    _check_output=subprocess.check_output):
         """Run the named action on a given unit sentry.

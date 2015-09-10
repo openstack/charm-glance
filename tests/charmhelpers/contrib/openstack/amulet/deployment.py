@@ -44,7 +44,14 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            Determine if the local branch being tested is derived from its
            stable or next (dev) branch, and based on this, use the corresonding
            stable or next branches for the other_services."""
+
+        # Charms outside the lp:~openstack-charmers namespace
         base_charms = ['mysql', 'mongodb', 'nrpe']
+
+        # Force these charms to current series even when using an older series.
+        # ie. Use trusty/nrpe even when series is precise, as the P charm
+        # does not possess the necessary external master config and hooks.
+        force_series_current = ['nrpe']
 
         if self.series in ['precise', 'trusty']:
             base_series = self.series
@@ -53,11 +60,17 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         if self.stable:
             for svc in other_services:
+                if svc['name'] in force_series_current:
+                    base_series = self.current_next
+
                 temp = 'lp:charms/{}/{}'
                 svc['location'] = temp.format(base_series,
                                               svc['name'])
         else:
             for svc in other_services:
+                if svc['name'] in force_series_current:
+                    base_series = self.current_next
+
                 if svc['name'] in base_charms:
                     temp = 'lp:charms/{}/{}'
                     svc['location'] = temp.format(base_series,
@@ -77,21 +90,23 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         services = other_services
         services.append(this_service)
+
+        # Charms which should use the source config option
         use_source = ['mysql', 'mongodb', 'rabbitmq-server', 'ceph',
                       'ceph-osd', 'ceph-radosgw']
-        # Most OpenStack subordinate charms do not expose an origin option
-        # as that is controlled by the principle.
-        ignore = ['cinder-ceph', 'hacluster', 'neutron-openvswitch', 'nrpe']
+
+        # Charms which can not use openstack-origin, ie. many subordinates
+        no_origin = ['cinder-ceph', 'hacluster', 'neutron-openvswitch', 'nrpe']
 
         if self.openstack:
             for svc in services:
-                if svc['name'] not in use_source + ignore:
+                if svc['name'] not in use_source + no_origin:
                     config = {'openstack-origin': self.openstack}
                     self.d.configure(svc['name'], config)
 
         if self.source:
             for svc in services:
-                if svc['name'] in use_source and svc['name'] not in ignore:
+                if svc['name'] in use_source and svc['name'] not in no_origin:
                     config = {'source': self.source}
                     self.d.configure(svc['name'], config)
 
