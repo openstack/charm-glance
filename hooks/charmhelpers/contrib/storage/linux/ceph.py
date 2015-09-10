@@ -545,6 +545,7 @@ def get_previous_request(rid):
         request = CephBrokerRq(api_version=request_data['api-version'],
                                request_id=request_data['request-id'])
         request.set_ops(request_data['ops'])
+
     return request
 
 
@@ -565,14 +566,16 @@ def get_request_states(request):
         previous_request = get_previous_request(rid)
         if request == previous_request:
             sent = True
-            complete = is_broker_request_complete(previous_request, rid)
+            complete = is_request_complete_for_rid(previous_request, rid)
         else:
             sent = False
             complete = False
+
         requests[rid] = {
             'sent': sent,
             'complete': complete,
         }
+
     return requests
 
 
@@ -587,6 +590,7 @@ def is_request_sent(request):
     for rid in states.keys():
         if not states[rid]['sent']:
             return False
+
     return True
 
 
@@ -602,10 +606,11 @@ def is_request_complete(request):
     for rid in states.keys():
         if not states[rid]['complete']:
             return False
+
     return True
 
 
-def is_broker_request_complete(request, rid):
+def is_request_complete_for_rid(request, rid):
     """Check if a given request has been completed on the given relation
 
     @param request: A CephBrokerRq object
@@ -634,6 +639,7 @@ def is_broker_request_complete(request, rid):
                     rsp = CephBrokerRsp(rdata['broker_rsp'])
                     if not rsp.exit_code:
                         return True
+
     return False
 
 
