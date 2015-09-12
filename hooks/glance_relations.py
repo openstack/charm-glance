@@ -29,7 +29,6 @@ from charmhelpers.core.hookenv import (
     config,
     Hooks,
     log as juju_log,
-    INFO,
     ERROR,
     open_port,
     is_relation_made,
@@ -66,9 +65,10 @@ from charmhelpers.contrib.openstack.utils import (
     sync_db_with_multi_ipv6_addresses,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
+    send_request_if_needed,
+    is_request_complete,
     ensure_ceph_keyring,
     CephBrokerRq,
-    CephBrokerRsp,
     delete_keyring,
 )
 from charmhelpers.payload.execd import (
@@ -240,6 +240,14 @@ def ceph_joined():
     apt_install(['ceph-common', 'python-ceph'])
 
 
+def get_ceph_request():
+    service = service_name()
+    rq = CephBrokerRq()
+    replicas = config('ceph-osd-replication-count')
+    rq.add_op_create_pool(name=service, replica_count=replicas)
+    return rq
+
+
 @hooks.hook('ceph-relation-changed')
 @restart_on_change(restart_map())
 def ceph_changed():
@@ -253,29 +261,15 @@ def ceph_changed():
         juju_log('Could not create ceph keyring: peer not ready?')
         return
 
-    settings = relation_get()
-    if settings and 'broker_rsp' in settings:
-        rsp = CephBrokerRsp(settings['broker_rsp'])
-        # Non-zero return code implies failure
-        if rsp.exit_code:
-            juju_log("Ceph broker request failed (rc=%s, msg=%s)" %
-                     (rsp.exit_code, rsp.exit_msg), level=ERROR)
-            return
-
-        juju_log("Ceph broker request succeeded (rc=%s, msg=%s)" %
-                 (rsp.exit_code, rsp.exit_msg), level=INFO)
+    if is_request_complete(get_ceph_request()):
+        juju_log('Request complete')
         CONFIGS.write(GLANCE_API_CONF)
         CONFIGS.write(ceph_config_file())
         # Ensure that glance-api is restarted since only now can we
         # guarantee that ceph resources are ready.
         service_restart('glance-api')
     else:
-        rq = CephBrokerRq()
-        replicas = config('ceph-osd-replication-count')
-        rq.add_op_create_pool(name=service, replica_count=replicas)
-        for rid in relation_ids('ceph'):
-            relation_set(relation_id=rid, broker_req=rq.request)
-            juju_log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
+        send_request_if_needed(get_ceph_request())
 
 
 @hooks.hook('ceph-relation-broken')
