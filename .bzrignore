@@ -1,3 +1,5 @@
 .coverage
 bin
 tags
+.tox
+.testrepository
