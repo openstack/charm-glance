@@ -12,7 +12,8 @@ from test_utils import (
 )
 
 TO_PATCH = [
-    'config'
+    'config',
+    'git_install_requested',
 ]
 
 
@@ -22,6 +23,7 @@ class TestGlanceUpgradeActions(CharmTestCase):
         super(TestGlanceUpgradeActions, self).setUp(openstack_upgrade,
                                                     TO_PATCH)
         self.config.side_effect = self.test_config.get
+        self.git_install_requested.return_value = False
 
     @patch.object(openstack_upgrade, 'action_set')
     @patch.object(openstack_upgrade, 'action_fail')
