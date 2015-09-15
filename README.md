@@ -85,7 +85,7 @@ Glance metering
 ===============
 
 In order to do Glance metering with Ceilometer, an AMQP relation is required.
-Currently only RabbitMQ is the only supported option.
+Currently the only supported option is RabbitMQ.
 
     juju add-relation glance rabbitmq-server
 
