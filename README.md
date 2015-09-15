@@ -81,6 +81,14 @@ as the endpoint for Glance).
 Note that Glance in this configuration must be used with either Ceph or
 Swift providing backing image storage.
 
+Glance metering
+===============
+
+In order to do Glance metering with Ceilometer, an AMQP relation is required.
+Currently only RabbitMQ is the only supported option.
+
+    juju add-relation glance rabbitmq-server
+
 Deploying from source
 ---------------------
 
