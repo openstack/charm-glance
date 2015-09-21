@@ -143,13 +143,8 @@ class GlanceRelationTests(CharmTestCase):
                                              hostname='glance.foohost.com')
         self.unit_get.assert_called_with('private-address')
 
-    @patch.object(relations, 'sync_db_with_multi_ipv6_addresses')
-    @patch.object(relations, 'get_ipv6_addr')
-    def test_db_joined_with_ipv6(self, mock_get_ipv6_addr,
-                                 mock_sync_db):
+    def test_db_joined_with_ipv6(self):
         self.test_config.set('prefer-ipv6', True)
-        mock_get_ipv6_addr.return_value = ['2001:db8:1::1']
-        mock_sync_db.return_value = MagicMock()
         self.is_relation_made.return_value = False
         relations.db_joined()
         relation_data = {
@@ -158,9 +153,8 @@ class GlanceRelationTests(CharmTestCase):
         }
         relation_data['hostname'] = '2001:db8:1::1'
 
-        self.sync_db_with_multi_ipv6_addresses.assert_called_with_once(
+        self.sync_db_with_multi_ipv6_addresses.assert_called_with(
             'glance', 'glance')
-        self.get_ipv6_addr.assert_called_once()
 
     def test_postgresql_db_joined(self):
         self.unit_get.return_value = 'glance.foohost.com'
@@ -724,9 +718,10 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         self.relation_ids.return_value = ['identity-service:0']
         relations.configure_https()
-        calls = [call('a2dissite', 'openstack_https_frontend'),
-                 call('service', 'apache2', 'reload')]
-        self.check_call.assert_called_has_calls(calls)
+        self.check_call.assert_called_with(['a2ensite',
+                                            'openstack_https_frontend'])
+        self.service_reload.assert_called_with('apache2',
+                                               restart_on_failure=True)
         keystone_joined.assert_called_with(relation_id='identity-service:0')
 
     @patch.object(relations, 'canonical_url')
@@ -739,9 +734,10 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         self.relation_ids.return_value = ['identity-service:0']
         relations.configure_https()
-        calls = [call('a2dissite', 'openstack_https_frontend'),
-                 call('service', 'apache2', 'reload')]
-        self.check_call.assert_called_has_calls(calls)
+        self.check_call.assert_called_with(['a2dissite',
+                                            'openstack_https_frontend'])
+        self.service_reload.assert_called_with('apache2',
+                                               restart_on_failure=True)
         keystone_joined.assert_called_with(relation_id='identity-service:0')
 
     @patch.object(relations, 'canonical_url')
@@ -754,9 +750,10 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         self.relation_ids.return_value = ['image-service:0']
         relations.configure_https()
-        calls = [call('a2dissite', 'openstack_https_frontend'),
-                 call('service', 'apache2', 'reload')]
-        self.check_call.assert_called_has_calls(calls)
+        self.check_call.assert_called_with(['a2ensite',
+                                            'openstack_https_frontend'])
+        self.service_reload.assert_called_with('apache2',
+                                               restart_on_failure=True)
         image_service_joined.assert_called_with(relation_id='image-service:0')
 
     @patch.object(relations, 'canonical_url')
@@ -769,9 +766,10 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         self.relation_ids.return_value = ['image-service:0']
         relations.configure_https()
-        calls = [call('a2dissite', 'openstack_https_frontend'),
-                 call('service', 'apache2', 'reload')]
-        self.check_call.assert_called_has_calls(calls)
+        self.check_call.assert_called_with(['a2dissite',
+                                            'openstack_https_frontend'])
+        self.service_reload.assert_called_with('apache2',
+                                               restart_on_failure=True)
         image_service_joined.assert_called_with(relation_id='image-service:0')
 
     def test_amqp_joined(self):
@@ -785,7 +783,7 @@ class GlanceRelationTests(CharmTestCase):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = []
         relations.amqp_changed()
-        self.juju_log.assert_called()
+        self.assertTrue(self.juju_log.called)
 
     @patch.object(relations, 'CONFIGS')
     def test_amqp_changed_relation_data(self, configs):
