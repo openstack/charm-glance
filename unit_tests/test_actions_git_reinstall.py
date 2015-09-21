@@ -13,6 +13,7 @@ from test_utils import (
 
 TO_PATCH = [
     'config',
+    'git_install_requested',
 ]
 
 
@@ -31,6 +32,7 @@ class TestGlanceActions(CharmTestCase):
     def setUp(self):
         super(TestGlanceActions, self).setUp(git_reinstall, TO_PATCH)
         self.config.side_effect = self.test_config.get
+        self.git_install_requested.return_value = True
 
     @patch.object(git_reinstall, 'action_set')
     @patch.object(git_reinstall, 'action_fail')
@@ -56,6 +58,7 @@ class TestGlanceActions(CharmTestCase):
     def test_git_reinstall_not_configured(self, config_changed, git_install,
                                           action_fail, action_set):
         config.return_value = None
+        self.git_install_requested.return_value = False
 
         git_reinstall.git_reinstall()
 

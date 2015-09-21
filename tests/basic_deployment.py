@@ -361,7 +361,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             expected['keystone_authtoken'].update({
                 'auth_host': rel_ks_gl['auth_host'],
                 'auth_port': rel_ks_gl['auth_port'],
-                'auth_protocol':  rel_ks_gl['auth_protocol']
+                'auth_protocol': rel_ks_gl['auth_protocol']
             })
 
         return expected
