@@ -44,6 +44,7 @@ from charmhelpers.contrib.openstack import (
 
 from charmhelpers.contrib.hahelpers.cluster import (
     is_elected_leader,
+    get_hacluster_config,
 )
 
 from charmhelpers.contrib.openstack.alternatives import install_alternative
@@ -63,6 +64,7 @@ from charmhelpers.core.templating import render
 from charmhelpers.core.decorators import (
     retry_on_exception,
 )
+
 
 CLUSTER_RES = "grp_glance_vips"
 
@@ -114,6 +116,14 @@ HTTPS_APACHE_24_CONF = "/etc/apache2/sites-available/" \
 CONF_DIR = "/etc/glance"
 
 TEMPLATES = 'templates/'
+
+# The interface is said to be satisfied if anyone of the interfaces in the
+# list has a complete context.
+REQUIRED_INTERFACES = {
+    'database': ['shared-db', 'pgsql-db'],
+    'message': ['amqp', 'zeromq-configuration'],
+    'identity': ['identity-service'],
+}
 
 
 def ceph_config_file():
@@ -424,3 +434,16 @@ def git_post_install(projects_yaml):
 
     service_restart('glance-api')
     service_restart('glance-registry')
+
+
+def check_ha_settings(configs):
+    if relation_ids('ha'):
+        try:
+            get_hacluster_config()
+            return 'active', 'hacluster configs complete.'
+        except:
+            return ('blocked',
+                    'hacluster missing configuration: '
+                    'vip, vip_iface, vip_cidr')
+    else:
+        return 'unknown', 'No ha clustering'
