@@ -23,7 +23,9 @@ from glance_utils import (
     GLANCE_API_PASTE_INI,
     HAPROXY_CONF,
     ceph_config_file,
-    setup_ipv6
+    setup_ipv6,
+    REQUIRED_INTERFACES,
+    check_ha_settings,
 )
 from charmhelpers.core.hookenv import (
     config,
@@ -38,7 +40,8 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     service_name,
     unit_get,
-    UnregisteredHookError
+    UnregisteredHookError,
+    status_set,
 )
 from charmhelpers.core.host import (
     restart_on_change,
@@ -63,6 +66,7 @@ from charmhelpers.contrib.openstack.utils import (
     openstack_upgrade_available,
     os_release,
     sync_db_with_multi_ipv6_addresses,
+    os_workload_status,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
@@ -96,8 +100,9 @@ CONFIGS = register_configs()
 
 
 @hooks.hook('install.real')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 def install_hook():
-    juju_log('Installing glance packages')
+    status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
     src = config('openstack-origin')
     if (lsb_release()['DISTRIB_CODENAME'] == 'precise' and
@@ -106,9 +111,11 @@ def install_hook():
 
     configure_installation_source(src)
 
+    status_set('maintenance', 'Installing apt packages')
     apt_update(fatal=True)
     apt_install(determine_packages(), fatal=True)
 
+    status_set('maintenance', 'Git install')
     git_install(config('openstack-origin-git'))
 
     for service in SERVICES:
@@ -116,6 +123,7 @@ def install_hook():
 
 
 @hooks.hook('shared-db-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 def db_joined():
     if is_relation_made('pgsql-db'):
         # error, postgresql is used
@@ -135,6 +143,7 @@ def db_joined():
 
 
 @hooks.hook('pgsql-db-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 def pgsql_db_joined():
     if is_relation_made('shared-db'):
         # raise error
@@ -147,6 +156,7 @@ def pgsql_db_joined():
 
 
 @hooks.hook('shared-db-relation-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 @restart_on_change(restart_map())
 def db_changed():
     rel = os_release('glance-common')
@@ -181,6 +191,7 @@ def db_changed():
 
 
 @hooks.hook('pgsql-db-relation-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 @restart_on_change(restart_map())
 def pgsql_db_changed():
     rel = os_release('glance-common')
@@ -220,6 +231,7 @@ def image_service_joined(relation_id=None):
 
 
 @hooks.hook('object-store-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 @restart_on_change(restart_map())
 def object_store_joined():
 
@@ -236,6 +248,7 @@ def object_store_joined():
 
 
 @hooks.hook('ceph-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 def ceph_joined():
     apt_install(['ceph-common', 'python-ceph'])
 
@@ -249,6 +262,7 @@ def get_ceph_request():
 
 
 @hooks.hook('ceph-relation-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 @restart_on_change(restart_map())
 def ceph_changed():
     if 'ceph' not in CONFIGS.complete_contexts():
@@ -273,6 +287,7 @@ def ceph_changed():
 
 
 @hooks.hook('ceph-relation-broken')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 def ceph_broken():
     service = service_name()
     delete_keyring(service=service)
@@ -280,6 +295,7 @@ def ceph_broken():
 
 
 @hooks.hook('identity-service-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 def keystone_joined(relation_id=None):
     public_url = '{}:9292'.format(canonical_url(CONFIGS, PUBLIC))
     internal_url = '{}:9292'.format(canonical_url(CONFIGS, INTERNAL))
@@ -295,6 +311,7 @@ def keystone_joined(relation_id=None):
 
 
 @hooks.hook('identity-service-relation-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 @restart_on_change(restart_map())
 def keystone_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
@@ -317,19 +334,22 @@ def keystone_changed():
 
 
 @hooks.hook('config-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
     if config('prefer-ipv6'):
         setup_ipv6()
+        status_set('maintenance', 'Sync DB')
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
 
     if git_install_requested():
         if config_value_changed('openstack-origin-git'):
+            status_set('maintenance', 'Running Git install')
             git_install(config('openstack-origin-git'))
     elif not config('action-managed-upgrade'):
         if openstack_upgrade_available('glance-common'):
-            juju_log('Upgrading OpenStack release')
+            status_set('maintenance', 'Upgrading OpenStack release')
             do_openstack_upgrade(CONFIGS)
 
     open_port(9292)
@@ -381,6 +401,7 @@ def upgrade_charm():
 
 
 @hooks.hook('ha-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 def ha_relation_joined(relation_id=None):
     cluster_config = get_hacluster_config()
 
@@ -440,6 +461,7 @@ def ha_relation_joined(relation_id=None):
 
 
 @hooks.hook('ha-relation-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 def ha_relation_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
@@ -485,12 +507,14 @@ def configure_https():
 
 
 @hooks.hook('amqp-relation-joined')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 def amqp_joined():
     conf = config()
     relation_set(username=conf['rabbit-user'], vhost=conf['rabbit-vhost'])
 
 
 @hooks.hook('amqp-relation-changed')
+@os_workload_status(CONFIGS, REQUIRED_INTERFACES, charm_func=check_ha_settings)
 @restart_on_change(restart_map())
 def amqp_changed():
     if 'amqp' not in CONFIGS.complete_contexts():
