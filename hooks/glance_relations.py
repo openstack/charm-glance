@@ -95,7 +95,7 @@ hooks = Hooks()
 CONFIGS = register_configs()
 
 
-@hooks.hook('install')
+@hooks.hook('install.real')
 def install_hook():
     juju_log('Installing glance packages')
     execd_preinstall()
