@@ -623,6 +623,38 @@ def unit_private_ip():
     return unit_get('private-address')
 
 
+@cached
+def storage_get(attribute="", storage_id=""):
+    """Get storage attributes"""
+    _args = ['storage-get', '--format=json']
+    if storage_id:
+        _args.extend(('-s', storage_id))
+    if attribute:
+        _args.append(attribute)
+    try:
+        return json.loads(subprocess.check_output(_args).decode('UTF-8'))
+    except ValueError:
+        return None
+
+
+@cached
+def storage_list(storage_name=""):
+    """List the storage IDs for the unit"""
+    _args = ['storage-list', '--format=json']
+    if storage_name:
+        _args.append(storage_name)
+    try:
+        return json.loads(subprocess.check_output(_args).decode('UTF-8'))
+    except ValueError:
+        return None
+    except OSError as e:
+        import errno
+        if e.errno == errno.ENOENT:
+            # storage-list does not exist
+            return []
+        raise
+
+
 class UnregisteredHookError(Exception):
     """Raised when an undefined hook is called"""
     pass
