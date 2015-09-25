@@ -25,11 +25,13 @@ from charmhelpers.core.host import (
     fstab_mount,
     mkdir,
 )
+from charmhelpers.core.strutils import bytes_from_string
+from subprocess import check_output
 
 
 def hugepage_support(user, group='hugetlb', nr_hugepages=256,
                      max_map_count=65536, mnt_point='/run/hugepages/kvm',
-                     pagesize='2MB', mount=True):
+                     pagesize='2MB', mount=True, set_shmmax=False):
     """Enable hugepages on system.
 
     Args:
@@ -49,6 +51,11 @@ def hugepage_support(user, group='hugetlb', nr_hugepages=256,
         'vm.max_map_count': max_map_count,
         'vm.hugetlb_shm_group': gid,
     }
+    if set_shmmax:
+        shmmax_current = int(check_output(['sysctl', '-n', 'kernel.shmmax']))
+        shmmax_minsize = bytes_from_string(pagesize) * nr_hugepages
+        if shmmax_minsize > shmmax_current:
+            sysctl_settings['kernel.shmmax'] = shmmax_minsize
     sysctl.create(yaml.dump(sysctl_settings), '/etc/sysctl.d/10-hugepage.conf')
     mkdir(mnt_point, owner='root', group='root', perms=0o755, force=False)
     lfstab = fstab.Fstab()

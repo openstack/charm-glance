@@ -23,7 +23,7 @@ import socket
 from functools import partial
 
 from charmhelpers.core.hookenv import unit_get
-from charmhelpers.fetch import apt_install
+from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.hookenv import (
     log,
     WARNING,
@@ -32,13 +32,15 @@ from charmhelpers.core.hookenv import (
 try:
     import netifaces
 except ImportError:
-    apt_install('python-netifaces')
+    apt_update(fatal=True)
+    apt_install('python-netifaces', fatal=True)
     import netifaces
 
 try:
     import netaddr
 except ImportError:
-    apt_install('python-netaddr')
+    apt_update(fatal=True)
+    apt_install('python-netaddr', fatal=True)
     import netaddr
 
 
