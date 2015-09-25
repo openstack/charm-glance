@@ -24,7 +24,10 @@ from charmhelpers.core.hookenv import (
     config,
     log,
     relation_ids,
-    service_name)
+    service_name,
+    status_get,
+)
+
 
 from charmhelpers.core.host import (
     adduser,
@@ -57,6 +60,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_pip_venv_dir,
     configure_installation_source,
     os_release,
+    set_os_workload_status,
 )
 
 from charmhelpers.core.templating import render
@@ -436,14 +440,26 @@ def git_post_install(projects_yaml):
     service_restart('glance-registry')
 
 
-def check_ha_settings(configs):
+def check_optional_relations(configs):
+    required_interfaces = {}
     if relation_ids('ha'):
+        required_interfaces['ha'] = ['cluster']
         try:
             get_hacluster_config()
-            return 'active', 'hacluster configs complete.'
         except:
             return ('blocked',
                     'hacluster missing configuration: '
                     'vip, vip_iface, vip_cidr')
+
+    if relation_ids('ceph'):
+        required_interfaces['storage-backend'] = ['ceph']
+
+    # XXX What is the context object name for swift-proxy?
+    # if relation_ids('object-store'):
+    #    required_interfaces['object-store'] = ['swift']
+
+    if required_interfaces:
+        set_os_workload_status(configs, required_interfaces)
+        return status_get()
     else:
-        return 'unknown', 'No ha clustering'
+        return 'unknown', 'No optional relations'
