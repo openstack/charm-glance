@@ -59,6 +59,8 @@ from charmhelpers.fetch import (
     apt_install,
 )
 
+from charmhelpers.core.kernel import modprobe
+
 KEYRING = '/etc/ceph/ceph.client.{}.keyring'
 KEYFILE = '/etc/ceph/ceph.client.{}.key'
 
@@ -289,17 +291,6 @@ def place_data_on_block_device(blk_device, data_src_dst):
     mount(blk_device, data_src_dst, persist=True)
     # ensure original ownership of new mount.
     os.chown(data_src_dst, uid, gid)
-
-
-# TODO: re-use
-def modprobe(module):
-    """Load a kernel module and configure for auto-load on reboot."""
-    log('Loading kernel module', level=INFO)
-    cmd = ['modprobe', module]
-    check_call(cmd)
-    with open('/etc/modules', 'r+') as modules:
-        if module not in modules.read():
-            modules.write(module)
 
 
 def copy_files(src, dst, symlinks=False, ignore=None):
