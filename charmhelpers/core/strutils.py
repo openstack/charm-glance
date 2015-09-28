@@ -18,6 +18,7 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import six
+import re
 
 
 def bool_from_string(value):
@@ -40,3 +41,32 @@ def bool_from_string(value):
 
     msg = "Unable to interpret string value '%s' as boolean" % (value)
     raise ValueError(msg)
+
+
+def bytes_from_string(value):
+    """Interpret human readable string value as bytes.
+
+    Returns int
+    """
+    BYTE_POWER = {
+        'K': 1,
+        'KB': 1,
+        'M': 2,
+        'MB': 2,
+        'G': 3,
+        'GB': 3,
+        'T': 4,
+        'TB': 4,
+        'P': 5,
+        'PB': 5,
+    }
+    if isinstance(value, six.string_types):
+        value = six.text_type(value)
+    else:
+        msg = "Unable to interpret non-string value '%s' as boolean" % (value)
+        raise ValueError(msg)
+    matches = re.match("([0-9]+)([a-zA-Z]+)", value)
+    if not matches:
+        msg = "Unable to interpret string value '%s' as bytes" % (value)
+        raise ValueError(msg)
+    return int(matches.group(1)) * (1024 ** BYTE_POWER[matches.group(2)])
