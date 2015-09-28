@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import glob
 import json
 import os
 import re
@@ -1378,8 +1379,18 @@ class PhyNICMTUContext(DataPortContext):
             ports = mappings.values()
             napi_settings = NeutronAPIContext()()
             mtu = napi_settings.get('network_device_mtu')
+            all_ports = set()
+            # If any of ports is a vlan device, its underlying device must have
+            # mtu applied first.
+            for port in ports:
+                for lport in glob.glob("/sys/class/net/%s/lower_*" % port):
+                    lport = os.path.basename(lport)
+                    all_ports.add(lport.split('_')[1])
+
+            all_ports = list(all_ports)
+            all_ports.extend(ports)
             if mtu:
-                ctxt["devs"] = '\\n'.join(ports)
+                ctxt["devs"] = '\\n'.join(all_ports)
                 ctxt['mtu'] = mtu
 
         return ctxt
