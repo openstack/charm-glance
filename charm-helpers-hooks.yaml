@@ -11,3 +11,4 @@ include:
     - contrib.network.ip
     - contrib.python.packages
     - contrib.charmsupport
+    - core.kernel
