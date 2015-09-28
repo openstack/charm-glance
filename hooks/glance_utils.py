@@ -451,12 +451,8 @@ def check_optional_relations(configs):
                     'hacluster missing configuration: '
                     'vip, vip_iface, vip_cidr')
 
-    if relation_ids('ceph'):
-        required_interfaces['storage-backend'] = ['ceph']
-
-    # XXX What is the context object name for swift-proxy?
-    # if relation_ids('object-store'):
-    #    required_interfaces['object-store'] = ['swift']
+    if relation_ids('ceph') or relation_ids('object-store'):
+        required_interfaces['storage-backend'] = ['ceph', 'object-store']
 
     if required_interfaces:
         set_os_workload_status(configs, required_interfaces)
