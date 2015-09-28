@@ -58,19 +58,17 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         else:
             base_series = self.current_next
 
-        if self.stable:
-            for svc in other_services:
-                if svc['name'] in force_series_current:
-                    base_series = self.current_next
-
+        for svc in other_services:
+            if svc['name'] in force_series_current:
+                base_series = self.current_next
+            # If a location has been explicitly set, use it
+            if svc.get('location'):
+                continue
+            if self.stable:
                 temp = 'lp:charms/{}/{}'
                 svc['location'] = temp.format(base_series,
                                               svc['name'])
-        else:
-            for svc in other_services:
-                if svc['name'] in force_series_current:
-                    base_series = self.current_next
-
+            else:
                 if svc['name'] in base_charms:
                     temp = 'lp:charms/{}/{}'
                     svc['location'] = temp.format(base_series,
@@ -79,6 +77,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
                     temp = 'lp:~openstack-charmers/charms/{}/{}/next'
                     svc['location'] = temp.format(self.current_next,
                                                   svc['name'])
+
         return other_services
 
     def _add_services(self, this_service, other_services):
