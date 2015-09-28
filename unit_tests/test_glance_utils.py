@@ -5,9 +5,7 @@ import os
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
 
-with patch('charmhelpers.core.hookenv.config') as config:
-    import hooks.glance_utils as utils
-
+import hooks.glance_utils as utils
 from test_utils import (
     CharmTestCase,
 )
