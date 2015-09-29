@@ -24,7 +24,10 @@ from charmhelpers.core.hookenv import (
     config,
     log,
     relation_ids,
-    service_name)
+    service_name,
+    status_get,
+)
+
 
 from charmhelpers.core.host import (
     adduser,
@@ -44,6 +47,7 @@ from charmhelpers.contrib.openstack import (
 
 from charmhelpers.contrib.hahelpers.cluster import (
     is_elected_leader,
+    get_hacluster_config,
 )
 
 from charmhelpers.contrib.openstack.alternatives import install_alternative
@@ -56,6 +60,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_pip_venv_dir,
     configure_installation_source,
     os_release,
+    set_os_workload_status,
 )
 
 from charmhelpers.core.templating import render
@@ -63,6 +68,7 @@ from charmhelpers.core.templating import render
 from charmhelpers.core.decorators import (
     retry_on_exception,
 )
+
 
 CLUSTER_RES = "grp_glance_vips"
 
@@ -114,6 +120,14 @@ HTTPS_APACHE_24_CONF = "/etc/apache2/sites-available/" \
 CONF_DIR = "/etc/glance"
 
 TEMPLATES = 'templates/'
+
+# The interface is said to be satisfied if anyone of the interfaces in the
+# list has a complete context.
+REQUIRED_INTERFACES = {
+    'database': ['shared-db', 'pgsql-db'],
+    'message': ['amqp'],
+    'identity': ['identity-service'],
+}
 
 
 def ceph_config_file():
@@ -423,3 +437,24 @@ def git_post_install(projects_yaml):
 
     service_restart('glance-api')
     service_restart('glance-registry')
+
+
+def check_optional_relations(configs):
+    required_interfaces = {}
+    if relation_ids('ha'):
+        required_interfaces['ha'] = ['cluster']
+        try:
+            get_hacluster_config()
+        except:
+            return ('blocked',
+                    'hacluster missing configuration: '
+                    'vip, vip_iface, vip_cidr')
+
+    if relation_ids('ceph') or relation_ids('object-store'):
+        required_interfaces['storage-backend'] = ['ceph', 'object-store']
+
+    if required_interfaces:
+        set_os_workload_status(configs, required_interfaces)
+        return status_get()
+    else:
+        return 'unknown', 'No optional relations'
