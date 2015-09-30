@@ -310,10 +310,10 @@ def parse_bridge_mappings(mappings):
 def parse_data_port_mappings(mappings, default_bridge='br-data'):
     """Parse data port mappings.
 
-    Mappings must be a space-delimited list of port:bridge mappings.
+    Mappings must be a space-delimited list of bridge:port.
 
-    Returns dict of the form {port:bridge} where port may be an mac address or
-    interface name.
+    Returns dict of the form {port:bridge} where ports may be mac addresses or
+    interface names.
     """
 
     # NOTE(dosaboy): we use rvalue for key to allow multiple values to be

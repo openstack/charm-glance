@@ -1364,7 +1364,7 @@ class DataPortContext(NeutronPortContext):
             normalized.update({port: port for port in resolved
                                if port in ports})
             if resolved:
-                return {bridge: normalized[port] for port, bridge in
+                return {normalized[port]: bridge for port, bridge in
                         six.iteritems(portmap) if port in normalized.keys()}
 
         return None
@@ -1375,8 +1375,8 @@ class PhyNICMTUContext(DataPortContext):
     def __call__(self):
         ctxt = {}
         mappings = super(PhyNICMTUContext, self).__call__()
-        if mappings and mappings.values():
-            ports = mappings.values()
+        if mappings and mappings.keys():
+            ports = sorted(mappings.keys())
             napi_settings = NeutronAPIContext()()
             mtu = napi_settings.get('network_device_mtu')
             all_ports = set()
