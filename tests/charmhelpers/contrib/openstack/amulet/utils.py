@@ -752,7 +752,7 @@ class OpenStackAmuletUtils(AmuletUtils):
             self.log.debug('SSL is enabled  @{}:{} '
                            '({})'.format(host, port, unit_name))
             return True
-        elif not port and not conf_ssl:
+        elif not conf_ssl:
             self.log.debug('SSL not enabled @{}:{} '
                            '({})'.format(host, port, unit_name))
             return False
