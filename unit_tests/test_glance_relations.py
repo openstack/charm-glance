@@ -534,14 +534,17 @@ class GlanceRelationTests(CharmTestCase):
         self.open_port.assert_called_with(9292)
         self.assertTrue(configure_https.called)
 
+    @patch.object(relations, 'status_set')
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'git_install_requested')
     def test_config_changed_with_openstack_upgrade(self, git_requested,
-                                                   configure_https):
+                                                   configure_https,
+                                                   status):
         git_requested.return_value = False
         self.openstack_upgrade_available.return_value = True
         relations.config_changed()
-        self.juju_log.assert_called_with(
+        status.assert_called_with(
+            'maintenance',
             'Upgrading OpenStack release'
         )
         self.assertTrue(self.do_openstack_upgrade.called)

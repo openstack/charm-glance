@@ -81,17 +81,23 @@ class TestGlanceContexts(CharmTestCase):
                                    'ext_ports': [9282],
                                    'namespace': 'glance'})
 
+    @patch('charmhelpers.contrib.openstack.context.config')
     @patch("subprocess.check_output")
-    def test_glance_ipv6_context_service_enabled(self, mock_subprocess):
+    def test_glance_ipv6_context_service_enabled(self, mock_subprocess,
+                                                 mock_config):
         self.config.return_value = True
+        mock_config.return_value = True
         mock_subprocess.return_value = 'true'
         ctxt = contexts.GlanceIPv6Context()
         self.assertEquals(ctxt(), {'bind_host': '::',
                                    'registry_host': '[::]'})
 
+    @patch('charmhelpers.contrib.openstack.context.config')
     @patch("subprocess.check_output")
-    def test_glance_ipv6_context_service_disabled(self, mock_subprocess):
+    def test_glance_ipv6_context_service_disabled(self, mock_subprocess,
+                                                  mock_config):
         self.config.return_value = False
+        mock_config.return_value = False
         mock_subprocess.return_value = 'false'
         ctxt = contexts.GlanceIPv6Context()
         self.assertEquals(ctxt(), {'bind_host': '0.0.0.0',

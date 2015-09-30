@@ -6,6 +6,10 @@ import yaml
 from contextlib import contextmanager
 from mock import patch, MagicMock
 
+patch('hooks.charmhelpers.contrib.openstack.utils.'
+      'set_os_workload_status').start()
+patch('hooks.charmhelpers.core.hookenv.status_set').start()
+
 
 def load_config():
     '''Walk backwords from __file__ looking for config.yaml,
