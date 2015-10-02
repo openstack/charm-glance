@@ -125,7 +125,7 @@ TEMPLATES = 'templates/'
 # list has a complete context.
 REQUIRED_INTERFACES = {
     'database': ['shared-db', 'pgsql-db'],
-    'message': ['amqp'],
+    'messaging': ['amqp'],
     'identity': ['identity-service'],
 }
 
