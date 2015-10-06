@@ -125,7 +125,6 @@ TEMPLATES = 'templates/'
 # list has a complete context.
 REQUIRED_INTERFACES = {
     'database': ['shared-db', 'pgsql-db'],
-    'messaging': ['amqp'],
     'identity': ['identity-service'],
 }
 
@@ -452,6 +451,9 @@ def check_optional_relations(configs):
 
     if relation_ids('ceph') or relation_ids('object-store'):
         required_interfaces['storage-backend'] = ['ceph', 'object-store']
+
+    if relation_ids('amqp'):
+        required_interfaces['messaging'] = ['amqp']
 
     if required_interfaces:
         set_os_workload_status(configs, required_interfaces)
