@@ -66,7 +66,7 @@ from charmhelpers.contrib.openstack.utils import (
     openstack_upgrade_available,
     os_release,
     sync_db_with_multi_ipv6_addresses,
-    os_workload_status,
+    set_os_workload_status,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
@@ -100,8 +100,6 @@ CONFIGS = register_configs()
 
 
 @hooks.hook('install.real')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 def install_hook():
     status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
@@ -124,8 +122,6 @@ def install_hook():
 
 
 @hooks.hook('shared-db-relation-joined')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 def db_joined():
     if is_relation_made('pgsql-db'):
         # error, postgresql is used
@@ -145,8 +141,6 @@ def db_joined():
 
 
 @hooks.hook('pgsql-db-relation-joined')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 def pgsql_db_joined():
     if is_relation_made('shared-db'):
         # raise error
@@ -159,8 +153,6 @@ def pgsql_db_joined():
 
 
 @hooks.hook('shared-db-relation-changed')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 @restart_on_change(restart_map())
 def db_changed():
     rel = os_release('glance-common')
@@ -195,8 +187,6 @@ def db_changed():
 
 
 @hooks.hook('pgsql-db-relation-changed')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 @restart_on_change(restart_map())
 def pgsql_db_changed():
     rel = os_release('glance-common')
@@ -236,8 +226,6 @@ def image_service_joined(relation_id=None):
 
 
 @hooks.hook('object-store-relation-joined')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 @restart_on_change(restart_map())
 def object_store_joined():
 
@@ -254,8 +242,6 @@ def object_store_joined():
 
 
 @hooks.hook('ceph-relation-joined')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 def ceph_joined():
     apt_install(['ceph-common', 'python-ceph'])
 
@@ -269,8 +255,6 @@ def get_ceph_request():
 
 
 @hooks.hook('ceph-relation-changed')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 @restart_on_change(restart_map())
 def ceph_changed():
     if 'ceph' not in CONFIGS.complete_contexts():
@@ -295,8 +279,6 @@ def ceph_changed():
 
 
 @hooks.hook('ceph-relation-broken')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 def ceph_broken():
     service = service_name()
     delete_keyring(service=service)
@@ -304,8 +286,6 @@ def ceph_broken():
 
 
 @hooks.hook('identity-service-relation-joined')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 def keystone_joined(relation_id=None):
     public_url = '{}:9292'.format(canonical_url(CONFIGS, PUBLIC))
     internal_url = '{}:9292'.format(canonical_url(CONFIGS, INTERNAL))
@@ -321,8 +301,6 @@ def keystone_joined(relation_id=None):
 
 
 @hooks.hook('identity-service-relation-changed')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 @restart_on_change(restart_map())
 def keystone_changed():
     if 'identity-service' not in CONFIGS.complete_contexts():
@@ -345,8 +323,6 @@ def keystone_changed():
 
 
 @hooks.hook('config-changed')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 @restart_on_change(restart_map(), stopstart=True)
 def config_changed():
     if config('prefer-ipv6'):
@@ -413,8 +389,6 @@ def upgrade_charm():
 
 
 @hooks.hook('ha-relation-joined')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 def ha_relation_joined(relation_id=None):
     cluster_config = get_hacluster_config()
 
@@ -474,8 +448,6 @@ def ha_relation_joined(relation_id=None):
 
 
 @hooks.hook('ha-relation-changed')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 def ha_relation_changed():
     clustered = relation_get('clustered')
     if not clustered or clustered in [None, 'None', '']:
@@ -493,8 +465,6 @@ def ha_relation_changed():
             'object-store-relation-broken',
             'shared-db-relation-broken',
             'pgsql-db-relation-broken')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 def relation_broken():
     CONFIGS.write_all()
 
@@ -523,16 +493,12 @@ def configure_https():
 
 
 @hooks.hook('amqp-relation-joined')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 def amqp_joined():
     conf = config()
     relation_set(username=conf['rabbit-user'], vhost=conf['rabbit-vhost'])
 
 
 @hooks.hook('amqp-relation-changed')
-@os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                    charm_func=check_optional_relations)
 @restart_on_change(restart_map())
 def amqp_changed():
     if 'amqp' not in CONFIGS.complete_contexts():
@@ -560,3 +526,5 @@ if __name__ == '__main__':
         hooks.execute(sys.argv)
     except UnregisteredHookError as e:
         juju_log('Unknown hook {} - skipping.'.format(e))
+    set_os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                           charm_func=check_optional_relations)
