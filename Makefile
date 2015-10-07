@@ -8,7 +8,7 @@ lint:
 
 test:
 	@# Bundletester expects unit tests here.
-	@$(PYTHON) /usr/bin/nosetests --nologcapture --with-coverage unit_tests
+	@$(PYTHON) /usr/bin/nosetests -v --nologcapture --with-coverage unit_tests
 
 functional_test:
 	@echo Starting Amulet tests...

@@ -8,11 +8,13 @@ sources:
     - ppa:juju/stable
 packages:
     - amulet
-    - python-amulet
+    - distro-info-data
     - python-cinderclient
     - python-distro-info
     - python-glanceclient
     - python-heatclient
     - python-keystoneclient
+    - python-neutronclient
     - python-novaclient
+    - python-pika
     - python-swiftclient
