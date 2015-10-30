@@ -26,6 +26,7 @@ from glance_utils import (
     setup_ipv6,
     REQUIRED_INTERFACES,
     check_optional_relations,
+    swift_temp_url_key
 )
 from charmhelpers.core.hookenv import (
     config,
@@ -222,6 +223,13 @@ def image_service_joined(relation_id=None):
     juju_log("%s: image-service_joined: To peer glance-api-server=%s" %
              (CHARM, relation_data['glance-api-server']))
 
+    if ('object-store' in CONFIGS.complete_contexts() and
+       'identity-service' in CONFIGS.complete_contexts()):
+        relation_data.update({
+            'swift-temp-url-key': swift_temp_url_key(),
+            'swift-container': 'glance'
+        })
+
     relation_set(relation_id=relation_id, **relation_data)
 
 
@@ -237,6 +245,8 @@ def object_store_joined():
     if 'object-store' not in CONFIGS.complete_contexts():
         juju_log('swift relation incomplete')
         return
+
+    [image_service_joined(rid) for rid in relation_ids('image-service')]
 
     CONFIGS.write(GLANCE_API_CONF)
 
