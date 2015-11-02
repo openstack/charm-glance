@@ -39,6 +39,7 @@ from charmhelpers.core.host import (
     service_restart,
     lsb_release,
     write_file,
+    pwgen
 )
 
 from charmhelpers.contrib.openstack import (
@@ -460,3 +461,33 @@ def check_optional_relations(configs):
         return status_get()
     else:
         return 'unknown', 'No optional relations'
+
+
+def swift_temp_url_key():
+    """Generate a temp URL key, post it to Swift and return its value.
+       If it is already posted, the current value of the key will be returned.
+    """
+    keystone_ctxt = context.IdentityServiceContext(service='glance',
+                                                   service_user='glance')()
+    if not keystone_ctxt:
+        log('Missing identity-service relation. Skipping generation of '
+            'swift temporary url key.')
+        return
+
+    auth_url = '%s://%s:%s/v2.0/' % (keystone_ctxt['service_protocol'],
+                                     keystone_ctxt['service_host'],
+                                     keystone_ctxt['service_port'])
+    from swiftclient import client
+    swift_connection = client.Connection(
+        authurl=auth_url, user='glance', key=keystone_ctxt['admin_password'],
+        tenant_name=keystone_ctxt['admin_tenant_name'], auth_version='2.0')
+
+    account_stats = swift_connection.head_account()
+    if 'x-account-meta-temp-url-key' in account_stats:
+        log("Temp URL key was already posted.")
+        return account_stats['x-account-meta-temp-url-key']
+
+    temp_url_key = pwgen(length=64)
+    swift_connection.post_account(headers={'x-account-meta-temp-url-key':
+                                           temp_url_key})
+    return temp_url_key
