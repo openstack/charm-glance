@@ -1,11 +1,11 @@
 name: glance
-maintainer: Adam Gandelman <adamg@canonical.com>
-summary: "OpenStack Image Registry and Delivery Service"
+maintainer: OpenStack Charmers <openstack-charmers@lists.ubuntu.com>
+summary: OpenStack Image Registry and Delivery Service
 description: |
  The Glance project provides an image registration and discovery service
- (Parallax) and an image delivery service (Teller). These services are used
- in conjunction by Nova to deliver images from object stores, such as
- OpenStack's Swift service, to Nova's compute nodes.
+ and an image delivery service. These services are used in conjunction
+ by Nova to deliver images from object stores, such as OpenStack's Swift
+ service, to Nova's compute nodes.
 tags:
   - openstack
   - storage
