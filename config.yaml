@@ -134,6 +134,18 @@ options:
     description: |
        Client timeout configuration in ms for haproxy, used in HA
        configurations. If not provided, default value of 30000ms is used.
+  haproxy-queue-timeout:
+    type: int
+    default:
+    description: |
+       Queue timeout configuration in ms for haproxy, used in HA
+       configurations. If not provided, default value of 5000ms is used.
+  haproxy-connect-timeout:
+    type: int
+    default:
+    description: |
+       Connect timeout configuration in ms for haproxy, used in HA
+       configurations. If not provided, default value of 5000ms is used.
   ssl_cert:
     type: string
     default:
