@@ -15,60 +15,50 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from subprocess import check_call
 from charmhelpers.fetch import (
     BaseFetchHandler,
-    UnhandledSource
+    UnhandledSource,
+    filter_installed_packages,
+    apt_install,
 )
 from charmhelpers.core.host import mkdir
 
-import six
-if six.PY3:
-    raise ImportError('bzrlib does not support Python3')
 
-try:
-    from bzrlib.branch import Branch
-    from bzrlib import bzrdir, workingtree, errors
-except ImportError:
-    from charmhelpers.fetch import apt_install
-    apt_install("python-bzrlib")
-    from bzrlib.branch import Branch
-    from bzrlib import bzrdir, workingtree, errors
+if filter_installed_packages(['bzr']) != []:
+    apt_install(['bzr'])
+    if filter_installed_packages(['bzr']) != []:
+        raise NotImplementedError('Unable to install bzr')
 
 
 class BzrUrlFetchHandler(BaseFetchHandler):
     """Handler for bazaar branches via generic and lp URLs"""
     def can_handle(self, source):
         url_parts = self.parse_url(source)
-        if url_parts.scheme not in ('bzr+ssh', 'lp'):
+        if url_parts.scheme not in ('bzr+ssh', 'lp', ''):
             return False
+        elif not url_parts.scheme:
+            return os.path.exists(os.path.join(source, '.bzr'))
         else:
             return True
 
     def branch(self, source, dest):
-        url_parts = self.parse_url(source)
-        # If we use lp:branchname scheme we need to load plugins
         if not self.can_handle(source):
             raise UnhandledSource("Cannot handle {}".format(source))
-        if url_parts.scheme == "lp":
-            from bzrlib.plugin import load_plugins
-            load_plugins()
-        try:
-            local_branch = bzrdir.BzrDir.create_branch_convenience(dest)
-        except errors.AlreadyControlDirError:
-            local_branch = Branch.open(dest)
-        try:
-            remote_branch = Branch.open(source)
-            remote_branch.push(local_branch)
-            tree = workingtree.WorkingTree.open(dest)
-            tree.update()
-        except Exception as e:
-            raise e
+        if os.path.exists(dest):
+            check_call(['bzr', 'pull', '--overwrite', '-d', dest, source])
+        else:
+            check_call(['bzr', 'branch', source, dest])
 
-    def install(self, source):
+    def install(self, source, dest=None):
         url_parts = self.parse_url(source)
         branch_name = url_parts.path.strip("/").split("/")[-1]
-        dest_dir = os.path.join(os.environ.get('CHARM_DIR'), "fetched",
-                                branch_name)
+        if dest:
+            dest_dir = os.path.join(dest, branch_name)
+        else:
+            dest_dir = os.path.join(os.environ.get('CHARM_DIR'), "fetched",
+                                    branch_name)
+
         if not os.path.exists(dest_dir):
             mkdir(dest_dir, perms=0o755)
         try:

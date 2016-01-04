@@ -46,6 +46,8 @@ def hugepage_support(user, group='hugetlb', nr_hugepages=256,
     group_info = add_group(group)
     gid = group_info.gr_gid
     add_user_to_group(user, group)
+    if max_map_count < 2 * nr_hugepages:
+        max_map_count = 2 * nr_hugepages
     sysctl_settings = {
         'vm.nr_hugepages': nr_hugepages,
         'vm.max_map_count': max_map_count,

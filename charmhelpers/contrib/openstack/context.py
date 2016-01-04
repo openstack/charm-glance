@@ -958,6 +958,19 @@ class NeutronContext(OSContextGenerator):
                     'config': config}
         return ovs_ctxt
 
+    def midonet_ctxt(self):
+        driver = neutron_plugin_attribute(self.plugin, 'driver',
+                                          self.network_manager)
+        midonet_config = neutron_plugin_attribute(self.plugin, 'config',
+                                                  self.network_manager)
+        mido_ctxt = {'core_plugin': driver,
+                     'neutron_plugin': 'midonet',
+                     'neutron_security_groups': self.neutron_security_groups,
+                     'local_ip': unit_private_ip(),
+                     'config': midonet_config}
+
+        return mido_ctxt
+
     def __call__(self):
         if self.network_manager not in ['quantum', 'neutron']:
             return {}
@@ -979,6 +992,8 @@ class NeutronContext(OSContextGenerator):
             ctxt.update(self.nuage_ctxt())
         elif self.plugin == 'plumgrid':
             ctxt.update(self.pg_ctxt())
+        elif self.plugin == 'midonet':
+            ctxt.update(self.midonet_ctxt())
 
         alchemy_flags = config('neutron-alchemy-flags')
         if alchemy_flags:
@@ -1079,6 +1094,20 @@ class OSConfigFlagContext(OSContextGenerator):
                 config_flags_parser(config_flags)}
 
 
+class LibvirtConfigFlagsContext(OSContextGenerator):
+    """
+    This context provides support for extending
+    the libvirt section through user-defined flags.
+    """
+    def __call__(self):
+        ctxt = {}
+        libvirt_flags = config('libvirt-flags')
+        if libvirt_flags:
+            ctxt['libvirt_flags'] = config_flags_parser(
+                libvirt_flags)
+        return ctxt
+
+
 class SubordinateConfigContext(OSContextGenerator):
 
     """
@@ -1111,7 +1140,7 @@ class SubordinateConfigContext(OSContextGenerator):
 
         ctxt = {
             ... other context ...
-            'subordinate_config': {
+            'subordinate_configuration': {
                 'DEFAULT': {
                     'key1': 'value1',
                 },
@@ -1152,22 +1181,23 @@ class SubordinateConfigContext(OSContextGenerator):
                     try:
                         sub_config = json.loads(sub_config)
                     except:
-                        log('Could not parse JSON from subordinate_config '
-                            'setting from %s' % rid, level=ERROR)
+                        log('Could not parse JSON from '
+                            'subordinate_configuration setting from %s'
+                            % rid, level=ERROR)
                         continue
 
                     for service in self.services:
                         if service not in sub_config:
-                            log('Found subordinate_config on %s but it contained'
-                                'nothing for %s service' % (rid, service),
-                                level=INFO)
+                            log('Found subordinate_configuration on %s but it '
+                                'contained nothing for %s service'
+                                % (rid, service), level=INFO)
                             continue
 
                         sub_config = sub_config[service]
                         if self.config_file not in sub_config:
-                            log('Found subordinate_config on %s but it contained'
-                                'nothing for %s' % (rid, self.config_file),
-                                level=INFO)
+                            log('Found subordinate_configuration on %s but it '
+                                'contained nothing for %s'
+                                % (rid, self.config_file), level=INFO)
                             continue
 
                         sub_config = sub_config[self.config_file]

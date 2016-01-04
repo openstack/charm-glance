@@ -15,24 +15,19 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from subprocess import check_call
 from charmhelpers.fetch import (
     BaseFetchHandler,
-    UnhandledSource
+    UnhandledSource,
+    filter_installed_packages,
+    apt_install,
 )
 from charmhelpers.core.host import mkdir
 
-import six
-if six.PY3:
-    raise ImportError('GitPython does not support Python 3')
-
-try:
-    from git import Repo
-except ImportError:
-    from charmhelpers.fetch import apt_install
-    apt_install("python-git")
-    from git import Repo
-
-from git.exc import GitCommandError  # noqa E402
+if filter_installed_packages(['git']) != []:
+    apt_install(['git'])
+    if filter_installed_packages(['git']) != []:
+        raise NotImplementedError('Unable to install git')
 
 
 class GitUrlFetchHandler(BaseFetchHandler):
@@ -40,19 +35,24 @@ class GitUrlFetchHandler(BaseFetchHandler):
     def can_handle(self, source):
         url_parts = self.parse_url(source)
         # TODO (mattyw) no support for ssh git@ yet
-        if url_parts.scheme not in ('http', 'https', 'git'):
+        if url_parts.scheme not in ('http', 'https', 'git', ''):
             return False
+        elif not url_parts.scheme:
+            return os.path.exists(os.path.join(source, '.git'))
         else:
             return True
 
-    def clone(self, source, dest, branch, depth=None):
+    def clone(self, source, dest, branch="master", depth=None):
         if not self.can_handle(source):
             raise UnhandledSource("Cannot handle {}".format(source))
 
-        if depth:
-            Repo.clone_from(source, dest, branch=branch, depth=depth)
+        if os.path.exists(dest):
+            cmd = ['git', '-C', dest, 'pull', source, branch]
         else:
-            Repo.clone_from(source, dest, branch=branch)
+            cmd = ['git', 'clone', source, dest, '--branch', branch]
+        if depth:
+            cmd.extend(['--depth', depth])
+        check_call(cmd)
 
     def install(self, source, branch="master", dest=None, depth=None):
         url_parts = self.parse_url(source)
@@ -66,8 +66,6 @@ class GitUrlFetchHandler(BaseFetchHandler):
             mkdir(dest_dir, perms=0o755)
         try:
             self.clone(source, dest_dir, branch, depth)
-        except GitCommandError as e:
-            raise UnhandledSource(e)
         except OSError as e:
             raise UnhandledSource(e.strerror)
         return dest_dir

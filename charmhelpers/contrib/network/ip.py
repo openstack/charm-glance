@@ -53,7 +53,7 @@ def _validate_cidr(network):
 
 
 def no_ip_found_error_out(network):
-    errmsg = ("No IP address found in network: %s" % network)
+    errmsg = ("No IP address found in network(s): %s" % network)
     raise ValueError(errmsg)
 
 
@@ -61,7 +61,7 @@ def get_address_in_network(network, fallback=None, fatal=False):
     """Get an IPv4 or IPv6 address within the network from the host.
 
     :param network (str): CIDR presentation format. For example,
-        '192.168.1.0/24'.
+        '192.168.1.0/24'. Supports multiple networks as a space-delimited list.
     :param fallback (str): If no address is found, return fallback.
     :param fatal (boolean): If no address is found, fallback is not
         set and fatal is True then exit(1).
@@ -75,24 +75,26 @@ def get_address_in_network(network, fallback=None, fatal=False):
         else:
             return None
 
-    _validate_cidr(network)
-    network = netaddr.IPNetwork(network)
-    for iface in netifaces.interfaces():
-        addresses = netifaces.ifaddresses(iface)
-        if network.version == 4 and netifaces.AF_INET in addresses:
-            addr = addresses[netifaces.AF_INET][0]['addr']
-            netmask = addresses[netifaces.AF_INET][0]['netmask']
-            cidr = netaddr.IPNetwork("%s/%s" % (addr, netmask))
-            if cidr in network:
-                return str(cidr.ip)
+    networks = network.split() or [network]
+    for network in networks:
+        _validate_cidr(network)
+        network = netaddr.IPNetwork(network)
+        for iface in netifaces.interfaces():
+            addresses = netifaces.ifaddresses(iface)
+            if network.version == 4 and netifaces.AF_INET in addresses:
+                addr = addresses[netifaces.AF_INET][0]['addr']
+                netmask = addresses[netifaces.AF_INET][0]['netmask']
+                cidr = netaddr.IPNetwork("%s/%s" % (addr, netmask))
+                if cidr in network:
+                    return str(cidr.ip)
 
-        if network.version == 6 and netifaces.AF_INET6 in addresses:
-            for addr in addresses[netifaces.AF_INET6]:
-                if not addr['addr'].startswith('fe80'):
-                    cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
-                                                        addr['netmask']))
-                    if cidr in network:
-                        return str(cidr.ip)
+            if network.version == 6 and netifaces.AF_INET6 in addresses:
+                for addr in addresses[netifaces.AF_INET6]:
+                    if not addr['addr'].startswith('fe80'):
+                        cidr = netaddr.IPNetwork("%s/%s" % (addr['addr'],
+                                                            addr['netmask']))
+                        if cidr in network:
+                            return str(cidr.ip)
 
     if fallback is not None:
         return fallback

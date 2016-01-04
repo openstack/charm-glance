@@ -108,7 +108,7 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
                 install_opener(opener)
         response = urlopen(source)
         try:
-            with open(dest, 'w') as dest_file:
+            with open(dest, 'wb') as dest_file:
                 dest_file.write(response.read())
         except Exception as e:
             if os.path.isfile(dest):
