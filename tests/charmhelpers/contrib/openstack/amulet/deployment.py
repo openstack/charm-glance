@@ -14,11 +14,17 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+import re
+import sys
 import six
 from collections import OrderedDict
 from charmhelpers.contrib.amulet.deployment import (
     AmuletDeployment
 )
+
+DEBUG = logging.DEBUG
+ERROR = logging.ERROR
 
 
 class OpenStackAmuletDeployment(AmuletDeployment):
@@ -28,9 +34,12 @@ class OpenStackAmuletDeployment(AmuletDeployment):
        that is specifically for use by OpenStack charms.
        """
 
-    def __init__(self, series=None, openstack=None, source=None, stable=True):
+    def __init__(self, series=None, openstack=None, source=None,
+                 stable=True, log_level=DEBUG):
         """Initialize the deployment environment."""
         super(OpenStackAmuletDeployment, self).__init__(series)
+        self.log = self.get_logger(level=log_level)
+        self.log.info('OpenStackAmuletDeployment:  init')
         self.openstack = openstack
         self.source = source
         self.stable = stable
@@ -38,12 +47,30 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         # out.
         self.current_next = "trusty"
 
+    def get_logger(self, name="deployment-logger", level=logging.DEBUG):
+        """Get a logger object that will log to stdout."""
+        log = logging
+        logger = log.getLogger(name)
+        fmt = log.Formatter("%(asctime)s %(funcName)s "
+                            "%(levelname)s: %(message)s")
+
+        handler = log.StreamHandler(stream=sys.stdout)
+        handler.setLevel(level)
+        handler.setFormatter(fmt)
+
+        logger.addHandler(handler)
+        logger.setLevel(level)
+
+        return logger
+
     def _determine_branch_locations(self, other_services):
         """Determine the branch locations for the other services.
 
            Determine if the local branch being tested is derived from its
            stable or next (dev) branch, and based on this, use the corresonding
            stable or next branches for the other_services."""
+
+        self.log.info('OpenStackAmuletDeployment:  determine branch locations')
 
         # Charms outside the lp:~openstack-charmers namespace
         base_charms = ['mysql', 'mongodb', 'nrpe']
@@ -82,6 +109,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
     def _add_services(self, this_service, other_services):
         """Add services to the deployment and set openstack-origin/source."""
+        self.log.info('OpenStackAmuletDeployment:  adding services')
+
         other_services = self._determine_branch_locations(other_services)
 
         super(OpenStackAmuletDeployment, self)._add_services(this_service,
@@ -95,7 +124,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
                       'ceph-osd', 'ceph-radosgw']
 
         # Charms which can not use openstack-origin, ie. many subordinates
-        no_origin = ['cinder-ceph', 'hacluster', 'neutron-openvswitch', 'nrpe']
+        no_origin = ['cinder-ceph', 'hacluster', 'neutron-openvswitch', 'nrpe',
+                     'openvswitch-odl', 'neutron-api-odl', 'odl-controller']
 
         if self.openstack:
             for svc in services:
@@ -111,8 +141,78 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
     def _configure_services(self, configs):
         """Configure all of the services."""
+        self.log.info('OpenStackAmuletDeployment:  configure services')
         for service, config in six.iteritems(configs):
             self.d.configure(service, config)
+
+    def _auto_wait_for_status(self, message=None, exclude_services=None,
+                              include_only=None, timeout=1800):
+        """Wait for all units to have a specific extended status, except
+        for any defined as excluded.  Unless specified via message, any
+        status containing any case of 'ready' will be considered a match.
+
+        Examples of message usage:
+
+          Wait for all unit status to CONTAIN any case of 'ready' or 'ok':
+              message = re.compile('.*ready.*|.*ok.*', re.IGNORECASE)
+
+          Wait for all units to reach this status (exact match):
+              message = re.compile('^Unit is ready and clustered$')
+
+          Wait for all units to reach any one of these (exact match):
+              message = re.compile('Unit is ready|OK|Ready')
+
+          Wait for at least one unit to reach this status (exact match):
+              message = {'ready'}
+
+        See Amulet's sentry.wait_for_messages() for message usage detail.
+        https://github.com/juju/amulet/blob/master/amulet/sentry.py
+
+        :param message: Expected status match
+        :param exclude_services: List of juju service names to ignore,
+            not to be used in conjuction with include_only.
+        :param include_only: List of juju service names to exclusively check,
+            not to be used in conjuction with exclude_services.
+        :param timeout: Maximum time in seconds to wait for status match
+        :returns: None.  Raises if timeout is hit.
+        """
+        self.log.info('Waiting for extended status on units...')
+
+        all_services = self.d.services.keys()
+
+        if exclude_services and include_only:
+            raise ValueError('exclude_services can not be used '
+                             'with include_only')
+
+        if message:
+            if isinstance(message, re._pattern_type):
+                match = message.pattern
+            else:
+                match = message
+
+            self.log.debug('Custom extended status wait match: '
+                           '{}'.format(match))
+        else:
+            self.log.debug('Default extended status wait match:  contains '
+                           'READY (case-insensitive)')
+            message = re.compile('.*ready.*', re.IGNORECASE)
+
+        if exclude_services:
+            self.log.debug('Excluding services from extended status match: '
+                           '{}'.format(exclude_services))
+        else:
+            exclude_services = []
+
+        if include_only:
+            services = include_only
+        else:
+            services = list(set(all_services) - set(exclude_services))
+
+        self.log.debug('Waiting up to {}s for extended status on services: '
+                       '{}'.format(timeout, services))
+        service_messages = {service: message for service in services}
+        self.d.sentry.wait_for_messages(service_messages, timeout=timeout)
+        self.log.info('OK')
 
     def _get_openstack_release(self):
         """Get openstack release.
@@ -125,7 +225,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
          self.precise_havana, self.precise_icehouse,
          self.trusty_icehouse, self.trusty_juno, self.utopic_juno,
          self.trusty_kilo, self.vivid_kilo, self.trusty_liberty,
-         self.wily_liberty) = range(12)
+         self.wily_liberty, self.trusty_mitaka,
+         self.xenial_mitaka) = range(14)
 
         releases = {
             ('precise', None): self.precise_essex,
@@ -137,9 +238,11 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('trusty', 'cloud:trusty-juno'): self.trusty_juno,
             ('trusty', 'cloud:trusty-kilo'): self.trusty_kilo,
             ('trusty', 'cloud:trusty-liberty'): self.trusty_liberty,
+            ('trusty', 'cloud:trusty-mitaka'): self.trusty_mitaka,
             ('utopic', None): self.utopic_juno,
             ('vivid', None): self.vivid_kilo,
-            ('wily', None): self.wily_liberty}
+            ('wily', None): self.wily_liberty,
+            ('xenial', None): self.xenial_mitaka}
         return releases[(self.series, self.openstack)]
 
     def _get_openstack_release_string(self):
@@ -156,6 +259,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('utopic', 'juno'),
             ('vivid', 'kilo'),
             ('wily', 'liberty'),
+            ('xenial', 'mitaka'),
         ])
         if self.openstack:
             os_origin = self.openstack.split(':')[1]

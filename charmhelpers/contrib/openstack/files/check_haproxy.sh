@@ -9,15 +9,17 @@
 CRITICAL=0
 NOTACTIVE=''
 LOGFILE=/var/log/nagios/check_haproxy.log
-AUTH=$(grep -r "stats auth" /etc/haproxy | head -1 | awk '{print $4}')
+AUTH=$(grep -r "stats auth" /etc/haproxy | awk 'NR=1{print $4}')
 
-for appserver in $(grep '    server' /etc/haproxy/haproxy.cfg | awk '{print $2'});
+typeset -i N_INSTANCES=0
+for appserver in $(awk '/^\s+server/{print $2}' /etc/haproxy/haproxy.cfg)
 do
-    output=$(/usr/lib/nagios/plugins/check_http -a ${AUTH} -I 127.0.0.1 -p 8888 --regex="class=\"(active|backup)(2|3).*${appserver}" -e ' 200 OK')
+    N_INSTANCES=N_INSTANCES+1
+    output=$(/usr/lib/nagios/plugins/check_http -a ${AUTH} -I 127.0.0.1 -p 8888 -u '/;csv' --regex=",${appserver},.*,UP.*" -e ' 200 OK')
     if [ $? != 0 ]; then
         date >> $LOGFILE
         echo $output >> $LOGFILE
-        /usr/lib/nagios/plugins/check_http -a ${AUTH} -I 127.0.0.1 -p 8888 -v | grep $appserver >> $LOGFILE 2>&1
+        /usr/lib/nagios/plugins/check_http -a ${AUTH} -I 127.0.0.1 -p 8888 -u '/;csv' -v | grep ",${appserver}," >> $LOGFILE 2>&1
         CRITICAL=1
         NOTACTIVE="${NOTACTIVE} $appserver"
     fi
@@ -28,5 +30,5 @@ if [ $CRITICAL = 1 ]; then
     exit 2
 fi
 
-echo "OK: All haproxy instances looking good"
+echo "OK: All haproxy instances ($N_INSTANCES) looking good"
 exit 0

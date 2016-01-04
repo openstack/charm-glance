@@ -26,6 +26,7 @@ import re
 
 import six
 import traceback
+import uuid
 import yaml
 
 from charmhelpers.contrib.network import ip
@@ -41,6 +42,7 @@ from charmhelpers.core.hookenv import (
     log as juju_log,
     charm_dir,
     INFO,
+    related_units,
     relation_ids,
     relation_set,
     status_set,
@@ -84,6 +86,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('utopic', 'juno'),
     ('vivid', 'kilo'),
     ('wily', 'liberty'),
+    ('xenial', 'mitaka'),
 ])
 
 
@@ -97,6 +100,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2014.2', 'juno'),
     ('2015.1', 'kilo'),
     ('2015.2', 'liberty'),
+    ('2016.1', 'mitaka'),
 ])
 
 # The ugly duckling
@@ -121,36 +125,46 @@ SWIFT_CODENAMES = OrderedDict([
     ('2.2.2', 'kilo'),
     ('2.3.0', 'liberty'),
     ('2.4.0', 'liberty'),
+    ('2.5.0', 'liberty'),
 ])
 
 # >= Liberty version->codename mapping
 PACKAGE_CODENAMES = {
     'nova-common': OrderedDict([
         ('12.0.0', 'liberty'),
+        ('13.0.0', 'mitaka'),
     ]),
     'neutron-common': OrderedDict([
         ('7.0.0', 'liberty'),
+        ('8.0.0', 'mitaka'),
     ]),
     'cinder-common': OrderedDict([
         ('7.0.0', 'liberty'),
+        ('8.0.0', 'mitaka'),
     ]),
     'keystone': OrderedDict([
         ('8.0.0', 'liberty'),
+        ('9.0.0', 'mitaka'),
     ]),
     'horizon-common': OrderedDict([
         ('8.0.0', 'liberty'),
+        ('9.0.0', 'mitaka'),
     ]),
     'ceilometer-common': OrderedDict([
         ('5.0.0', 'liberty'),
+        ('6.0.0', 'mitaka'),
     ]),
     'heat-common': OrderedDict([
         ('5.0.0', 'liberty'),
+        ('6.0.0', 'mitaka'),
     ]),
     'glance-common': OrderedDict([
         ('11.0.0', 'liberty'),
+        ('12.0.0', 'mitaka'),
     ]),
     'openstack-dashboard': OrderedDict([
         ('8.0.0', 'liberty'),
+        ('9.0.0', 'mitaka'),
     ]),
 }
 
@@ -374,6 +388,9 @@ def configure_installation_source(rel):
             'liberty': 'trusty-updates/liberty',
             'liberty/updates': 'trusty-updates/liberty',
             'liberty/proposed': 'trusty-proposed/liberty',
+            'mitaka': 'trusty-updates/mitaka',
+            'mitaka/updates': 'trusty-updates/mitaka',
+            'mitaka/proposed': 'trusty-proposed/mitaka',
         }
 
         try:
@@ -858,7 +875,9 @@ def set_os_workload_status(configs, required_interfaces, charm_func=None):
         if charm_state != 'active' and charm_state != 'unknown':
             state = workload_state_compare(state, charm_state)
             if message:
-                message = "{} {}".format(message, charm_message)
+                charm_message = charm_message.replace("Incomplete relations: ",
+                                                      "")
+                message = "{}, {}".format(message, charm_message)
             else:
                 message = charm_message
 
@@ -975,3 +994,19 @@ def do_action_openstack_upgrade(package, upgrade_callback, configs):
             action_set({'outcome': 'no upgrade available.'})
 
     return ret
+
+
+def remote_restart(rel_name, remote_service=None):
+    trigger = {
+        'restart-trigger': str(uuid.uuid4()),
+    }
+    if remote_service:
+        trigger['remote-service'] = remote_service
+    for rid in relation_ids(rel_name):
+        # This subordinate can be related to two seperate services using
+        # different subordinate relations so only issue the restart if
+        # the principle is conencted down the relation we think it is
+        if related_units(relid=rid):
+            relation_set(relation_id=rid,
+                         relation_settings=trigger,
+                         )
