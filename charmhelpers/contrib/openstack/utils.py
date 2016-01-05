@@ -131,40 +131,40 @@ SWIFT_CODENAMES = OrderedDict([
 # >= Liberty version->codename mapping
 PACKAGE_CODENAMES = {
     'nova-common': OrderedDict([
-        ('12.0.0', 'liberty'),
-        ('13.0.0', 'mitaka'),
+        ('12.0', 'liberty'),
+        ('13.0', 'mitaka'),
     ]),
     'neutron-common': OrderedDict([
-        ('7.0.0', 'liberty'),
-        ('8.0.0', 'mitaka'),
+        ('7.0', 'liberty'),
+        ('8.0', 'mitaka'),
     ]),
     'cinder-common': OrderedDict([
-        ('7.0.0', 'liberty'),
-        ('8.0.0', 'mitaka'),
+        ('7.0', 'liberty'),
+        ('8.0', 'mitaka'),
     ]),
     'keystone': OrderedDict([
-        ('8.0.0', 'liberty'),
-        ('9.0.0', 'mitaka'),
+        ('8.0', 'liberty'),
+        ('9.0', 'mitaka'),
     ]),
     'horizon-common': OrderedDict([
-        ('8.0.0', 'liberty'),
-        ('9.0.0', 'mitaka'),
+        ('8.0', 'liberty'),
+        ('9.0', 'mitaka'),
     ]),
     'ceilometer-common': OrderedDict([
-        ('5.0.0', 'liberty'),
-        ('6.0.0', 'mitaka'),
+        ('5.0', 'liberty'),
+        ('6.0', 'mitaka'),
     ]),
     'heat-common': OrderedDict([
-        ('5.0.0', 'liberty'),
-        ('6.0.0', 'mitaka'),
+        ('5.0', 'liberty'),
+        ('6.0', 'mitaka'),
     ]),
     'glance-common': OrderedDict([
-        ('11.0.0', 'liberty'),
-        ('12.0.0', 'mitaka'),
+        ('11.0', 'liberty'),
+        ('12.0', 'mitaka'),
     ]),
     'openstack-dashboard': OrderedDict([
-        ('8.0.0', 'liberty'),
-        ('9.0.0', 'mitaka'),
+        ('8.0', 'liberty'),
+        ('9.0', 'mitaka'),
     ]),
 }
 
@@ -251,7 +251,14 @@ def get_os_codename_package(package, fatal=True):
         error_out(e)
 
     vers = apt.upstream_version(pkg.current_ver.ver_str)
-    match = re.match('^(\d+)\.(\d+)\.(\d+)', vers)
+    if 'swift' in pkg.name:
+        # Fully x.y.z match for swift versions
+        match = re.match('^(\d+)\.(\d+)\.(\d+)', vers)
+    else:
+        # x.y match only for 20XX.X
+        # and ignore patch level for other packages
+        match = re.match('^(\d+)\.(\d+)', vers)
+
     if match:
         vers = match.group(0)
 
@@ -263,13 +270,8 @@ def get_os_codename_package(package, fatal=True):
         # < Liberty co-ordinated project versions
         try:
             if 'swift' in pkg.name:
-                swift_vers = vers[:5]
-                if swift_vers not in SWIFT_CODENAMES:
-                    # Deal with 1.10.0 upward
-                    swift_vers = vers[:6]
-                return SWIFT_CODENAMES[swift_vers]
+                return SWIFT_CODENAMES[vers]
             else:
-                vers = vers[:6]
                 return OPENSTACK_CODENAMES[vers]
         except KeyError:
             if not fatal:
