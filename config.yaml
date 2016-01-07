@@ -255,3 +255,10 @@ options:
       wait for you to execute the openstack-upgrade action for this charm on
       each unit. If False it will revert to existing behavior of upgrading
       all units on config change.
+  expose-image-locations:
+    type: boolean
+    default: True
+    description: |
+      Expose underlying image locations via the API when using Ceph for image
+      storage.  Only disable this option if you do not wish to use copy-on-write
+      clones of RAW format images with Ceph in Cinder and Nova.

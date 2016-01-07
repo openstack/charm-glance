@@ -42,10 +42,13 @@ class TestGlanceContexts(CharmTestCase):
         self.is_relation_made.return_value = True
         service = 'glance'
         self.service_name.return_value = service
+        self.config.return_value = True
         self.assertEquals(
             contexts.CephGlanceContext()(),
             {'rbd_pool': service,
-             'rbd_user': service})
+             'rbd_user': service,
+             'expose_image_locations': True})
+        self.config.assert_called_with('expose-image-locations')
 
     def test_multistore(self):
         self.relation_ids.return_value = ['random_rid']
