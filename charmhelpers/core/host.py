@@ -72,7 +72,9 @@ def service_pause(service_name, init_dir="/etc/init", initd_dir="/etc/init.d"):
         stopped = service_stop(service_name)
     upstart_file = os.path.join(init_dir, "{}.conf".format(service_name))
     sysv_file = os.path.join(initd_dir, service_name)
-    if os.path.exists(upstart_file):
+    if init_is_systemd():
+        service('disable', service_name)
+    elif os.path.exists(upstart_file):
         override_path = os.path.join(
             init_dir, '{}.override'.format(service_name))
         with open(override_path, 'w') as fh:
@@ -80,9 +82,9 @@ def service_pause(service_name, init_dir="/etc/init", initd_dir="/etc/init.d"):
     elif os.path.exists(sysv_file):
         subprocess.check_call(["update-rc.d", service_name, "disable"])
     else:
-        # XXX: Support SystemD too
         raise ValueError(
-            "Unable to detect {0} as either Upstart {1} or SysV {2}".format(
+            "Unable to detect {0} as SystemD, Upstart {1} or"
+            " SysV {2}".format(
                 service_name, upstart_file, sysv_file))
     return stopped
 
@@ -94,7 +96,9 @@ def service_resume(service_name, init_dir="/etc/init",
     Reenable starting again at boot. Start the service"""
     upstart_file = os.path.join(init_dir, "{}.conf".format(service_name))
     sysv_file = os.path.join(initd_dir, service_name)
-    if os.path.exists(upstart_file):
+    if init_is_systemd():
+        service('enable', service_name)
+    elif os.path.exists(upstart_file):
         override_path = os.path.join(
             init_dir, '{}.override'.format(service_name))
         if os.path.exists(override_path):
@@ -102,9 +106,9 @@ def service_resume(service_name, init_dir="/etc/init",
     elif os.path.exists(sysv_file):
         subprocess.check_call(["update-rc.d", service_name, "enable"])
     else:
-        # XXX: Support SystemD too
         raise ValueError(
-            "Unable to detect {0} as either Upstart {1} or SysV {2}".format(
+            "Unable to detect {0} as SystemD, Upstart {1} or"
+            " SysV {2}".format(
                 service_name, upstart_file, sysv_file))
 
     started = service_running(service_name)
@@ -115,23 +119,29 @@ def service_resume(service_name, init_dir="/etc/init",
 
 def service(action, service_name):
     """Control a system service"""
-    cmd = ['service', service_name, action]
+    if init_is_systemd():
+        cmd = ['systemctl', action, service_name]
+    else:
+        cmd = ['service', service_name, action]
     return subprocess.call(cmd) == 0
 
 
-def service_running(service):
+def service_running(service_name):
     """Determine whether a system service is running"""
-    try:
-        output = subprocess.check_output(
-            ['service', service, 'status'],
-            stderr=subprocess.STDOUT).decode('UTF-8')
-    except subprocess.CalledProcessError:
-        return False
+    if init_is_systemd():
+        return service('is-active', service_name)
     else:
-        if ("start/running" in output or "is running" in output):
-            return True
-        else:
+        try:
+            output = subprocess.check_output(
+                ['service', service_name, 'status'],
+                stderr=subprocess.STDOUT).decode('UTF-8')
+        except subprocess.CalledProcessError:
             return False
+        else:
+            if ("start/running" in output or "is running" in output):
+                return True
+            else:
+                return False
 
 
 def service_available(service_name):
@@ -144,6 +154,13 @@ def service_available(service_name):
         return b'unrecognized service' not in e.output
     else:
         return True
+
+
+SYSTEMD_SYSTEM = '/run/systemd/system'
+
+
+def init_is_systemd():
+    return os.path.isdir(SYSTEMD_SYSTEM)
 
 
 def adduser(username, password=None, shell='/bin/bash', system_user=False,
