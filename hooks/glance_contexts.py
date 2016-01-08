@@ -32,6 +32,7 @@ class CephGlanceContext(OSContextGenerator):
             # pool created based on service name.
             'rbd_pool': service,
             'rbd_user': service,
+            'expose_image_locations': config('expose-image-locations')
         }
 
 
