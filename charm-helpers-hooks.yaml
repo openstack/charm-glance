@@ -7,7 +7,7 @@ include:
     - contrib.openstack|inc=*
     - contrib.hahelpers
     - contrib.storage.linux.ceph
-    - payload.execd
+    - payload
     - contrib.network.ip
     - contrib.python.packages
     - contrib.charmsupport
