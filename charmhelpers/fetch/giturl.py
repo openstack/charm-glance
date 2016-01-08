@@ -22,7 +22,6 @@ from charmhelpers.fetch import (
     filter_installed_packages,
     apt_install,
 )
-from charmhelpers.core.host import mkdir
 
 if filter_installed_packages(['git']) != []:
     apt_install(['git'])
@@ -62,8 +61,6 @@ class GitUrlFetchHandler(BaseFetchHandler):
         else:
             dest_dir = os.path.join(os.environ.get('CHARM_DIR'), "fetched",
                                     branch_name)
-        if not os.path.exists(dest_dir):
-            mkdir(dest_dir, perms=0o755)
         try:
             self.clone(source, dest_dir, branch, depth)
         except OSError as e:

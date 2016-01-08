@@ -593,7 +593,7 @@ def _git_yaml_load(projects_yaml):
     return yaml.load(projects_yaml)
 
 
-def git_clone_and_install(projects_yaml, core_project, depth=1):
+def git_clone_and_install(projects_yaml, core_project):
     """
     Clone/install all specified OpenStack repositories.
 
@@ -643,6 +643,9 @@ def git_clone_and_install(projects_yaml, core_project, depth=1):
     for p in projects['repositories']:
         repo = p['repository']
         branch = p['branch']
+        depth = '1'
+        if 'depth' in p.keys():
+            depth = p['depth']
         if p['name'] == 'requirements':
             repo_dir = _git_clone_and_install_single(repo, branch, depth,
                                                      parent_dir, http_proxy,
@@ -687,19 +690,13 @@ def _git_clone_and_install_single(repo, branch, depth, parent_dir, http_proxy,
     """
     Clone and install a single git repository.
     """
-    dest_dir = os.path.join(parent_dir, os.path.basename(repo))
-
     if not os.path.exists(parent_dir):
         juju_log('Directory already exists at {}. '
                  'No need to create directory.'.format(parent_dir))
         os.mkdir(parent_dir)
 
-    if not os.path.exists(dest_dir):
-        juju_log('Cloning git repo: {}, branch: {}'.format(repo, branch))
-        repo_dir = install_remote(repo, dest=parent_dir, branch=branch,
-                                  depth=depth)
-    else:
-        repo_dir = dest_dir
+    juju_log('Cloning git repo: {}, branch: {}'.format(repo, branch))
+    repo_dir = install_remote(repo, dest=parent_dir, branch=branch, depth=depth)
 
     venv = os.path.join(parent_dir, 'venv')
 
