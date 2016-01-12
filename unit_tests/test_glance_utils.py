@@ -293,3 +293,31 @@ class TestGlanceUtils(CharmTestCase):
             call('glance-registry'),
         ]
         self.assertEquals(service_restart.call_args_list, expected)
+
+    @patch.object(utils, 'HookData')
+    @patch.object(utils, 'kv')
+    def test_is_paused(self, kv, HookData):
+        """test_is_paused: Test is_paused() returns value
+        from kv('unit-paused')"""
+        HookData()().return_value = True
+        kv().get.return_value = True
+        self.assertEqual(utils.is_paused(), True)
+        kv().get.assert_called_with('unit-paused')
+        kv().get.return_value = False
+        self.assertEqual(utils.is_paused(), False)
+
+    @patch.object(utils, 'is_paused')
+    @patch.object(utils, 'status_set')
+    def test_assess_status(self, status_set, is_paused):
+        """test_assess_status: verify that it does pick the right status"""
+        # check that paused status does the right thing
+        is_paused.return_value = True
+        utils.assess_status(None)
+        status_set.assert_called_with(
+            "maintenance",
+            "Paused. Use 'resume' action to resume normal service.")
+
+        # finally, check that if everything is fine, then it is active.
+        is_paused.return_value = False
+        utils.assess_status(None)
+        status_set.assert_called_with('active', 'Unit is ready')

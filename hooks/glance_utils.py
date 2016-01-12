@@ -26,6 +26,7 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     service_name,
     status_get,
+    status_set,
 )
 
 
@@ -68,6 +69,11 @@ from charmhelpers.core.templating import render
 
 from charmhelpers.core.decorators import (
     retry_on_exception,
+)
+
+from charmhelpers.core.unitdata import (
+    HookData,
+    kv,
 )
 
 
@@ -491,3 +497,30 @@ def swift_temp_url_key():
     swift_connection.post_account(headers={'x-account-meta-temp-url-key':
                                            temp_url_key})
     return temp_url_key
+
+
+def is_paused(status_get=status_get):
+    """Is the unit paused?"""
+    with HookData()():
+        if kv().get('unit-paused'):
+            return True
+        else:
+            return False
+
+
+def assess_status(configs):
+    """Assess status of current unit
+
+    Decides what the state of the unit should be based on the current
+    configuration.
+
+    @param configs: a templating.OSConfigRenderer() object
+    """
+
+    if is_paused():
+        status_set("maintenance",
+                   "Paused. Use 'resume' action to resume normal service.")
+        return
+
+    # last possible state is that the unit is active
+    status_set('active', 'Unit is ready')
