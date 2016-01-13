@@ -9,7 +9,6 @@ os.environ['JUJU_UNIT_NAME'] = 'glance'
 
 with patch('actions.hooks.glance_utils.is_paused') as is_paused:
     with patch('actions.hooks.glance_utils.register_configs') as configs:
-        print("hello")
         import actions.actions
 
 

@@ -522,5 +522,6 @@ def assess_status(configs):
                    "Paused. Use 'resume' action to resume normal service.")
         return
 
-    # last possible state is that the unit is active
-    status_set('active', 'Unit is ready')
+    # set the status according to the current state of the contexts
+    set_os_workload_status(
+        configs, REQUIRED_INTERFACES, charm_func=check_optional_relations)

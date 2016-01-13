@@ -317,7 +317,13 @@ class TestGlanceUtils(CharmTestCase):
             "maintenance",
             "Paused. Use 'resume' action to resume normal service.")
 
-        # finally, check that if everything is fine, then it is active.
+        # if it isn't paused, the assess_status() calls
+        # set_os_workload_status()
         is_paused.return_value = False
-        utils.assess_status(None)
-        status_set.assert_called_with('active', 'Unit is ready')
+        with patch.object(utils, 'set_os_workload_status') \
+                as set_os_workload_status:
+            utils.assess_status("TEST CONFIG")
+            set_os_workload_status.assert_called_with(
+                "TEST CONFIG",
+                utils.REQUIRED_INTERFACES,
+                charm_func=utils.check_optional_relations)
