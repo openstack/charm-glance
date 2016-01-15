@@ -84,10 +84,16 @@ Swift providing backing image storage.
 Glance metering
 ===============
 
-In order to do Glance metering with Ceilometer, an AMQP relation is required.
-Currently the only supported option is RabbitMQ.
+In order to do Glance metering with Ceilometer, an AMQP relation is required
+e.g.
 
+    juju deploy glance
+    juju deploy rabbitmq-server
+    juju deploy ceilometer-agent
+    ...
     juju add-relation glance rabbitmq-server
+    juju add-relation glance ceilometer-agent
+    ...
 
 Deploying from source
 ---------------------
