@@ -23,7 +23,10 @@ from glance_utils import (
     GLANCE_API_PASTE_INI,
     HAPROXY_CONF,
     ceph_config_file,
-    setup_ipv6
+    setup_ipv6,
+    REQUIRED_INTERFACES,
+    check_optional_relations,
+    swift_temp_url_key
 )
 from charmhelpers.core.hookenv import (
     config,
@@ -38,7 +41,8 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     service_name,
     unit_get,
-    UnregisteredHookError
+    UnregisteredHookError,
+    status_set,
 )
 from charmhelpers.core.host import (
     restart_on_change,
@@ -63,6 +67,7 @@ from charmhelpers.contrib.openstack.utils import (
     openstack_upgrade_available,
     os_release,
     sync_db_with_multi_ipv6_addresses,
+    set_os_workload_status,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
@@ -95,9 +100,9 @@ hooks = Hooks()
 CONFIGS = register_configs()
 
 
-@hooks.hook('install')
+@hooks.hook('install.real')
 def install_hook():
-    juju_log('Installing glance packages')
+    status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
     src = config('openstack-origin')
     if (lsb_release()['DISTRIB_CODENAME'] == 'precise' and
@@ -106,9 +111,11 @@ def install_hook():
 
     configure_installation_source(src)
 
+    status_set('maintenance', 'Installing apt packages')
     apt_update(fatal=True)
     apt_install(determine_packages(), fatal=True)
 
+    status_set('maintenance', 'Git install')
     git_install(config('openstack-origin-git'))
 
     for service in SERVICES:
@@ -216,6 +223,13 @@ def image_service_joined(relation_id=None):
     juju_log("%s: image-service_joined: To peer glance-api-server=%s" %
              (CHARM, relation_data['glance-api-server']))
 
+    if ('object-store' in CONFIGS.complete_contexts() and
+       'identity-service' in CONFIGS.complete_contexts()):
+        relation_data.update({
+            'swift-temp-url-key': swift_temp_url_key(),
+            'swift-container': 'glance'
+        })
+
     relation_set(relation_id=relation_id, **relation_data)
 
 
@@ -231,6 +245,8 @@ def object_store_joined():
     if 'object-store' not in CONFIGS.complete_contexts():
         juju_log('swift relation incomplete')
         return
+
+    [image_service_joined(rid) for rid in relation_ids('image-service')]
 
     CONFIGS.write(GLANCE_API_CONF)
 
@@ -321,15 +337,17 @@ def keystone_changed():
 def config_changed():
     if config('prefer-ipv6'):
         setup_ipv6()
+        status_set('maintenance', 'Sync DB')
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
 
     if git_install_requested():
         if config_value_changed('openstack-origin-git'):
+            status_set('maintenance', 'Running Git install')
             git_install(config('openstack-origin-git'))
     elif not config('action-managed-upgrade'):
         if openstack_upgrade_available('glance-common'):
-            juju_log('Upgrading OpenStack release')
+            status_set('maintenance', 'Upgrading OpenStack release')
             do_openstack_upgrade(CONFIGS)
 
     open_port(9292)
@@ -518,3 +536,5 @@ if __name__ == '__main__':
         hooks.execute(sys.argv)
     except UnregisteredHookError as e:
         juju_log('Unknown hook {} - skipping.'.format(e))
+    set_os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                           charm_func=check_optional_relations)

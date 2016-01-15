@@ -24,7 +24,10 @@ from charmhelpers.core.hookenv import (
     config,
     log,
     relation_ids,
-    service_name)
+    service_name,
+    status_get,
+)
+
 
 from charmhelpers.core.host import (
     adduser,
@@ -36,6 +39,7 @@ from charmhelpers.core.host import (
     service_restart,
     lsb_release,
     write_file,
+    pwgen
 )
 
 from charmhelpers.contrib.openstack import (
@@ -44,6 +48,7 @@ from charmhelpers.contrib.openstack import (
 
 from charmhelpers.contrib.hahelpers.cluster import (
     is_elected_leader,
+    get_hacluster_config,
 )
 
 from charmhelpers.contrib.openstack.alternatives import install_alternative
@@ -56,6 +61,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_pip_venv_dir,
     configure_installation_source,
     os_release,
+    set_os_workload_status,
 )
 
 from charmhelpers.core.templating import render
@@ -63,6 +69,7 @@ from charmhelpers.core.templating import render
 from charmhelpers.core.decorators import (
     retry_on_exception,
 )
+
 
 CLUSTER_RES = "grp_glance_vips"
 
@@ -114,6 +121,13 @@ HTTPS_APACHE_24_CONF = "/etc/apache2/sites-available/" \
 CONF_DIR = "/etc/glance"
 
 TEMPLATES = 'templates/'
+
+# The interface is said to be satisfied if anyone of the interfaces in the
+# list has a complete context.
+REQUIRED_INTERFACES = {
+    'database': ['shared-db', 'pgsql-db'],
+    'identity': ['identity-service'],
+}
 
 
 def ceph_config_file():
@@ -305,12 +319,11 @@ def setup_ipv6():
         raise Exception("IPv6 is not supported in the charms for Ubuntu "
                         "versions less than Trusty 14.04")
 
-    # NOTE(xianghui): Need to install haproxy(1.5.3) from trusty-backports
-    # to support ipv6 address, so check is required to make sure not
-    # breaking other versions, IPv6 only support for >= Trusty
-    if ubuntu_rel == 'trusty':
-        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports'
-                   ' main')
+    # Need haproxy >= 1.5.3 for ipv6 so for Trusty if we are <= Kilo we need to
+    # use trusty-backports otherwise we can use the UCA.
+    if ubuntu_rel == 'trusty' and os_release('glance') < 'liberty':
+        add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports '
+                   'main')
         apt_update()
         apt_install('haproxy/trusty-backports', fatal=True)
 
@@ -424,3 +437,57 @@ def git_post_install(projects_yaml):
 
     service_restart('glance-api')
     service_restart('glance-registry')
+
+
+def check_optional_relations(configs):
+    required_interfaces = {}
+    if relation_ids('ha'):
+        required_interfaces['ha'] = ['cluster']
+        try:
+            get_hacluster_config()
+        except:
+            return ('blocked',
+                    'hacluster missing configuration: '
+                    'vip, vip_iface, vip_cidr')
+
+    if relation_ids('ceph') or relation_ids('object-store'):
+        required_interfaces['storage-backend'] = ['ceph', 'object-store']
+
+    if relation_ids('amqp'):
+        required_interfaces['messaging'] = ['amqp']
+
+    if required_interfaces:
+        set_os_workload_status(configs, required_interfaces)
+        return status_get()
+    else:
+        return 'unknown', 'No optional relations'
+
+
+def swift_temp_url_key():
+    """Generate a temp URL key, post it to Swift and return its value.
+       If it is already posted, the current value of the key will be returned.
+    """
+    keystone_ctxt = context.IdentityServiceContext(service='glance',
+                                                   service_user='glance')()
+    if not keystone_ctxt:
+        log('Missing identity-service relation. Skipping generation of '
+            'swift temporary url key.')
+        return
+
+    auth_url = '%s://%s:%s/v2.0/' % (keystone_ctxt['service_protocol'],
+                                     keystone_ctxt['service_host'],
+                                     keystone_ctxt['service_port'])
+    from swiftclient import client
+    swift_connection = client.Connection(
+        authurl=auth_url, user='glance', key=keystone_ctxt['admin_password'],
+        tenant_name=keystone_ctxt['admin_tenant_name'], auth_version='2.0')
+
+    account_stats = swift_connection.head_account()
+    if 'x-account-meta-temp-url-key' in account_stats:
+        log("Temp URL key was already posted.")
+        return account_stats['x-account-meta-temp-url-key']
+
+    temp_url_key = pwgen(length=64)
+    swift_connection.post_account(headers={'x-account-meta-temp-url-key':
+                                           temp_url_key})
+    return temp_url_key

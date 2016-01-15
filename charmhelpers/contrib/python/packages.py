@@ -42,8 +42,12 @@ def parse_options(given, available):
             yield "--{0}={1}".format(key, value)
 
 
-def pip_install_requirements(requirements, **options):
-    """Install a requirements file """
+def pip_install_requirements(requirements, constraints=None, **options):
+    """Install a requirements file.
+
+    :param constraints: Path to pip constraints file.
+    http://pip.readthedocs.org/en/stable/user_guide/#constraints-files
+    """
     command = ["install"]
 
     available_options = ('proxy', 'src', 'log', )
@@ -51,8 +55,13 @@ def pip_install_requirements(requirements, **options):
         command.append(option)
 
     command.append("-r {0}".format(requirements))
-    log("Installing from file: {} with options: {}".format(requirements,
-                                                           command))
+    if constraints:
+        command.append("-c {0}".format(constraints))
+        log("Installing from file: {} with constraints {} "
+            "and options: {}".format(requirements, constraints, command))
+    else:
+        log("Installing from file: {} with options: {}".format(requirements,
+                                                               command))
     pip_execute(command)
 
 

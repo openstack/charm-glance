@@ -20,7 +20,7 @@ import sys
 
 from six.moves import zip
 
-from charmhelpers.core import unitdata
+import charmhelpers.core.unitdata
 
 
 class OutputFormatter(object):
@@ -163,8 +163,8 @@ class CommandLine(object):
         if getattr(arguments.func, '_cli_no_output', False):
             output = ''
         self.formatter.format_output(output, arguments.format)
-        if unitdata._KV:
-            unitdata._KV.flush()
+        if charmhelpers.core.unitdata._KV:
+            charmhelpers.core.unitdata._KV.flush()
 
 
 cmdline = CommandLine()
