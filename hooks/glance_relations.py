@@ -24,9 +24,8 @@ from glance_utils import (
     HAPROXY_CONF,
     ceph_config_file,
     setup_ipv6,
-    REQUIRED_INTERFACES,
-    check_optional_relations,
-    swift_temp_url_key
+    swift_temp_url_key,
+    assess_status,
 )
 from charmhelpers.core.hookenv import (
     config,
@@ -67,7 +66,6 @@ from charmhelpers.contrib.openstack.utils import (
     openstack_upgrade_available,
     os_release,
     sync_db_with_multi_ipv6_addresses,
-    set_os_workload_status,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
@@ -536,5 +534,4 @@ if __name__ == '__main__':
         hooks.execute(sys.argv)
     except UnregisteredHookError as e:
         juju_log('Unknown hook {} - skipping.'.format(e))
-    set_os_workload_status(CONFIGS, REQUIRED_INTERFACES,
-                           charm_func=check_optional_relations)
+    assess_status(CONFIGS)
