@@ -6,7 +6,6 @@ Basic glance amulet functional tests.
 
 import amulet
 import os
-import time
 import yaml
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
@@ -40,6 +39,11 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         self._add_relations()
         self._configure_services()
         self._deploy()
+
+        u.log.info('Waiting on extended status checks...')
+        exclude_services = ['mysql']
+        self._auto_wait_for_status(exclude_services=exclude_services)
+
         self._initialize_tests()
 
     def _assert_services(self, should_run):
@@ -118,9 +122,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             self._get_openstack_release()))
         u.log.debug('openstack release str: {}'.format(
             self._get_openstack_release_string()))
-
-        # Let things settle a bit before moving forward
-        time.sleep(30)
 
         # Authenticate admin with keystone
         self.keystone = u.authenticate_keystone_admin(self.keystone_sentry,
