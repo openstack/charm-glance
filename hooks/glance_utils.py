@@ -484,10 +484,12 @@ def swift_temp_url_key():
                                      keystone_ctxt['service_host'],
                                      keystone_ctxt['service_port'])
     from swiftclient import client
+    from swiftclient import exceptions
 
     @retry_on_exception(15, base_delay=10,
-                        exc_type=client.exceptions.ClientException)
+                        exc_type=exceptions.ClientException)
     def connect_and_post():
+        log('Connecting swift client...')
         swift_connection = client.Connection(
             authurl=auth_url, user='glance',
             key=keystone_ctxt['admin_password'],
