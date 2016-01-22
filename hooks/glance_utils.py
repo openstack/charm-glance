@@ -244,9 +244,6 @@ def register_configs():
     return configs
 
 
-# NOTE(jamespage): Retry deals with sync issues during one-shot HA deploys.
-#                  mysql might be restarting or suchlike.
-@retry_on_exception(5, base_delay=3, exc_type=subprocess.CalledProcessError)
 def determine_packages():
     packages = set(PACKAGES)
 
@@ -257,6 +254,9 @@ def determine_packages():
     return sorted(packages)
 
 
+# NOTE(jamespage): Retry deals with sync issues during one-shot HA deploys.
+#                  mysql might be restarting or suchlike.
+@retry_on_exception(5, base_delay=3, exc_type=subprocess.CalledProcessError)
 def migrate_database():
     '''Runs glance-manage to initialize a new database
     or migrate existing
@@ -484,19 +484,29 @@ def swift_temp_url_key():
                                      keystone_ctxt['service_host'],
                                      keystone_ctxt['service_port'])
     from swiftclient import client
-    swift_connection = client.Connection(
-        authurl=auth_url, user='glance', key=keystone_ctxt['admin_password'],
-        tenant_name=keystone_ctxt['admin_tenant_name'], auth_version='2.0')
+    from swiftclient import exceptions
 
-    account_stats = swift_connection.head_account()
-    if 'x-account-meta-temp-url-key' in account_stats:
-        log("Temp URL key was already posted.")
-        return account_stats['x-account-meta-temp-url-key']
+    @retry_on_exception(15, base_delay=10,
+                        exc_type=exceptions.ClientException)
+    def connect_and_post():
+        log('Connecting swift client...')
+        swift_connection = client.Connection(
+            authurl=auth_url, user='glance',
+            key=keystone_ctxt['admin_password'],
+            tenant_name=keystone_ctxt['admin_tenant_name'],
+            auth_version='2.0')
 
-    temp_url_key = pwgen(length=64)
-    swift_connection.post_account(headers={'x-account-meta-temp-url-key':
-                                           temp_url_key})
-    return temp_url_key
+        account_stats = swift_connection.head_account()
+        if 'x-account-meta-temp-url-key' in account_stats:
+            log("Temp URL key was already posted.")
+            return account_stats['x-account-meta-temp-url-key']
+
+        temp_url_key = pwgen(length=64)
+        swift_connection.post_account(headers={'x-account-meta-temp-url-key':
+                                               temp_url_key})
+        return temp_url_key
+
+    return connect_and_post()
 
 
 def is_paused(status_get=status_get):
