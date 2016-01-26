@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import requests
 import os
 import shutil
 import subprocess
@@ -487,7 +488,8 @@ def swift_temp_url_key():
     from swiftclient import exceptions
 
     @retry_on_exception(15, base_delay=10,
-                        exc_type=exceptions.ClientException)
+                        exc_type=(exceptions.ClientException,
+                                  requests.exceptions.ConnectionError))
     def connect_and_post():
         log('Connecting swift client...')
         swift_connection = client.Connection(
