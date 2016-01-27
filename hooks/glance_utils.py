@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import requests
 import os
 import shutil
 import subprocess
@@ -474,6 +473,7 @@ def swift_temp_url_key():
     """Generate a temp URL key, post it to Swift and return its value.
        If it is already posted, the current value of the key will be returned.
     """
+    import requests
     keystone_ctxt = context.IdentityServiceContext(service='glance',
                                                    service_user='glance')()
     if not keystone_ctxt:
