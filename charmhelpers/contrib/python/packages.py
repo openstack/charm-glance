@@ -19,18 +19,33 @@
 
 import os
 import subprocess
+import sys
 
 from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.hookenv import charm_dir, log
 
-try:
-    from pip import main as pip_execute
-except ImportError:
-    apt_update()
-    apt_install('python-pip')
-    from pip import main as pip_execute
-
 __author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
+
+
+def pip_execute(*args, **kwargs):
+    """Overriden pip_execute() to stop sys.path being changed.
+
+    The act of importing main from the pip module seems to cause add wheels
+    from the /usr/share/python-wheels which are installed by various tools.
+    This function ensures that sys.path remains the same after the call is
+    executed.
+    """
+    try:
+        _path = sys.path
+        try:
+            from pip import main as _pip_execute
+        except ImportError:
+            apt_update()
+            apt_install('python-pip')
+            from pip import main as _pip_execute
+        _pip_execute(*args, **kwargs)
+    finally:
+        sys.path = _path
 
 
 def parse_options(given, available):

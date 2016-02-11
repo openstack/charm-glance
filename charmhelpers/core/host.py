@@ -138,7 +138,8 @@ def service_running(service_name):
         except subprocess.CalledProcessError:
             return False
         else:
-            if ("start/running" in output or "is running" in output):
+            if ("start/running" in output or "is running" in output or
+                    "up and running" in output):
                 return True
             else:
                 return False
@@ -160,13 +161,13 @@ SYSTEMD_SYSTEM = '/run/systemd/system'
 
 
 def init_is_systemd():
+    """Return True if the host system uses systemd, False otherwise."""
     return os.path.isdir(SYSTEMD_SYSTEM)
 
 
 def adduser(username, password=None, shell='/bin/bash', system_user=False,
             primary_group=None, secondary_groups=None):
-    """
-    Add a user to the system.
+    """Add a user to the system.
 
     Will log but otherwise succeed if the user already exists.
 
@@ -174,7 +175,7 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False,
     :param str password: Password for user; if ``None``, create a system user
     :param str shell: The default shell for the user
     :param bool system_user: Whether to create a login or system user
-    :param str primary_group: Primary group for user; defaults to their username
+    :param str primary_group: Primary group for user; defaults to username
     :param list secondary_groups: Optional list of additional groups
 
     :returns: The password database entry struct, as returned by `pwd.getpwnam`
@@ -300,14 +301,12 @@ def write_file(path, content, owner='root', group='root', perms=0o444):
 
 
 def fstab_remove(mp):
-    """Remove the given mountpoint entry from /etc/fstab
-    """
+    """Remove the given mountpoint entry from /etc/fstab"""
     return Fstab.remove_by_mountpoint(mp)
 
 
 def fstab_add(dev, mp, fs, options=None):
-    """Adds the given device entry to the /etc/fstab file
-    """
+    """Adds the given device entry to the /etc/fstab file"""
     return Fstab.add(dev, mp, fs, options=options)
 
 
@@ -363,8 +362,7 @@ def fstab_mount(mountpoint):
 
 
 def file_hash(path, hash_type='md5'):
-    """
-    Generate a hash checksum of the contents of 'path' or None if not found.
+    """Generate a hash checksum of the contents of 'path' or None if not found.
 
     :param str hash_type: Any hash alrgorithm supported by :mod:`hashlib`,
                           such as md5, sha1, sha256, sha512, etc.
@@ -379,10 +377,9 @@ def file_hash(path, hash_type='md5'):
 
 
 def path_hash(path):
-    """
-    Generate a hash checksum of all files matching 'path'. Standard wildcards
-    like '*' and '?' are supported, see documentation for the 'glob' module for
-    more information.
+    """Generate a hash checksum of all files matching 'path'. Standard
+    wildcards like '*' and '?' are supported, see documentation for the 'glob'
+    module for more information.
 
     :return: dict: A { filename: hash } dictionary for all matched files.
                    Empty if none found.
@@ -394,8 +391,7 @@ def path_hash(path):
 
 
 def check_hash(path, checksum, hash_type='md5'):
-    """
-    Validate a file using a cryptographic checksum.
+    """Validate a file using a cryptographic checksum.
 
     :param str checksum: Value of the checksum used to validate the file.
     :param str hash_type: Hash algorithm used to generate `checksum`.
@@ -410,6 +406,7 @@ def check_hash(path, checksum, hash_type='md5'):
 
 
 class ChecksumError(ValueError):
+    """A class derived from Value error to indicate the checksum failed."""
     pass
 
 
@@ -515,7 +512,7 @@ def get_bond_master(interface):
 
 
 def list_nics(nic_type=None):
-    '''Return a list of nics of given type(s)'''
+    """Return a list of nics of given type(s)"""
     if isinstance(nic_type, six.string_types):
         int_types = [nic_type]
     else:
@@ -557,12 +554,13 @@ def list_nics(nic_type=None):
 
 
 def set_nic_mtu(nic, mtu):
-    '''Set MTU on a network interface'''
+    """Set the Maximum Transmission Unit (MTU) on a network interface."""
     cmd = ['ip', 'link', 'set', nic, 'mtu', mtu]
     subprocess.check_call(cmd)
 
 
 def get_nic_mtu(nic):
+    """Return the Maximum Transmission Unit (MTU) for a network interface."""
     cmd = ['ip', 'addr', 'show', nic]
     ip_output = subprocess.check_output(cmd).decode('UTF-8').split('\n')
     mtu = ""
@@ -574,6 +572,7 @@ def get_nic_mtu(nic):
 
 
 def get_nic_hwaddr(nic):
+    """Return the Media Access Control (MAC) for a network interface."""
     cmd = ['ip', '-o', '-0', 'addr', 'show', nic]
     ip_output = subprocess.check_output(cmd).decode('UTF-8')
     hwaddr = ""
@@ -584,7 +583,7 @@ def get_nic_hwaddr(nic):
 
 
 def cmp_pkgrevno(package, revno, pkgcache=None):
-    '''Compare supplied revno with the revno of the installed package
+    """Compare supplied revno with the revno of the installed package
 
     *  1 => Installed revno is greater than supplied arg
     *  0 => Installed revno is the same as supplied arg
@@ -593,7 +592,7 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
     This function imports apt_cache function from charmhelpers.fetch if
     the pkgcache argument is None. Be sure to add charmhelpers.fetch if
     you call this function, or pass an apt_pkg.Cache() instance.
-    '''
+    """
     import apt_pkg
     if not pkgcache:
         from charmhelpers.fetch import apt_cache
@@ -603,19 +602,27 @@ def cmp_pkgrevno(package, revno, pkgcache=None):
 
 
 @contextmanager
-def chdir(d):
+def chdir(directory):
+    """Change the current working directory to a different directory for a code
+    block and return the previous directory after the block exits. Useful to
+    run commands from a specificed directory.
+
+    :param str directory: The directory path to change to for this context.
+    """
     cur = os.getcwd()
     try:
-        yield os.chdir(d)
+        yield os.chdir(directory)
     finally:
         os.chdir(cur)
 
 
 def chownr(path, owner, group, follow_links=True, chowntopdir=False):
-    """
-    Recursively change user and group ownership of files and directories
+    """Recursively change user and group ownership of files and directories
     in given path. Doesn't chown path itself by default, only its children.
 
+    :param str path: The string path to start changing ownership.
+    :param str owner: The owner string to use when looking up the uid.
+    :param str group: The group string to use when looking up the gid.
     :param bool follow_links: Also Chown links if True
     :param bool chowntopdir: Also chown path itself if True
     """
@@ -639,15 +646,23 @@ def chownr(path, owner, group, follow_links=True, chowntopdir=False):
 
 
 def lchownr(path, owner, group):
+    """Recursively change user and group ownership of files and directories
+    in a given path, not following symbolic links. See the documentation for
+    'os.lchown' for more information.
+
+    :param str path: The string path to start changing ownership.
+    :param str owner: The owner string to use when looking up the uid.
+    :param str group: The group string to use when looking up the gid.
+    """
     chownr(path, owner, group, follow_links=False)
 
 
 def get_total_ram():
-    '''The total amount of system RAM in bytes.
+    """The total amount of system RAM in bytes.
 
     This is what is reported by the OS, and may be overcommitted when
     there are multiple containers hosted on the same machine.
-    '''
+    """
     with open('/proc/meminfo', 'r') as f:
         for line in f.readlines():
             if line:
