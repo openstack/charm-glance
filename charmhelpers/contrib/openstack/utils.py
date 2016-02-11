@@ -348,8 +348,8 @@ def os_release(package, base='essex'):
     return os_rel
 
 
-def import_pgp_key(key):
-    key = key.strip()
+def import_key(keyid):
+    key = keyid.strip()
     if (key.startswith('-----BEGIN PGP PUBLIC KEY BLOCK-----') and
             key.endswith('-----END PGP PUBLIC KEY BLOCK-----')):
         juju_log("PGP key found (looks like ASCII Armor format)", level=DEBUG)
@@ -398,13 +398,13 @@ def configure_installation_source(rel):
     elif rel[:4] == "ppa:":
         src, key = get_source_and_pgp_key(rel)
         if key:
-            import_pgp_key(key)
+            import_key(key)
 
         subprocess.check_call(["add-apt-repository", "-y", src])
     elif rel[:3] == "deb":
         src, key = get_source_and_pgp_key(rel)
         if key:
-            import_pgp_key(key)
+            import_key(key)
 
         with open('/etc/apt/sources.list.d/juju_deb.list', 'w') as f:
             f.write(src)
