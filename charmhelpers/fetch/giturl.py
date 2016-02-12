@@ -15,7 +15,7 @@
 # along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from subprocess import check_call
+from subprocess import check_call, CalledProcessError
 from charmhelpers.fetch import (
     BaseFetchHandler,
     UnhandledSource,
@@ -49,8 +49,8 @@ class GitUrlFetchHandler(BaseFetchHandler):
             cmd = ['git', '-C', dest, 'pull', source, branch]
         else:
             cmd = ['git', 'clone', source, dest, '--branch', branch]
-        if depth:
-            cmd.extend(['--depth', depth])
+            if depth:
+                cmd.extend(['--depth', depth])
         check_call(cmd)
 
     def install(self, source, branch="master", dest=None, depth=None):
@@ -63,6 +63,8 @@ class GitUrlFetchHandler(BaseFetchHandler):
                                     branch_name)
         try:
             self.clone(source, dest_dir, branch, depth)
+        except CalledProcessError as e:
+            raise UnhandledSource(e)
         except OSError as e:
             raise UnhandledSource(e.strerror)
         return dest_dir

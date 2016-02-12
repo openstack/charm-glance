@@ -90,6 +90,12 @@ from charmhelpers.contrib.network.ip import (
 from charmhelpers.contrib.openstack.utils import get_host_ip
 from charmhelpers.core.unitdata import kv
 
+try:
+    import psutil
+except ImportError:
+    apt_install('python-psutil', fatal=True)
+    import psutil
+
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 ADDRESS_TYPES = ['admin', 'internal', 'public']
 
@@ -1258,13 +1264,11 @@ class WorkerConfigContext(OSContextGenerator):
 
     @property
     def num_cpus(self):
-        try:
-            from psutil import NUM_CPUS
-        except ImportError:
-            apt_install('python-psutil', fatal=True)
-            from psutil import NUM_CPUS
-
-        return NUM_CPUS
+        # NOTE: use cpu_count if present (16.04 support)
+        if hasattr(psutil, 'cpu_count'):
+            return psutil.cpu_count()
+        else:
+            return psutil.NUM_CPUS
 
     def __call__(self):
         multiplier = config('worker-multiplier') or 0
