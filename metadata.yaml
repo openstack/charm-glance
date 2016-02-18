@@ -23,6 +23,7 @@ requires:
     interface: pgsql
   amqp:
     interface: rabbitmq
+    optional: true
   object-store:
     interface: swift-proxy
   identity-service:
