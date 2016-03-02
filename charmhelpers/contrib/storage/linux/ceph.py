@@ -120,6 +120,7 @@ class PoolCreationError(Exception):
     """
     A custom error to inform the caller that a pool creation failed.  Provides an error message
     """
+
     def __init__(self, message):
         super(PoolCreationError, self).__init__(message)
 
@@ -129,6 +130,7 @@ class Pool(object):
     An object oriented approach to Ceph pool creation. This base class is inherited by ReplicatedPool and ErasurePool.
     Do not call create() on this base class as it will not do anything.  Instantiate a child class and call create().
     """
+
     def __init__(self, service, name):
         self.service = service
         self.name = name
@@ -180,36 +182,41 @@ class Pool(object):
         :return: int.  The number of pgs to use.
         """
         validator(value=pool_size, valid_type=int)
-        osds = get_osds(self.service)
-        if not osds:
+        osd_list = get_osds(self.service)
+        if not osd_list:
             # NOTE(james-page): Default to 200 for older ceph versions
             # which don't support OSD query from cli
             return 200
 
+        osd_list_length = len(osd_list)
         # Calculate based on Ceph best practices
-        if osds < 5:
+        if osd_list_length < 5:
             return 128
-        elif 5 < osds < 10:
+        elif 5 < osd_list_length < 10:
             return 512
-        elif 10 < osds < 50:
+        elif 10 < osd_list_length < 50:
             return 4096
         else:
-            estimate = (osds * 100) / pool_size
+            estimate = (osd_list_length * 100) / pool_size
             # Return the next nearest power of 2
             index = bisect.bisect_right(powers_of_two, estimate)
             return powers_of_two[index]
 
 
 class ReplicatedPool(Pool):
-    def __init__(self, service, name, replicas=2):
+    def __init__(self, service, name, pg_num=None, replicas=2):
         super(ReplicatedPool, self).__init__(service=service, name=name)
         self.replicas = replicas
+        if pg_num is None:
+            self.pg_num = self.get_pgs(self.replicas)
+        else:
+            self.pg_num = pg_num
 
     def create(self):
         if not pool_exists(self.service, self.name):
             # Create it
-            pgs = self.get_pgs(self.replicas)
-            cmd = ['ceph', '--id', self.service, 'osd', 'pool', 'create', self.name, str(pgs)]
+            cmd = ['ceph', '--id', self.service, 'osd', 'pool', 'create',
+                   self.name, str(self.pg_num)]
             try:
                 check_call(cmd)
             except CalledProcessError:
@@ -241,7 +248,7 @@ class ErasurePool(Pool):
 
             pgs = self.get_pgs(int(erasure_profile['k']) + int(erasure_profile['m']))
             # Create it
-            cmd = ['ceph', '--id', self.service, 'osd', 'pool', 'create', self.name, str(pgs),
+            cmd = ['ceph', '--id', self.service, 'osd', 'pool', 'create', self.name, str(pgs), str(pgs),
                    'erasure', self.erasure_code_profile]
             try:
                 check_call(cmd)
@@ -322,7 +329,8 @@ def set_pool_quota(service, pool_name, max_bytes):
     :return: None.  Can raise CalledProcessError
     """
     # Set a byte quota on a RADOS pool in ceph.
-    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set-quota', pool_name, 'max_bytes', max_bytes]
+    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set-quota', pool_name,
+           'max_bytes', str(max_bytes)]
     try:
         check_call(cmd)
     except CalledProcessError:
@@ -343,7 +351,25 @@ def remove_pool_quota(service, pool_name):
         raise
 
 
-def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure', failure_domain='host',
+def remove_erasure_profile(service, profile_name):
+    """
+    Create a new erasure code profile if one does not already exist for it.  Updates
+    the profile if it exists. Please see http://docs.ceph.com/docs/master/rados/operations/erasure-code-profile/
+    for more details
+    :param service: six.string_types. The Ceph user name to run the command under
+    :param profile_name: six.string_types
+    :return: None.  Can raise CalledProcessError
+    """
+    cmd = ['ceph', '--id', service, 'osd', 'erasure-code-profile', 'rm',
+           profile_name]
+    try:
+        check_call(cmd)
+    except CalledProcessError:
+        raise
+
+
+def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure',
+                           failure_domain='host',
                            data_chunks=2, coding_chunks=1,
                            locality=None, durability_estimator=None):
     """

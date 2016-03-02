@@ -6,6 +6,8 @@ Listen {{ ext_port }}
 <VirtualHost {{ address }}:{{ ext }}>
     ServerName {{ endpoint }}
     SSLEngine on
+    SSLProtocol +TLSv1 +TLSv1.1 +TLSv1.2
+    SSLCipherSuite HIGH:!RC4:!MD5:!aNULL:!eNULL:!EXP:!LOW:!MEDIUM
     SSLCertificateFile /etc/apache2/ssl/{{ namespace }}/cert_{{ endpoint }}
     SSLCertificateKeyFile /etc/apache2/ssl/{{ namespace }}/key_{{ endpoint }}
     ProxyPass / http://localhost:{{ int }}/

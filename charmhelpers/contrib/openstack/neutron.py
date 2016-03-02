@@ -237,14 +237,16 @@ def neutron_plugins():
         plugins['midonet']['driver'] = (
             'neutron.plugins.midonet.plugin.MidonetPluginV2')
     if release >= 'liberty':
-        midonet_origin = config('midonet-origin')
-        if midonet_origin is not None and midonet_origin[4:5] == '1':
-            plugins['midonet']['driver'] = (
-                'midonet.neutron.plugin_v1.MidonetPluginV2')
-            plugins['midonet']['server_packages'].remove(
-                'python-neutron-plugin-midonet')
-            plugins['midonet']['server_packages'].append(
-                'python-networking-midonet')
+        plugins['midonet']['driver'] = (
+            'midonet.neutron.plugin_v1.MidonetPluginV2')
+        plugins['midonet']['server_packages'].remove(
+            'python-neutron-plugin-midonet')
+        plugins['midonet']['server_packages'].append(
+            'python-networking-midonet')
+        plugins['plumgrid']['driver'] = (
+            'networking_plumgrid.neutron.plugins.plugin.NeutronPluginPLUMgridV2')
+        plugins['plumgrid']['server_packages'].remove(
+            'neutron-plugin-plumgrid')
     return plugins
 
 

@@ -456,3 +456,18 @@ def get_hostname(address, fqdn=True):
             return result
     else:
         return result.split('.')[0]
+
+
+def port_has_listener(address, port):
+    """
+    Returns True if the address:port is open and being listened to,
+    else False.
+
+    @param address: an IP address or hostname
+    @param port: integer port
+
+    Note calls 'zc' via a subprocess shell
+    """
+    cmd = ['nc', '-z', address, str(port)]
+    result = subprocess.call(cmd)
+    return not(bool(result))

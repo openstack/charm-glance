@@ -4,3 +4,4 @@ tags
 .tox
 .testrepository
 *.sw[nop]
+*.pyc

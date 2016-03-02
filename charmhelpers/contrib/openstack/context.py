@@ -410,6 +410,7 @@ class IdentityServiceContext(OSContextGenerator):
                 auth_host = format_ipv6_addr(auth_host) or auth_host
                 svc_protocol = rdata.get('service_protocol') or 'http'
                 auth_protocol = rdata.get('auth_protocol') or 'http'
+                api_version = rdata.get('api_version') or '2.0'
                 ctxt.update({'service_port': rdata.get('service_port'),
                              'service_host': serv_host,
                              'auth_host': auth_host,
@@ -418,7 +419,8 @@ class IdentityServiceContext(OSContextGenerator):
                              'admin_user': rdata.get('service_username'),
                              'admin_password': rdata.get('service_password'),
                              'service_protocol': svc_protocol,
-                             'auth_protocol': auth_protocol})
+                             'auth_protocol': auth_protocol,
+                             'api_version': api_version})
 
                 if self.context_complete(ctxt):
                     # NOTE(jamespage) this is required for >= icehouse
@@ -1471,6 +1473,8 @@ class NetworkServiceContext(OSContextGenerator):
                     rdata.get('service_protocol') or 'http',
                     'auth_protocol':
                     rdata.get('auth_protocol') or 'http',
+                    'api_version':
+                    rdata.get('api_version') or '2.0',
                 }
                 if self.context_complete(ctxt):
                     return ctxt
