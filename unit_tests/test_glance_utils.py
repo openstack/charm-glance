@@ -8,6 +8,7 @@ os.environ['JUJU_UNIT_NAME'] = 'glance'
 import hooks.glance_utils as utils
 from test_utils import (
     CharmTestCase,
+    SimpleKV,
 )
 
 TO_PATCH = [
@@ -66,8 +67,6 @@ class TestGlanceUtils(CharmTestCase):
         calls = []
         for conf in [utils.GLANCE_REGISTRY_CONF,
                      utils.GLANCE_API_CONF,
-                     utils.GLANCE_API_PASTE_INI,
-                     utils.GLANCE_REGISTRY_PASTE_INI,
                      utils.HAPROXY_CONF,
                      utils.HTTPS_APACHE_CONF]:
             calls.append(
@@ -85,8 +84,6 @@ class TestGlanceUtils(CharmTestCase):
         calls = []
         for conf in [utils.GLANCE_REGISTRY_CONF,
                      utils.GLANCE_API_CONF,
-                     utils.GLANCE_API_PASTE_INI,
-                     utils.GLANCE_REGISTRY_PASTE_INI,
                      utils.HAPROXY_CONF,
                      utils.HTTPS_APACHE_24_CONF]:
             calls.append(
@@ -105,8 +102,6 @@ class TestGlanceUtils(CharmTestCase):
         calls = []
         for conf in [utils.GLANCE_REGISTRY_CONF,
                      utils.GLANCE_API_CONF,
-                     utils.GLANCE_API_PASTE_INI,
-                     utils.GLANCE_REGISTRY_PASTE_INI,
                      utils.HAPROXY_CONF,
                      utils.ceph_config_file()]:
             calls.append(
@@ -122,8 +117,6 @@ class TestGlanceUtils(CharmTestCase):
         ex_map = OrderedDict([
             (utils.GLANCE_REGISTRY_CONF, ['glance-registry']),
             (utils.GLANCE_API_CONF, ['glance-api']),
-            (utils.GLANCE_API_PASTE_INI, ['glance-api']),
-            (utils.GLANCE_REGISTRY_PASTE_INI, ['glance-registry']),
             (utils.ceph_config_file(), ['glance-api', 'glance-registry']),
             (utils.HAPROXY_CONF, ['haproxy']),
             (utils.HTTPS_APACHE_CONF, ['apache2']),
@@ -327,3 +320,36 @@ class TestGlanceUtils(CharmTestCase):
                 "TEST CONFIG",
                 utils.REQUIRED_INTERFACES,
                 charm_func=utils.check_optional_relations)
+
+    @patch.object(utils, 'os')
+    @patch.object(utils, 'kv')
+    def test_reinstall_paste_ini(self, kv, _os):
+        """Ensure that paste.ini files are re-installed"""
+        _os.path.exists.return_value = True
+        test_kv = SimpleKV()
+        kv.return_value = test_kv
+        utils.reinstall_paste_ini()
+        self.apt_install.assert_called_with(
+            packages=['glance-api', 'glance-registry'],
+            options=utils.REINSTALL_OPTIONS,
+            fatal=True
+        )
+        _os.path.exists.assert_has_calls([
+            call(utils.GLANCE_REGISTRY_PASTE),
+            call(utils.GLANCE_API_PASTE),
+        ])
+        _os.remove.assert_has_calls([
+            call(utils.GLANCE_REGISTRY_PASTE),
+            call(utils.GLANCE_API_PASTE),
+        ])
+        self.assertTrue(test_kv.get(utils.PASTE_INI_MARKER))
+        self.assertTrue(test_kv.flushed)
+
+    @patch.object(utils, 'kv')
+    def test_reinstall_paste_ini_idempotent(self, kv):
+        """Ensure that re-running does not re-install files"""
+        test_kv = SimpleKV()
+        test_kv.set(utils.PASTE_INI_MARKER, True)
+        kv.return_value = test_kv
+        utils.reinstall_paste_ini()
+        self.assertFalse(self.apt_install.called)

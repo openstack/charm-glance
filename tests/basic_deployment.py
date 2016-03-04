@@ -476,45 +476,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                 message = "glance registry paste config error: {}".format(ret)
                 amulet.raise_status(amulet.FAIL, msg=message)
 
-    def _get_filter_factory_expected_dict(self):
-        """Return expected authtoken filter factory dict for OS release"""
-        if self._get_openstack_release() >= self.trusty_kilo:
-            # Kilo and later
-            val = 'keystonemiddleware.auth_token:filter_factory'
-        else:
-            # Juno and earlier
-            val = 'keystoneclient.middleware.auth_token:filter_factory'
-
-        return {'filter:authtoken': {'paste.filter_factory': val}}
-
-    def test_304_glance_api_paste_auth_config(self):
-        """Verify authtoken section config in glance-api-paste.ini using
-           glance/keystone relation data."""
-        u.log.debug('Checking glance api paste config file...')
-        unit = self.glance_sentry
-        conf = '/etc/glance/glance-api-paste.ini'
-        expected = self._get_filter_factory_expected_dict()
-
-        for section, pairs in expected.iteritems():
-            ret = u.validate_config_data(unit, conf, section, pairs)
-            if ret:
-                message = "glance api paste config error: {}".format(ret)
-                amulet.raise_status(amulet.FAIL, msg=message)
-
-    def test_306_glance_registry_paste_auth_config(self):
-        """Verify authtoken section config in glance-registry-paste.ini using
-           glance/keystone relation data."""
-        u.log.debug('Checking glance registry paste config file...')
-        unit = self.glance_sentry
-        conf = '/etc/glance/glance-registry-paste.ini'
-        expected = self._get_filter_factory_expected_dict()
-
-        for section, pairs in expected.iteritems():
-            ret = u.validate_config_data(unit, conf, section, pairs)
-            if ret:
-                message = "glance registry paste config error: {}".format(ret)
-                amulet.raise_status(amulet.FAIL, msg=message)
-
     def test_410_glance_image_create_delete(self):
         """Create new cirros image in glance, verify, then delete it."""
         u.log.debug('Creating, checking and deleting glance image...')

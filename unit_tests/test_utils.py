@@ -105,6 +105,22 @@ class TestRelation(object):
         return None
 
 
+class SimpleKV(object):
+    '''Simple in-memory replacement for unitdata.kv'''
+    def __init__(self):
+        self.flushed = False
+        self.data = {}
+
+    def get(self, key, default=None):
+        return self.data.get(key, default)
+
+    def set(self, key, value):
+        self.data[key] = value
+
+    def flush(self):
+        self.flushed = True
+
+
 @contextmanager
 def patch_open():
     '''Patch open() to allow mocking both open() itself and the file that is

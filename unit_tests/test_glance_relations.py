@@ -55,6 +55,7 @@ TO_PATCH = [
     'ceph_config_file',
     'git_install',
     'update_nrpe_config',
+    'reinstall_paste_ini',
     # other
     'call',
     'check_call',
@@ -496,9 +497,7 @@ class GlanceRelationTests(CharmTestCase):
         self.relation_ids.return_value = []
         relations.keystone_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
-                           call('/etc/glance/glance-registry.conf'),
-                           call('/etc/glance/glance-api-paste.ini'),
-                           call('/etc/glance/glance-registry-paste.ini')],
+                           call('/etc/glance/glance-registry.conf')],
                           configs.write.call_args_list)
         self.assertTrue(configure_https.called)
 
@@ -517,9 +516,7 @@ class GlanceRelationTests(CharmTestCase):
         self.relation_ids.return_value = ['object-store:0']
         relations.keystone_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
-                           call('/etc/glance/glance-registry.conf'),
-                           call('/etc/glance/glance-api-paste.ini'),
-                           call('/etc/glance/glance-registry-paste.ini')],
+                           call('/etc/glance/glance-registry.conf')],
                           configs.write.call_args_list)
         object_store_joined.assert_called_with()
         self.assertTrue(configure_https.called)
@@ -620,6 +617,7 @@ class GlanceRelationTests(CharmTestCase):
         relations.upgrade_charm()
         self.apt_install.assert_called_with(['test'], fatal=True)
         self.assertTrue(configs.write_all.called)
+        self.assertTrue(self.reinstall_paste_ini.called)
 
     def test_ha_relation_joined(self):
         self.get_hacluster_config.return_value = {

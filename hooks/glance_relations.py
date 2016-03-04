@@ -18,14 +18,13 @@ from glance_utils import (
     SERVICES,
     CHARM,
     GLANCE_REGISTRY_CONF,
-    GLANCE_REGISTRY_PASTE_INI,
     GLANCE_API_CONF,
-    GLANCE_API_PASTE_INI,
     HAPROXY_CONF,
     ceph_config_file,
     setup_ipv6,
     swift_temp_url_key,
     assess_status,
+    reinstall_paste_ini,
 )
 from charmhelpers.core.hookenv import (
     config,
@@ -318,9 +317,6 @@ def keystone_changed():
     CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write(GLANCE_REGISTRY_CONF)
 
-    CONFIGS.write(GLANCE_API_PASTE_INI)
-    CONFIGS.write(GLANCE_REGISTRY_PASTE_INI)
-
     # Configure any object-store / swift relations now that we have an
     # identity-service
     if relation_ids('object-store'):
@@ -391,6 +387,7 @@ def cluster_changed():
 @restart_on_change(restart_map(), stopstart=True)
 def upgrade_charm():
     apt_install(filter_installed_packages(determine_packages()), fatal=True)
+    reinstall_paste_ini()
     configure_https()
     update_nrpe_config()
     CONFIGS.write_all()

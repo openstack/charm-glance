@@ -113,9 +113,11 @@ CHARM = "glance"
 
 GLANCE_CONF_DIR = "/etc/glance"
 GLANCE_REGISTRY_CONF = "%s/glance-registry.conf" % GLANCE_CONF_DIR
-GLANCE_REGISTRY_PASTE_INI = "%s/glance-registry-paste.ini" % GLANCE_CONF_DIR
 GLANCE_API_CONF = "%s/glance-api.conf" % GLANCE_CONF_DIR
-GLANCE_API_PASTE_INI = "%s/glance-api-paste.ini" % GLANCE_CONF_DIR
+GLANCE_REGISTRY_PASTE = os.path.join(GLANCE_CONF_DIR,
+                                     'glance-registry-paste.ini')
+GLANCE_API_PASTE = os.path.join(GLANCE_CONF_DIR,
+                                'glance-api-paste.ini')
 CEPH_CONF = "/etc/ceph/ceph.conf"
 CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
 
@@ -175,14 +177,6 @@ CONFIG_FILES = OrderedDict([
                               template_flag='api_config_flags')],
         'services': ['glance-api']
     }),
-    (GLANCE_API_PASTE_INI, {
-        'hook_contexts': [context.IdentityServiceContext()],
-        'services': ['glance-api']
-    }),
-    (GLANCE_REGISTRY_PASTE_INI, {
-        'hook_contexts': [context.IdentityServiceContext()],
-        'services': ['glance-registry']
-    }),
     (ceph_config_file(), {
         'hook_contexts': [context.CephContext()],
         'services': ['glance-api', 'glance-registry']
@@ -213,8 +207,6 @@ def register_configs():
 
     confs = [GLANCE_REGISTRY_CONF,
              GLANCE_API_CONF,
-             GLANCE_API_PASTE_INI,
-             GLANCE_REGISTRY_PASTE_INI,
              HAPROXY_CONF]
 
     if relation_ids('ceph'):
@@ -537,3 +529,33 @@ def assess_status(configs):
     # set the status according to the current state of the contexts
     set_os_workload_status(
         configs, REQUIRED_INTERFACES, charm_func=check_optional_relations)
+
+
+PASTE_INI_MARKER = 'paste-ini-marker'
+REINSTALL_OPTIONS = [
+    '--reinstall',
+    '--option=Dpkg::Options::=--force-confmiss'
+]
+
+
+def reinstall_paste_ini():
+    '''
+    Re-install glance-{api,registry}-paste.ini file from packages
+
+    Existing glance-{api,registry}-paste.ini file will be removed
+    and the original files provided by the packages will be
+    re-installed.
+
+    This will only ever be performed once per unit.
+    '''
+    db = kv()
+    if not db.get(PASTE_INI_MARKER):
+        for paste_file in [GLANCE_REGISTRY_PASTE,
+                           GLANCE_API_PASTE]:
+            if os.path.exists(paste_file):
+                os.remove(paste_file)
+        apt_install(packages=['glance-api', 'glance-registry'],
+                    options=REINSTALL_OPTIONS,
+                    fatal=True)
+        db.set(PASTE_INI_MARKER, True)
+        db.flush()
