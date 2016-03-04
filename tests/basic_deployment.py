@@ -410,6 +410,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                 'idle_timeout': '3600',
                 'connection': db_uri
             }
+            expected['DEFAULT']['notification_driver'] = 'messagingv2'
         else:
             # Juno or earlier
             expected['DEFAULT'].update({
