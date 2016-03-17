@@ -43,7 +43,7 @@ from charmhelpers.core.hookenv import (
     status_set,
 )
 from charmhelpers.core.host import (
-    restart_on_change,
+    # restart_on_change,
     service_reload,
     service_restart,
     service_stop,
@@ -65,6 +65,8 @@ from charmhelpers.contrib.openstack.utils import (
     openstack_upgrade_available,
     os_release,
     sync_db_with_multi_ipv6_addresses,
+    pausable_restart_on_change as restart_on_change,
+    is_unit_paused_set,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
@@ -280,7 +282,9 @@ def ceph_changed():
         CONFIGS.write(ceph_config_file())
         # Ensure that glance-api is restarted since only now can we
         # guarantee that ceph resources are ready.
-        service_restart('glance-api')
+        # Don't restart if the unit is in maintenance mode
+        if not is_unit_paused_set():
+            service_restart('glance-api')
     else:
         send_request_if_needed(get_ceph_request())
 
@@ -489,7 +493,8 @@ def configure_https():
 
     # TODO: improve this by checking if local CN certs are available
     # first then checking reload status (see LP #1433114).
-    service_reload('apache2', restart_on_failure=True)
+    if not is_unit_paused_set():
+        service_reload('apache2', restart_on_failure=True)
 
     for r_id in relation_ids('identity-service'):
         keystone_joined(relation_id=r_id)

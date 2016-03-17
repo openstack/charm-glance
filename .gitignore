@@ -5,3 +5,6 @@ tags
 .testrepository
 *.sw[nop]
 *.pyc
+.unit-state.db
+tests/*.img
+trusty

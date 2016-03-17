@@ -30,6 +30,8 @@ import random
 import string
 import subprocess
 import hashlib
+import functools
+import itertools
 from contextlib import contextmanager
 from collections import OrderedDict
 
@@ -428,25 +430,45 @@ def restart_on_change(restart_map, stopstart=False):
     restarted if any file matching the pattern got changed, created
     or removed. Standard wildcards are supported, see documentation
     for the 'glob' module for more information.
+
+    @param restart_map: {path_file_name: [service_name, ...]
+    @param stopstart: DEFAULT false; whether to stop, start OR restart
+    @returns result from decorated function
     """
     def wrap(f):
+        @functools.wraps(f)
         def wrapped_f(*args, **kwargs):
-            checksums = {path: path_hash(path) for path in restart_map}
-            f(*args, **kwargs)
-            restarts = []
-            for path in restart_map:
-                if path_hash(path) != checksums[path]:
-                    restarts += restart_map[path]
-            services_list = list(OrderedDict.fromkeys(restarts))
-            if not stopstart:
-                for service_name in services_list:
-                    service('restart', service_name)
-            else:
-                for action in ['stop', 'start']:
-                    for service_name in services_list:
-                        service(action, service_name)
+            return restart_on_change_helper(
+                (lambda: f(*args, **kwargs)), restart_map, stopstart)
         return wrapped_f
     return wrap
+
+
+def restart_on_change_helper(lambda_f, restart_map, stopstart=False):
+    """Helper function to perform the restart_on_change function.
+
+    This is provided for decorators to restart services if files described
+    in the restart_map have changed after an invocation of lambda_f().
+
+    @param lambda_f: function to call.
+    @param restart_map: {file: [service, ...]}
+    @param stopstart: whether to stop, start or restart a service
+    @returns result of lambda_f()
+    """
+    checksums = {path: path_hash(path) for path in restart_map}
+    r = lambda_f()
+    # create a list of lists of the services to restart
+    restarts = [restart_map[path]
+                for path in restart_map
+                if path_hash(path) != checksums[path]]
+    # create a flat list of ordered services without duplicates from lists
+    services_list = list(OrderedDict.fromkeys(itertools.chain(*restarts)))
+    if services_list:
+        actions = ('stop', 'start') if stopstart else ('restart',)
+        for action in actions:
+            for service_name in services_list:
+                service(action, service_name)
+    return r
 
 
 def lsb_release():

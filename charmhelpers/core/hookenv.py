@@ -912,6 +912,24 @@ def payload_status_set(klass, pid, status):
     subprocess.check_call(cmd)
 
 
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+def resource_get(name):
+    """used to fetch the resource path of the given name.
+
+    <name> must match a name of defined resource in metadata.yaml
+
+    returns either a path or False if resource not available
+    """
+    if not name:
+        return False
+
+    cmd = ['resource-get', name]
+    try:
+        return subprocess.check_output(cmd).decode('UTF-8')
+    except subprocess.CalledProcessError:
+        return False
+
+
 @cached
 def juju_version():
     """Full version string (eg. '1.23.3.1-trusty-amd64')"""
@@ -976,3 +994,16 @@ def _run_atexit():
     for callback, args, kwargs in reversed(_atexit):
         callback(*args, **kwargs)
     del _atexit[:]
+
+
+@translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+def network_get_primary_address(binding):
+    '''
+    Retrieve the primary network address for a named binding
+
+    :param binding: string. The name of a relation of extra-binding
+    :return: string. The primary IP address for the named binding
+    :raise: NotImplementedError if run on Juju < 2.0
+    '''
+    cmd = ['network-get', '--primary-address', binding]
+    return subprocess.check_output(cmd).strip()

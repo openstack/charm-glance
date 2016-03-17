@@ -3,12 +3,13 @@
 import sys
 import os
 
-from charmhelpers.core.host import service_pause, service_resume
 from charmhelpers.core.hookenv import action_fail
-from charmhelpers.core.unitdata import HookData, kv
 
-from hooks.glance_utils import services, assess_status
-from hooks.glance_relations import CONFIGS
+from hooks.glance_utils import (
+    pause_unit_helper,
+    resume_unit_helper,
+    register_configs,
+)
 
 
 def pause(args):
@@ -16,13 +17,7 @@ def pause(args):
 
     @raises Exception if any services fail to stop
     """
-    for service in services():
-        stopped = service_pause(service)
-        if not stopped:
-            raise Exception("{} didn't stop cleanly.".format(service))
-    with HookData()():
-        kv().set('unit-paused', True)
-    assess_status(CONFIGS)
+    pause_unit_helper(register_configs())
 
 
 def resume(args):
@@ -30,13 +25,7 @@ def resume(args):
 
     @raises Exception if any services fail to start
     """
-    for service in services():
-        started = service_resume(service)
-        if not started:
-            raise Exception("{} didn't start cleanly.".format(service))
-    with HookData()():
-        kv().set('unit-paused', False)
-    assess_status(CONFIGS)
+    resume_unit_helper(register_configs())
 
 
 # A dictionary of all the defined actions to callables (which take

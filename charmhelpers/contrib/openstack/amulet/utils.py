@@ -27,7 +27,11 @@ import cinderclient.v1.client as cinder_client
 import glanceclient.v1.client as glance_client
 import heatclient.v1.client as heat_client
 import keystoneclient.v2_0 as keystone_client
-import novaclient.v1_1.client as nova_client
+from keystoneclient.auth.identity import v3 as keystone_id_v3
+from keystoneclient import session as keystone_session
+from keystoneclient.v3 import client as keystone_client_v3
+
+import novaclient.client as nova_client
 import pika
 import swiftclient
 
@@ -37,6 +41,8 @@ from charmhelpers.contrib.amulet.utils import (
 
 DEBUG = logging.DEBUG
 ERROR = logging.ERROR
+
+NOVA_CLIENT_VERSION = "2"
 
 
 class OpenStackAmuletUtils(AmuletUtils):
@@ -139,7 +145,7 @@ class OpenStackAmuletUtils(AmuletUtils):
                 return "role {} does not exist".format(e['name'])
         return ret
 
-    def validate_user_data(self, expected, actual):
+    def validate_user_data(self, expected, actual, api_version=None):
         """Validate user data.
 
            Validate a list of actual user data vs a list of expected user
@@ -150,10 +156,15 @@ class OpenStackAmuletUtils(AmuletUtils):
         for e in expected:
             found = False
             for act in actual:
-                a = {'enabled': act.enabled, 'name': act.name,
-                     'email': act.email, 'tenantId': act.tenantId,
-                     'id': act.id}
-                if e['name'] == a['name']:
+                if e['name'] == act.name:
+                    a = {'enabled': act.enabled, 'name': act.name,
+                         'email': act.email, 'id': act.id}
+                    if api_version == 3:
+                        a['default_project_id'] = getattr(act,
+                                                          'default_project_id',
+                                                          'none')
+                    else:
+                        a['tenantId'] = act.tenantId
                     found = True
                     ret = self._validate_dict_data(e, a)
                     if ret:
@@ -188,15 +199,30 @@ class OpenStackAmuletUtils(AmuletUtils):
         return cinder_client.Client(username, password, tenant, ept)
 
     def authenticate_keystone_admin(self, keystone_sentry, user, password,
-                                    tenant):
+                                    tenant=None, api_version=None,
+                                    keystone_ip=None):
         """Authenticates admin user with the keystone admin endpoint."""
         self.log.debug('Authenticating keystone admin...')
         unit = keystone_sentry
-        service_ip = unit.relation('shared-db',
-                                   'mysql:shared-db')['private-address']
-        ep = "http://{}:35357/v2.0".format(service_ip.strip().decode('utf-8'))
-        return keystone_client.Client(username=user, password=password,
-                                      tenant_name=tenant, auth_url=ep)
+        if not keystone_ip:
+            keystone_ip = unit.relation('shared-db',
+                                        'mysql:shared-db')['private-address']
+        base_ep = "http://{}:35357".format(keystone_ip.strip().decode('utf-8'))
+        if not api_version or api_version == 2:
+            ep = base_ep + "/v2.0"
+            return keystone_client.Client(username=user, password=password,
+                                          tenant_name=tenant, auth_url=ep)
+        else:
+            ep = base_ep + "/v3"
+            auth = keystone_id_v3.Password(
+                user_domain_name='admin_domain',
+                username=user,
+                password=password,
+                domain_name='admin_domain',
+                auth_url=ep,
+            )
+            sess = keystone_session.Session(auth=auth)
+            return keystone_client_v3.Client(session=sess)
 
     def authenticate_keystone_user(self, keystone, user, password, tenant):
         """Authenticates a regular user with the keystone public endpoint."""
@@ -225,7 +251,8 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.debug('Authenticating nova user ({})...'.format(user))
         ep = keystone.service_catalog.url_for(service_type='identity',
                                               endpoint_type='publicURL')
-        return nova_client.Client(username=user, api_key=password,
+        return nova_client.Client(NOVA_CLIENT_VERSION,
+                                  username=user, api_key=password,
                                   project_id=tenant, auth_url=ep)
 
     def authenticate_swift_user(self, keystone, user, password, tenant):

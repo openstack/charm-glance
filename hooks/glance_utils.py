@@ -26,7 +26,6 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     service_name,
     status_get,
-    status_set,
 )
 
 
@@ -63,6 +62,10 @@ from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
     os_release,
     set_os_workload_status,
+    is_unit_paused_set,
+    make_assess_status_func,
+    pause_unit,
+    resume_unit,
 )
 
 from charmhelpers.core.templating import render
@@ -71,10 +74,7 @@ from charmhelpers.core.decorators import (
     retry_on_exception,
 )
 
-from charmhelpers.core.unitdata import (
-    HookData,
-    kv,
-)
+from charmhelpers.core.unitdata import kv
 
 
 CLUSTER_RES = "grp_glance_vips"
@@ -286,7 +286,9 @@ def do_openstack_upgrade(configs):
     [service_stop(s) for s in services()]
     if is_elected_leader(CLUSTER_RES):
         migrate_database()
-    [service_start(s) for s in services()]
+    # Don't start services if the unit is supposed to be paused.
+    if not is_unit_paused_set():
+        [service_start(s) for s in services()]
 
 
 def restart_map():
@@ -433,8 +435,10 @@ def git_post_install(projects_yaml):
     render('git.upstart', '/etc/init/glance-registry.conf',
            glance_registry_context, perms=0o644, templates_dir=templates_dir)
 
-    service_restart('glance-api')
-    service_restart('glance-registry')
+    # Don't restart services if the unit is supposed to be paused.
+    if not is_unit_paused_set():
+        service_restart('glance-api')
+        service_restart('glance-registry')
 
 
 def check_optional_relations(configs):
@@ -503,32 +507,71 @@ def swift_temp_url_key():
     return connect_and_post()
 
 
-def is_paused(status_get=status_get):
-    """Is the unit paused?"""
-    with HookData()():
-        if kv().get('unit-paused'):
-            return True
-        else:
-            return False
-
-
 def assess_status(configs):
     """Assess status of current unit
-
     Decides what the state of the unit should be based on the current
     configuration.
-
+    SIDE EFFECT: calls set_os_workload_status(...) which sets the workload
+    status of the unit.
+    Also calls status_set(...) directly if paused state isn't complete.
     @param configs: a templating.OSConfigRenderer() object
+    @returns None - this function is executed for its side-effect
     """
+    assess_status_func(configs)()
 
-    if is_paused():
-        status_set("maintenance",
-                   "Paused. Use 'resume' action to resume normal service.")
-        return
 
-    # set the status according to the current state of the contexts
-    set_os_workload_status(
-        configs, REQUIRED_INTERFACES, charm_func=check_optional_relations)
+def assess_status_func(configs):
+    """Helper function to create the function that will assess_status() for
+    the unit.
+    Uses charmhelpers.contrib.openstack.utils.make_assess_status_func() to
+    create the appropriate status function and then returns it.
+    Used directly by assess_status() and also for pausing and resuming
+    the unit.
+
+    NOTE(ajkavanagh) ports are not checked due to race hazards with services
+    that don't behave sychronously w.r.t their service scripts.  e.g.
+    apache2.
+    @param configs: a templating.OSConfigRenderer() object
+    @return f() -> None : a function that assesses the unit's workload status
+    """
+    return make_assess_status_func(
+        configs, REQUIRED_INTERFACES,
+        charm_func=check_optional_relations,
+        services=services(), ports=None)
+
+
+def pause_unit_helper(configs):
+    """Helper function to pause a unit, and then call assess_status(...) in
+    effect, so that the status is correctly updated.
+    Uses charmhelpers.contrib.openstack.utils.pause_unit() to do the work.
+    @param configs: a templating.OSConfigRenderer() object
+    @returns None - this function is executed for its side-effect
+    """
+    _pause_resume_helper(pause_unit, configs)
+
+
+def resume_unit_helper(configs):
+    """Helper function to resume a unit, and then call assess_status(...) in
+    effect, so that the status is correctly updated.
+    Uses charmhelpers.contrib.openstack.utils.resume_unit() to do the work.
+    @param configs: a templating.OSConfigRenderer() object
+    @returns None - this function is executed for its side-effect
+    """
+    _pause_resume_helper(resume_unit, configs)
+
+
+def _pause_resume_helper(f, configs):
+    """Helper function that uses the make_assess_status_func(...) from
+    charmhelpers.contrib.openstack.utils to create an assess_status(...)
+    function that can be used with the pause/resume of the unit
+    @param f: the function to be used with the assess_status(...) function
+    @returns None - this function is executed for its side-effect
+    """
+    # TODO(ajkavanagh) - ports= has been left off because of the race hazard
+    # that exists due to service_start()
+    f(assess_status_func(configs),
+      services=services(),
+      ports=None)
 
 
 PASTE_INI_MARKER = 'paste-ini-marker'
