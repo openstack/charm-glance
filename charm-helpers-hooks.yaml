@@ -12,3 +12,4 @@ include:
     - contrib.python.packages
     - contrib.charmsupport
     - core.kernel
+    - contrib.hardening|inc=*

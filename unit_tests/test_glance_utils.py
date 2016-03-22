@@ -1,11 +1,11 @@
-from mock import patch, call, MagicMock
-
-from collections import OrderedDict
 import os
 
-os.environ['JUJU_UNIT_NAME'] = 'glance'
+from collections import OrderedDict
+from mock import patch, call, MagicMock
 
+os.environ['JUJU_UNIT_NAME'] = 'glance'
 import hooks.glance_utils as utils
+
 from test_utils import (
     CharmTestCase,
     SimpleKV,

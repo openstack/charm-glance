@@ -1,15 +1,23 @@
-from mock import patch
 import os
+import sys
+
+from mock import patch, MagicMock
+
+from test_utils import CharmTestCase
+
+# python-apt is not installed as part of test-requirements but is imported by
+# some charmhelpers modules so create a fake import.
+sys.modules['apt'] = MagicMock()
+sys.modules['apt_pkg'] = MagicMock()
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
-
-with patch('charmhelpers.core.hookenv.config') as config:
-    with patch('actions.hooks.glance_utils.register_configs'):
-        from actions import git_reinstall
-
-from test_utils import (
-    CharmTestCase
-)
+with patch('actions.hooks.charmhelpers.contrib.hardening.harden.harden') as \
+        mock_dec:
+    mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                            lambda *args, **kwargs: f(*args, **kwargs))
+    with patch('actions.hooks.charmhelpers.core.hookenv.config') as config:
+        with patch('actions.hooks.glance_utils.register_configs'):
+            from actions import git_reinstall
 
 TO_PATCH = [
     'config',

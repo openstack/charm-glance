@@ -332,28 +332,30 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 
     def _get_keystone_authtoken_expected_dict(self, rel_ks_gl):
         """Return expected authtoken dict for OS release"""
-        expected = {
-            'keystone_authtoken': {
-                'signing_dir': '/var/cache/glance',
-                'admin_tenant_name': 'services',
-                'admin_user': 'glance',
-                'admin_password': rel_ks_gl['service_password'],
-                'auth_uri': u.valid_url
-            }
-        }
-
         if self._get_openstack_release() >= self.trusty_kilo:
-            # Trusty-Kilo and later
-            expected['keystone_authtoken'].update({
-                'identity_uri': u.valid_url,
-            })
+            expected = {
+                'keystone_authtoken': {
+                    'project_name': 'services',
+                    'username': 'glance',
+                    'password': rel_ks_gl['service_password'],
+                    'auth_uri': u.valid_url,
+                    'auth_url': u.valid_url,
+                    'signing_dir': '/var/cache/glance',
+                }
+            }
         else:
-            # Utopic-Juno and earlier
-            expected['keystone_authtoken'].update({
-                'auth_host': rel_ks_gl['auth_host'],
-                'auth_port': rel_ks_gl['auth_port'],
-                'auth_protocol': rel_ks_gl['auth_protocol']
-            })
+            expected = {
+                'keystone_authtoken': {
+                    'auth_uri': u.valid_url,
+                    'auth_host': rel_ks_gl['auth_host'],
+                    'auth_port': rel_ks_gl['auth_port'],
+                    'auth_protocol': rel_ks_gl['auth_protocol'],
+                    'admin_tenant_name': 'services',
+                    'admin_user': 'glance',
+                    'admin_password': rel_ks_gl['service_password'],
+                    'signing_dir': '/var/cache/glance',
+                }
+            }
 
         return expected
 

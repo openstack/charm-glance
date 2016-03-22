@@ -1,8 +1,15 @@
-from mock import call, patch, MagicMock
 import os
+import sys
 import yaml
 
+from mock import call, patch, MagicMock
 from test_utils import CharmTestCase
+
+# python-apt is not installed as part of test-requirements but is imported by
+# some charmhelpers modules so create a fake import.
+mock_apt = MagicMock()
+sys.modules['apt'] = mock_apt
+mock_apt.apt_pkg = MagicMock()
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
 import hooks.glance_utils as utils
@@ -13,7 +20,10 @@ _map = utils.restart_map
 utils.register_configs = MagicMock()
 utils.restart_map = MagicMock()
 
-import hooks.glance_relations as relations
+with patch('hooks.charmhelpers.contrib.hardening.harden.harden') as mock_dec:
+    mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                            lambda *args, **kwargs: f(*args, **kwargs))
+    import hooks.glance_relations as relations
 
 relations.hooks._config_save = False
 

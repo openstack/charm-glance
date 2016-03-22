@@ -1,13 +1,11 @@
 import os
+
 import mock
-from mock import patch
 
 from test_utils import CharmTestCase
 
-
 os.environ['JUJU_UNIT_NAME'] = 'glance'
-
-with patch('actions.hooks.glance_utils.register_configs') as configs:
+with mock.patch('actions.hooks.glance_utils.register_configs') as configs:
     configs.return_value = 'test-config'
     import actions.actions
 

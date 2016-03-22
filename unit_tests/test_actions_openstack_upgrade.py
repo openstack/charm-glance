@@ -1,15 +1,21 @@
-from mock import patch
 import os
+import sys
+
+from mock import patch, MagicMock
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
+
+# python-apt is not installed as part of test-requirements but is imported by
+# some charmhelpers modules so create a fake import.
+mock_apt = MagicMock()
+sys.modules['apt'] = mock_apt
+mock_apt.apt_pkg = MagicMock()
 
 with patch('actions.hooks.glance_utils.register_configs'):
     with patch('hooks.glance_utils.register_configs'):
             from actions import openstack_upgrade
 
-from test_utils import (
-    CharmTestCase
-)
+from test_utils import CharmTestCase
 
 TO_PATCH = [
     'config_changed',

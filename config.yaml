@@ -262,3 +262,9 @@ options:
       Expose underlying image locations via the API when using Ceph for image
       storage.  Only disable this option if you do not wish to use copy-on-write
       clones of RAW format images with Ceph in Cinder and Nova.
+  harden:
+    default:
+    type: string
+    description: |
+      Apply system hardening. Supports a space-delimited list of modules
+      to run. Supported modules currently include os, ssh, apache and mysql.

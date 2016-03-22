@@ -93,6 +93,7 @@ from charmhelpers.contrib.openstack.context import (
     ADDRESS_TYPES
 )
 from charmhelpers.contrib.charmsupport import nrpe
+from charmhelpers.contrib.hardening.harden import harden
 
 
 hooks = Hooks()
@@ -100,6 +101,7 @@ CONFIGS = register_configs()
 
 
 @hooks.hook('install.real')
+@harden()
 def install_hook():
     status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
@@ -332,6 +334,7 @@ def keystone_changed():
 
 @hooks.hook('config-changed')
 @restart_on_change(restart_map(), stopstart=True)
+@harden()
 def config_changed():
     if config('prefer-ipv6'):
         setup_ipv6()
@@ -389,6 +392,7 @@ def cluster_changed():
 
 @hooks.hook('upgrade-charm')
 @restart_on_change(restart_map(), stopstart=True)
+@harden()
 def upgrade_charm():
     apt_install(filter_installed_packages(determine_packages()), fatal=True)
     reinstall_paste_ini()
@@ -529,6 +533,12 @@ def update_nrpe_config():
     nrpe.add_init_service_checks(nrpe_setup, services(), current_unit)
     nrpe.add_haproxy_checks(nrpe_setup, current_unit)
     nrpe_setup.write()
+
+
+@hooks.hook('update-status')
+@harden()
+def update_status():
+    juju_log('Updating status.')
 
 
 if __name__ == '__main__':
