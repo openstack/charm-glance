@@ -174,7 +174,8 @@ CONFIG_FILES = OrderedDict([
                           glance_contexts.MultiStoreContext(),
                           context.OSConfigFlagContext(
                               charm_flag='api-config-flags',
-                              template_flag='api_config_flags')],
+                              template_flag='api_config_flags'),
+                          context.InternalEndpointContext()],
         'services': ['glance-api']
     }),
     (ceph_config_file(), {
