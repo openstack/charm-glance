@@ -191,6 +191,15 @@ get_iface_for_address = partial(_get_for_address, key='iface')
 get_netmask_for_address = partial(_get_for_address, key='netmask')
 
 
+def resolve_network_cidr(ip_address):
+    '''
+    Resolves the full address cidr of an ip_address based on
+    configured network interfaces
+    '''
+    netmask = get_netmask_for_address(ip_address)
+    return str(netaddr.IPNetwork("%s/%s" % (ip_address, netmask)).cidr)
+
+
 def format_ipv6_addr(address):
     """If address is IPv6, wrap it in '[]' otherwise return None.
 
