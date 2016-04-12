@@ -43,6 +43,7 @@ TO_PATCH = [
     'relation_get',
     'service_name',
     'unit_get',
+    'network_get_primary_address',
     # charmhelpers.core.host
     'apt_install',
     'apt_update',
@@ -86,6 +87,7 @@ class GlanceRelationTests(CharmTestCase):
     def setUp(self):
         super(GlanceRelationTests, self).setUp(relations, TO_PATCH)
         self.config.side_effect = self.test_config.get
+        self.network_get_primary_address.side_effect = NotImplementedError
 
     @patch.object(utils, 'git_install_requested')
     def test_install_hook(self, git_requested):
@@ -153,6 +155,17 @@ class GlanceRelationTests(CharmTestCase):
                                              username='glance',
                                              hostname='glance.foohost.com')
         self.unit_get.assert_called_with('private-address')
+
+    def test_db_joined_network_spaces(self):
+        self.network_get_primary_address.side_effect = None
+        self.network_get_primary_address.return_value = '192.168.20.1'
+        self.unit_get.return_value = 'glance.foohost.com'
+        self.is_relation_made.return_value = False
+        relations.db_joined()
+        self.relation_set.assert_called_with(database='glance',
+                                             username='glance',
+                                             hostname='192.168.20.1')
+        self.assertFalse(self.unit_get.called)
 
     def test_db_joined_with_ipv6(self):
         self.test_config.set('prefer-ipv6', True)

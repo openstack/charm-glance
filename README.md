@@ -188,9 +188,11 @@ This charm supports the use of Juju Network Spaces, allowing the charm to be bou
 
 API endpoints can be bound to distinct network spaces supporting the network separation of public, internal and admin endpoints.
 
+Access to the underlying MySQL instance can also be bound to a specific space using the shared-db relation.
+
 To use this feature, use the --bind option when deploying the charm:
 
-    juju deploy glance --bind "public=public-space internal=internal-space admin=admin-space"
+    juju deploy glance --bind "public=public-space internal=internal-space admin=admin-space shared-db=internal-space"
 
 alternatively these can also be provided as part of a juju native bundle configuration:
 
@@ -201,6 +203,7 @@ alternatively these can also be provided as part of a juju native bundle configu
         public: public-space
         admin: admin-space
         internal: internal-space
+        shared-db: internal-space
 
 NOTE: Spaces must be configured in the underlying provider prior to attempting to use them.
 
