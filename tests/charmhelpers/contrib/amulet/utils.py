@@ -601,7 +601,7 @@ class AmuletUtils(object):
                 return ('Process name count mismatch.  expected, actual: {}, '
                         '{}'.format(len(expected), len(actual)))
 
-            for (e_proc_name, e_pids_length), (a_proc_name, a_pids) in \
+            for (e_proc_name, e_pids), (a_proc_name, a_pids) in \
                     zip(e_proc_names.items(), a_proc_names.items()):
                 if e_proc_name != a_proc_name:
                     return ('Process name mismatch.  expected, actual: {}, '
@@ -610,25 +610,31 @@ class AmuletUtils(object):
                 a_pids_length = len(a_pids)
                 fail_msg = ('PID count mismatch. {} ({}) expected, actual: '
                             '{}, {} ({})'.format(e_sentry_name, e_proc_name,
-                                                 e_pids_length, a_pids_length,
+                                                 e_pids, a_pids_length,
                                                  a_pids))
 
-                # If expected is not bool, ensure PID quantities match
-                if not isinstance(e_pids_length, bool) and \
-                        a_pids_length != e_pids_length:
+                # If expected is a list, ensure at least one PID quantity match
+                if isinstance(e_pids, list) and \
+                        a_pids_length not in e_pids:
+                    return fail_msg
+                # If expected is not bool and not list,
+                # ensure PID quantities match
+                elif not isinstance(e_pids, bool) and \
+                        not isinstance(e_pids, list) and \
+                        a_pids_length != e_pids:
                     return fail_msg
                 # If expected is bool True, ensure 1 or more PIDs exist
-                elif isinstance(e_pids_length, bool) and \
-                        e_pids_length is True and a_pids_length < 1:
+                elif isinstance(e_pids, bool) and \
+                        e_pids is True and a_pids_length < 1:
                     return fail_msg
                 # If expected is bool False, ensure 0 PIDs exist
-                elif isinstance(e_pids_length, bool) and \
-                        e_pids_length is False and a_pids_length != 0:
+                elif isinstance(e_pids, bool) and \
+                        e_pids is False and a_pids_length != 0:
                     return fail_msg
                 else:
                     self.log.debug('PID check OK: {} {} {}: '
                                    '{}'.format(e_sentry_name, e_proc_name,
-                                               e_pids_length, a_pids))
+                                               e_pids, a_pids))
         return None
 
     def validate_list_of_identical_dicts(self, list_of_dicts):
