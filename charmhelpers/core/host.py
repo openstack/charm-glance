@@ -128,6 +128,13 @@ def service(action, service_name):
     return subprocess.call(cmd) == 0
 
 
+def systemv_services_running():
+    output = subprocess.check_output(
+        ['service', '--status-all'],
+        stderr=subprocess.STDOUT).decode('UTF-8')
+    return [row.split()[-1] for row in output.split('\n') if '[ + ]' in row]
+
+
 def service_running(service_name):
     """Determine whether a system service is running"""
     if init_is_systemd():
@@ -140,11 +147,15 @@ def service_running(service_name):
         except subprocess.CalledProcessError:
             return False
         else:
+            # This works for upstart scripts where the 'service' command
+            # returns a consistent string to represent running 'start/running'
             if ("start/running" in output or "is running" in output or
                     "up and running" in output):
                 return True
-            else:
-                return False
+            # Check System V scripts init script return codes
+            if service_name in systemv_services_running():
+                return True
+            return False
 
 
 def service_available(service_name):
@@ -412,7 +423,7 @@ class ChecksumError(ValueError):
     pass
 
 
-def restart_on_change(restart_map, stopstart=False):
+def restart_on_change(restart_map, stopstart=False, restart_functions=None):
     """Restart services based on configuration files changing
 
     This function is used a decorator, for example::
@@ -433,18 +444,22 @@ def restart_on_change(restart_map, stopstart=False):
 
     @param restart_map: {path_file_name: [service_name, ...]
     @param stopstart: DEFAULT false; whether to stop, start OR restart
+    @param restart_functions: nonstandard functions to use to restart services
+                              {svc: func, ...}
     @returns result from decorated function
     """
     def wrap(f):
         @functools.wraps(f)
         def wrapped_f(*args, **kwargs):
             return restart_on_change_helper(
-                (lambda: f(*args, **kwargs)), restart_map, stopstart)
+                (lambda: f(*args, **kwargs)), restart_map, stopstart,
+                restart_functions)
         return wrapped_f
     return wrap
 
 
-def restart_on_change_helper(lambda_f, restart_map, stopstart=False):
+def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
+                             restart_functions=None):
     """Helper function to perform the restart_on_change function.
 
     This is provided for decorators to restart services if files described
@@ -453,8 +468,12 @@ def restart_on_change_helper(lambda_f, restart_map, stopstart=False):
     @param lambda_f: function to call.
     @param restart_map: {file: [service, ...]}
     @param stopstart: whether to stop, start or restart a service
+    @param restart_functions: nonstandard functions to use to restart services
+                              {svc: func, ...}
     @returns result of lambda_f()
     """
+    if restart_functions is None:
+        restart_functions = {}
     checksums = {path: path_hash(path) for path in restart_map}
     r = lambda_f()
     # create a list of lists of the services to restart
@@ -465,9 +484,12 @@ def restart_on_change_helper(lambda_f, restart_map, stopstart=False):
     services_list = list(OrderedDict.fromkeys(itertools.chain(*restarts)))
     if services_list:
         actions = ('stop', 'start') if stopstart else ('restart',)
-        for action in actions:
-            for service_name in services_list:
-                service(action, service_name)
+        for service_name in services_list:
+            if service_name in restart_functions:
+                restart_functions[service_name](service_name)
+            else:
+                for action in actions:
+                    service(action, service_name)
     return r
 
 

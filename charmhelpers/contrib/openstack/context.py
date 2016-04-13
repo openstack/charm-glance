@@ -20,7 +20,7 @@ import os
 import re
 import time
 from base64 import b64decode
-from subprocess import check_call
+from subprocess import check_call, CalledProcessError
 
 import six
 import yaml
@@ -45,6 +45,7 @@ from charmhelpers.core.hookenv import (
     INFO,
     WARNING,
     ERROR,
+    status_set,
 )
 
 from charmhelpers.core.sysctl import create as sysctl_create
@@ -1491,3 +1492,92 @@ class InternalEndpointContext(OSContextGenerator):
     """
     def __call__(self):
         return {'use_internal_endpoints': config('use-internal-endpoints')}
+
+
+class AppArmorContext(OSContextGenerator):
+    """Base class for apparmor contexts."""
+
+    def __init__(self):
+        self._ctxt = None
+        self.aa_profile = None
+        self.aa_utils_packages = ['apparmor-utils']
+
+    @property
+    def ctxt(self):
+        if self._ctxt is not None:
+            return self._ctxt
+        self._ctxt = self._determine_ctxt()
+        return self._ctxt
+
+    def _determine_ctxt(self):
+        """
+        Validate aa-profile-mode settings is disable, enforce, or complain.
+
+        :return ctxt: Dictionary of the apparmor profile or None
+        """
+        if config('aa-profile-mode') in ['disable', 'enforce', 'complain']:
+            ctxt = {'aa-profile-mode': config('aa-profile-mode')}
+        else:
+            ctxt = None
+        return ctxt
+
+    def __call__(self):
+        return self.ctxt
+
+    def install_aa_utils(self):
+        """
+        Install packages required for apparmor configuration.
+        """
+        log("Installing apparmor utils.")
+        ensure_packages(self.aa_utils_packages)
+
+    def manually_disable_aa_profile(self):
+        """
+        Manually disable an apparmor profile.
+
+        If aa-profile-mode is set to disabled (default) this is required as the
+        template has been written but apparmor is yet unaware of the profile
+        and aa-disable aa-profile fails. Without this the profile would kick
+        into enforce mode on the next service restart.
+
+        """
+        profile_path = '/etc/apparmor.d'
+        disable_path = '/etc/apparmor.d/disable'
+        if not os.path.lexists(os.path.join(disable_path, self.aa_profile)):
+            os.symlink(os.path.join(profile_path, self.aa_profile),
+                       os.path.join(disable_path, self.aa_profile))
+
+    def setup_aa_profile(self):
+        """
+        Setup an apparmor profile.
+        The ctxt dictionary will contain the apparmor profile mode and
+        the apparmor profile name.
+        Makes calls out to aa-disable, aa-complain, or aa-enforce to setup
+        the apparmor profile.
+        """
+        self()
+        if not self.ctxt:
+            log("Not enabling apparmor Profile")
+            return
+        self.install_aa_utils()
+        cmd = ['aa-{}'.format(self.ctxt['aa-profile-mode'])]
+        cmd.append(self.ctxt['aa-profile'])
+        log("Setting up the apparmor profile for {} in {} mode."
+            "".format(self.ctxt['aa-profile'], self.ctxt['aa-profile-mode']))
+        try:
+            check_call(cmd)
+        except CalledProcessError as e:
+            # If aa-profile-mode is set to disabled (default) manual
+            # disabling is required as the template has been written but
+            # apparmor is yet unaware of the profile and aa-disable aa-profile
+            # fails. If aa-disable learns to read profile files first this can
+            # be removed.
+            if self.ctxt['aa-profile-mode'] == 'disable':
+                log("Manually disabling the apparmor profile for {}."
+                    "".format(self.ctxt['aa-profile']))
+                self.manually_disable_aa_profile()
+                return
+            status_set('blocked', "Apparmor profile {} failed to be set to {}."
+                                  "".format(self.ctxt['aa-profile'],
+                                            self.ctxt['aa-profile-mode']))
+            raise e

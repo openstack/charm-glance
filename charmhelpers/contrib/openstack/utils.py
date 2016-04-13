@@ -137,7 +137,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('liberty',
         ['2.3.0', '2.4.0', '2.5.0']),
     ('mitaka',
-        ['2.5.0', '2.6.0']),
+        ['2.5.0', '2.6.0', '2.7.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -156,6 +156,7 @@ PACKAGE_CODENAMES = {
     ]),
     'keystone': OrderedDict([
         ('8.0', 'liberty'),
+        ('8.1', 'liberty'),
         ('9.0', 'mitaka'),
     ]),
     'horizon-common': OrderedDict([
@@ -1534,7 +1535,8 @@ def make_assess_status_func(*args, **kwargs):
     return _assess_status_func
 
 
-def pausable_restart_on_change(restart_map, stopstart=False):
+def pausable_restart_on_change(restart_map, stopstart=False,
+                               restart_functions=None):
     """A restart_on_change decorator that checks to see if the unit is
     paused. If it is paused then the decorated function doesn't fire.
 
@@ -1567,6 +1569,7 @@ def pausable_restart_on_change(restart_map, stopstart=False):
                 return f(*args, **kwargs)
             # otherwise, normal restart_on_change functionality
             return restart_on_change_helper(
-                (lambda: f(*args, **kwargs)), restart_map, stopstart)
+                (lambda: f(*args, **kwargs)), restart_map, stopstart,
+                restart_functions)
         return wrapped_f
     return wrap
