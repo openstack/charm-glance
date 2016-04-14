@@ -221,6 +221,10 @@ class ReplicatedPool(Pool):
                    self.name, str(self.pg_num)]
             try:
                 check_call(cmd)
+                # Set the pool replica size
+                update_pool(client=self.service,
+                            pool=self.name,
+                            settings={'size': str(self.replicas)})
             except CalledProcessError:
                 raise
 
