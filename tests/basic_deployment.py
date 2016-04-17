@@ -333,7 +333,39 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 
     def _get_keystone_authtoken_expected_dict(self, rel_ks_gl):
         """Return expected authtoken dict for OS release"""
-        if self._get_openstack_release() >= self.trusty_kilo:
+        auth_uri = ('http://%s:%s/' %
+                    (rel_ks_gl['auth_host'], rel_ks_gl['service_port']))
+        auth_url = ('http://%s:%s/' %
+                    (rel_ks_gl['auth_host'], rel_ks_gl['auth_port']))
+        if self._get_openstack_release() >= self.trusty_mitaka:
+            expected = {
+                'keystone_authtoken': {
+                    'auth_uri': auth_uri.rstrip('/'),
+                    'auth_url': auth_url.rstrip('/'),
+                    'auth_type': 'password',
+                    'project_domain_name': 'default',
+                    'user_domain_name': 'default',
+                    'project_name': 'services',
+                    'username': rel_ks_gl['service_username'],
+                    'password': rel_ks_gl['service_password'],
+                    'signing_dir': '/var/cache/glance'
+                }
+            }
+        elif self._get_openstack_release() >= self.trusty_liberty:
+            expected = {
+                'keystone_authtoken': {
+                    'auth_uri': auth_uri.rstrip('/'),
+                    'auth_url': auth_url.rstrip('/'),
+                    'auth_plugin': 'password',
+                    'project_domain_id': 'default',
+                    'user_domain_id': 'default',
+                    'project_name': 'services',
+                    'username': rel_ks_gl['service_username'],
+                    'password': rel_ks_gl['service_password'],
+                    'signing_dir': '/var/cache/glance'
+                }
+            }
+        elif self._get_openstack_release() >= self.trusty_kilo:
             expected = {
                 'keystone_authtoken': {
                     'project_name': 'services',

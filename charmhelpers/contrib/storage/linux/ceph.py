@@ -166,12 +166,19 @@ class Pool(object):
         """
         # read-only is easy, writeback is much harder
         mode = get_cache_mode(self.service, cache_pool)
+        version = ceph_version()
         if mode == 'readonly':
             check_call(['ceph', '--id', self.service, 'osd', 'tier', 'cache-mode', cache_pool, 'none'])
             check_call(['ceph', '--id', self.service, 'osd', 'tier', 'remove', self.name, cache_pool])
 
         elif mode == 'writeback':
-            check_call(['ceph', '--id', self.service, 'osd', 'tier', 'cache-mode', cache_pool, 'forward'])
+            pool_forward_cmd = ['ceph', '--id', self.service, 'osd', 'tier',
+                                'cache-mode', cache_pool, 'forward']
+            if version >= '10.1':
+                # Jewel added a mandatory flag
+                pool_forward_cmd.append('--yes-i-really-mean-it')
+
+            check_call(pool_forward_cmd)
             # Flush the cache and wait for it to return
             check_call(['rados', '--id', self.service, '-p', cache_pool, 'cache-flush-evict-all'])
             check_call(['ceph', '--id', self.service, 'osd', 'tier', 'remove-overlay', self.name])
