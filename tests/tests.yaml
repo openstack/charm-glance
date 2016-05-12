@@ -1,21 +1,17 @@
-bootstrap: true
-reset: false
-virtualenv: true
-makefile:
-    - lint
-    - test
-sources:
-    - ppa:juju/stable
-packages:
-    - amulet
-    - distro-info-data
-    - python-ceilometerclient
-    - python-cinderclient
-    - python-distro-info
-    - python-glanceclient
-    - python-heatclient
-    - python-keystoneclient
-    - python-neutronclient
-    - python-novaclient
-    - python-pika
-    - python-swiftclient
+# Bootstrap the model if necessary.
+bootstrap: True
+# Re-use bootstrap node instead of destroying/re-bootstrapping.
+reset: True
+# Use tox/requirements to drive the venv instead of bundletester's venv feature.
+virtualenv: False
+# Leave makefile empty, otherwise unit/lint tests will rerun ahead of amulet.
+makefile: []
+# Do not specify juju PPA sources.  Juju is presumed to be pre-installed
+# and configured in all test runner environments.
+#sources:
+# Do not specify or rely on system packages.
+#packages:
+# Do not specify python packages here.  Use test-requirements.txt
+# and tox instead.  ie. The venv is constructed before bundletester
+# is invoked.
+#python-packages:

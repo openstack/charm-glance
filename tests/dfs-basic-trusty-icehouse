@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # Copyright 2016 Canonical Ltd
 #
@@ -14,10 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Amulet tests on a basic glance deployment on wily-liberty."""
+"""Amulet tests on a basic Glance git deployment on trusty-icehouse."""
 
 from basic_deployment import GlanceBasicDeployment
 
 if __name__ == '__main__':
-    deployment = GlanceBasicDeployment(series='wily')
+    deployment = GlanceBasicDeployment(series='trusty', git=True)
     deployment.run_tests()
