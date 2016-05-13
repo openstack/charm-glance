@@ -149,6 +149,7 @@ PACKAGE_CODENAMES = {
     'neutron-common': OrderedDict([
         ('7.0', 'liberty'),
         ('8.0', 'mitaka'),
+        ('8.1', 'mitaka'),
     ]),
     'cinder-common': OrderedDict([
         ('7.0', 'liberty'),
