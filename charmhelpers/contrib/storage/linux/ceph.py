@@ -615,7 +615,7 @@ def pool_exists(service, name):
     except CalledProcessError:
         return False
 
-    return name in out
+    return name in out.split()
 
 
 def get_osds(service):

@@ -128,11 +128,8 @@ def service(action, service_name):
     return subprocess.call(cmd) == 0
 
 
-def systemv_services_running():
-    output = subprocess.check_output(
-        ['service', '--status-all'],
-        stderr=subprocess.STDOUT).decode('UTF-8')
-    return [row.split()[-1] for row in output.split('\n') if '[ + ]' in row]
+_UPSTART_CONF = "/etc/init/{}.conf"
+_INIT_D_CONF = "/etc/init.d/{}"
 
 
 def service_running(service_name):
@@ -140,22 +137,22 @@ def service_running(service_name):
     if init_is_systemd():
         return service('is-active', service_name)
     else:
-        try:
-            output = subprocess.check_output(
-                ['service', service_name, 'status'],
-                stderr=subprocess.STDOUT).decode('UTF-8')
-        except subprocess.CalledProcessError:
-            return False
-        else:
-            # This works for upstart scripts where the 'service' command
-            # returns a consistent string to represent running 'start/running'
-            if ("start/running" in output or "is running" in output or
-                    "up and running" in output):
-                return True
+        if os.path.exists(_UPSTART_CONF.format(service_name)):
+            try:
+                output = subprocess.check_output(
+                    ['status', service_name],
+                    stderr=subprocess.STDOUT).decode('UTF-8')
+            except subprocess.CalledProcessError:
+                return False
+            else:
+                # This works for upstart scripts where the 'service' command
+                # returns a consistent string to represent running 'start/running'
+                if "start/running" in output:
+                    return True
+        elif os.path.exists(_INIT_D_CONF.format(service_name)):
             # Check System V scripts init script return codes
-            if service_name in systemv_services_running():
-                return True
-            return False
+            return service('status', service_name)
+        return False
 
 
 def service_available(service_name):
