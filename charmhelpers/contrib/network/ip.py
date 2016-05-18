@@ -214,7 +214,16 @@ def format_ipv6_addr(address):
 
 def get_iface_addr(iface='eth0', inet_type='AF_INET', inc_aliases=False,
                    fatal=True, exc_list=None):
-    """Return the assigned IP address for a given interface, if any."""
+    """Return the assigned IP address for a given interface, if any.
+
+    :param iface: network interface on which address(es) are expected to
+                  be found.
+    :param inet_type: inet address family
+    :param inc_aliases: include alias interfaces in search
+    :param fatal: if True, raise exception if address not found
+    :param exc_list: list of addresses to ignore
+    :return: list of ip addresses
+    """
     # Extract nic if passed /dev/ethX
     if '/' in iface:
         iface = iface.split('/')[-1]
@@ -315,6 +324,14 @@ def get_ipv6_addr(iface=None, inc_aliases=False, fatal=True, exc_list=None,
     We currently only support scope global IPv6 addresses i.e. non-temporary
     addresses. If no global IPv6 address is found, return the first one found
     in the ipv6 address list.
+
+    :param iface: network interface on which ipv6 address(es) are expected to
+                  be found.
+    :param inc_aliases: include alias interfaces in search
+    :param fatal: if True, raise exception if address not found
+    :param exc_list: list of addresses to ignore
+    :param dynamic_only: only recognise dynamic addresses
+    :return: list of ipv6 addresses
     """
     addresses = get_iface_addr(iface=iface, inet_type='AF_INET6',
                                inc_aliases=inc_aliases, fatal=fatal,
@@ -336,7 +353,7 @@ def get_ipv6_addr(iface=None, inc_aliases=False, fatal=True, exc_list=None,
             cmd = ['ip', 'addr', 'show', iface]
             out = subprocess.check_output(cmd).decode('UTF-8')
             if dynamic_only:
-                key = re.compile("inet6 (.+)/[0-9]+ scope global dynamic.*")
+                key = re.compile("inet6 (.+)/[0-9]+ scope global.* dynamic.*")
             else:
                 key = re.compile("inet6 (.+)/[0-9]+ scope global.*")
 
