@@ -40,6 +40,7 @@ from subprocess import (
     CalledProcessError,
 )
 from charmhelpers.core.hookenv import (
+    config,
     local_unit,
     relation_get,
     relation_ids,
@@ -64,6 +65,7 @@ from charmhelpers.fetch import (
 )
 
 from charmhelpers.core.kernel import modprobe
+from charmhelpers.contrib.openstack.utils import config_flags_parser
 
 KEYRING = '/etc/ceph/ceph.client.{}.keyring'
 KEYFILE = '/etc/ceph/ceph.client.{}.key'
@@ -1204,3 +1206,42 @@ def send_request_if_needed(request, relation='ceph'):
         for rid in relation_ids(relation):
             log('Sending request {}'.format(request.request_id), level=DEBUG)
             relation_set(relation_id=rid, broker_req=request.request)
+
+
+class CephConfContext(object):
+    """Ceph config (ceph.conf) context.
+
+    Supports user-provided Ceph configuration settings. Use can provide a
+    dictionary as the value for the config-flags charm option containing
+    Ceph configuration settings keyede by their section in ceph.conf.
+    """
+    def __init__(self, permitted_sections=None):
+        self.permitted_sections = permitted_sections or []
+
+    def __call__(self):
+        conf = config('config-flags')
+        if not conf:
+            return {}
+
+        conf = config_flags_parser(conf)
+        if type(conf) != dict:
+            log("Provided config-flags is not a dictionary - ignoring",
+                level=WARNING)
+            return {}
+
+        permitted = self.permitted_sections
+        if permitted:
+            diff = set(conf.keys()).symmetric_difference(set(permitted))
+            if diff:
+                log("Config-flags contains invalid keys '%s' - they will be "
+                    "ignored" % (', '.join(diff)), level=WARNING)
+
+        ceph_conf = {}
+        for key in conf:
+            if permitted and key not in permitted:
+                log("Ignoring key '%s'" % key, level=WARNING)
+                continue
+
+            ceph_conf[key] = conf[key]
+
+        return ceph_conf

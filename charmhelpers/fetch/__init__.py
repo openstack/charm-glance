@@ -106,6 +106,14 @@ CLOUD_ARCHIVE_POCKETS = {
     'mitaka/proposed': 'trusty-proposed/mitaka',
     'trusty-mitaka/proposed': 'trusty-proposed/mitaka',
     'trusty-proposed/mitaka': 'trusty-proposed/mitaka',
+    # Newton
+    'newton': 'xenial-updates/newton',
+    'xenial-newton': 'xenial-updates/newton',
+    'xenial-newton/updates': 'xenial-updates/newton',
+    'xenial-updates/newton': 'xenial-updates/newton',
+    'newton/proposed': 'xenial-proposed/newton',
+    'xenial-newton/proposed': 'xenial-proposed/newton',
+    'xenial-proposed/newton': 'xenial-proposed/newton',
 }
 
 # The order of this list is very important. Handlers should be listed in from

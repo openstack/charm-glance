@@ -405,10 +405,10 @@ def is_ip(address):
     Returns True if address is a valid IP address.
     """
     try:
-        # Test to see if already an IPv4 address
-        socket.inet_aton(address)
+        # Test to see if already an IPv4/IPv6 address
+        address = netaddr.IPAddress(address)
         return True
-    except socket.error:
+    except netaddr.AddrFormatError:
         return False
 
 
