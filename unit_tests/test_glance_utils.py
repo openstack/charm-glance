@@ -295,18 +295,23 @@ class TestGlanceUtils(CharmTestCase):
             asf.assert_called_once_with('test-config')
             callee.assert_called_once_with()
 
+    @patch.object(utils, 'get_optional_interfaces')
     @patch.object(utils, 'REQUIRED_INTERFACES')
     @patch.object(utils, 'services')
     @patch.object(utils, 'make_assess_status_func')
     def test_assess_status_func(self,
                                 make_assess_status_func,
                                 services,
-                                REQUIRED_INTERFACES):
+                                REQUIRED_INTERFACES,
+                                get_optional_interfaces):
         services.return_value = 's1'
+        REQUIRED_INTERFACES.copy.return_value = {'int': ['test 1']}
+        get_optional_interfaces.return_value = {'opt': ['test 2']}
         utils.assess_status_func('test-config')
         # ports=None whilst port checks are disabled.
         make_assess_status_func.assert_called_once_with(
-            'test-config', REQUIRED_INTERFACES,
+            'test-config',
+            {'int': ['test 1'], 'opt': ['test 2']},
             charm_func=utils.check_optional_relations,
             services='s1', ports=None)
 
