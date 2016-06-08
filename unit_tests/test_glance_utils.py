@@ -22,13 +22,18 @@ TO_PATCH = [
     'apt_update',
     'apt_upgrade',
     'apt_install',
+    'git_pip_venv_dir',
+    'git_src_dir',
     'mkdir',
     'os_release',
     'pip_install',
+    'render',
+    'service_restart',
     'service_start',
     'service_stop',
     'service_name',
-    'install_alternative'
+    'install_alternative',
+    'lsb_release',
 ]
 
 DPKG_OPTS = [
@@ -227,22 +232,18 @@ class TestGlanceUtils(CharmTestCase):
         ]
         self.assertEquals(write_file.call_args_list, expected)
 
-    @patch.object(utils, 'git_src_dir')
-    @patch.object(utils, 'service_restart')
-    @patch.object(utils, 'render')
-    @patch.object(utils, 'git_pip_venv_dir')
     @patch('os.path.join')
     @patch('os.path.exists')
     @patch('os.symlink')
     @patch('shutil.copytree')
     @patch('shutil.rmtree')
     @patch('subprocess.check_call')
-    def test_git_post_install(self, check_call, rmtree, copytree, symlink,
-                              exists, join, venv, render, service_restart,
-                              git_src_dir):
+    def test_git_post_install_upstart(self, check_call, rmtree, copytree,
+                                      symlink, exists, join):
         projects_yaml = openstack_origin_git
         join.return_value = 'joined-string'
-        venv.return_value = '/mnt/openstack-git/venv'
+        self.git_pip_venv_dir.return_value = '/mnt/openstack-git/venv'
+        self.lsb_release.return_value = {'DISTRIB_RELEASE': '15.04'}
         utils.git_post_install(projects_yaml)
         expected = [
             call('joined-string', '/etc/glance'),
@@ -280,12 +281,38 @@ class TestGlanceUtils(CharmTestCase):
                  glance_registry_context, perms=0o644,
                  templates_dir='joined-string'),
         ]
-        self.assertEquals(render.call_args_list, expected)
+        self.assertEquals(self.render.call_args_list, expected)
         expected = [
             call('glance-api'),
             call('glance-registry'),
         ]
-        self.assertEquals(service_restart.call_args_list, expected)
+        self.assertEquals(self.service_restart.call_args_list, expected)
+
+    @patch.object(utils, 'services')
+    @patch('os.listdir')
+    @patch('os.path.join')
+    @patch('os.path.exists')
+    @patch('os.symlink')
+    @patch('shutil.copytree')
+    @patch('shutil.rmtree')
+    @patch('subprocess.check_call')
+    def test_git_post_install_systemd(self, check_call, rmtree, copytree,
+                                      symlink, exists, join, listdir,
+                                      services):
+        projects_yaml = openstack_origin_git
+        join.return_value = 'joined-string'
+        self.lsb_release.return_value = {'DISTRIB_RELEASE': '15.10'}
+        utils.git_post_install(projects_yaml)
+
+        expected = [
+            call('git/glance-api.init.in.template', 'joined-string',
+                 {'daemon_path': 'joined-string'}, perms=420),
+            call('git/glance-glare.init.in.template', 'joined-string',
+                 {'daemon_path': 'joined-string'}, perms=420),
+            call('git/glance-registry.init.in.template', 'joined-string',
+                 {'daemon_path': 'joined-string'}, perms=420),
+        ]
+        self.assertEquals(self.render.call_args_list, expected)
 
     def test_assess_status(self):
         with patch.object(utils, 'assess_status_func') as asf:

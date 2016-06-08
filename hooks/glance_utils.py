@@ -54,11 +54,12 @@ from charmhelpers.contrib.hahelpers.cluster import (
 from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
-    git_install_requested,
     git_clone_and_install,
+    git_generate_systemd_init_files,
+    git_install_requested,
+    git_pip_venv_dir,
     git_src_dir,
     git_yaml_value,
-    git_pip_venv_dir,
     configure_installation_source,
     os_release,
     set_os_workload_status,
@@ -90,6 +91,7 @@ BASE_GIT_PACKAGES = [
     'libxslt1-dev',
     'libssl-dev',
     'libyaml-dev',
+    'openstack-pkg-tools',
     'python-dev',
     'python-pip',
     'python-setuptools',
@@ -259,7 +261,7 @@ def migrate_database():
 
 
 def do_openstack_upgrade(configs):
-    """Perform an uprade of cinder.  Takes care of upgrading
+    """Perform an upgrade of glance.  Takes care of upgrading
     packages, rewriting configs + database migration and potentially
     any other post-upgrade actions.
 
@@ -406,35 +408,50 @@ def git_post_install(projects_yaml):
         os.symlink(s['src'], s['link'])
 
     bin_dir = os.path.join(git_pip_venv_dir(projects_yaml), 'bin')
-    glance_api_context = {
-        'service_description': 'Glance API server',
-        'service_name': 'Glance',
-        'user_name': 'glance',
-        'start_dir': '/var/lib/glance',
-        'process_name': 'glance-api',
-        'executable_name': os.path.join(bin_dir, 'glance-api'),
-        'config_files': ['/etc/glance/glance-api.conf'],
-        'log_file': '/var/log/glance/api.log',
-    }
+    # Use systemd init units/scripts from ubuntu wily onward
+    if lsb_release()['DISTRIB_RELEASE'] >= '15.10':
+        templates_dir = os.path.join(charm_dir(), 'templates/git')
+        daemons = ['glance-api', 'glance-glare', 'glance-registry']
+        for daemon in daemons:
+            glance_context = {
+                'daemon_path': os.path.join(bin_dir, daemon),
+            }
+            template_file = 'git/{}.init.in.template'.format(daemon)
+            init_in_file = '{}.init.in'.format(daemon)
+            render(template_file, os.path.join(templates_dir, init_in_file),
+                   glance_context, perms=0o644)
+        git_generate_systemd_init_files(templates_dir)
+    else:
+        glance_api_context = {
+            'service_description': 'Glance API server',
+            'service_name': 'Glance',
+            'user_name': 'glance',
+            'start_dir': '/var/lib/glance',
+            'process_name': 'glance-api',
+            'executable_name': os.path.join(bin_dir, 'glance-api'),
+            'config_files': ['/etc/glance/glance-api.conf'],
+            'log_file': '/var/log/glance/api.log',
+        }
 
-    glance_registry_context = {
-        'service_description': 'Glance registry server',
-        'service_name': 'Glance',
-        'user_name': 'glance',
-        'start_dir': '/var/lib/glance',
-        'process_name': 'glance-registry',
-        'executable_name': os.path.join(bin_dir, 'glance-registry'),
-        'config_files': ['/etc/glance/glance-registry.conf'],
-        'log_file': '/var/log/glance/registry.log',
-    }
+        glance_registry_context = {
+            'service_description': 'Glance registry server',
+            'service_name': 'Glance',
+            'user_name': 'glance',
+            'start_dir': '/var/lib/glance',
+            'process_name': 'glance-registry',
+            'executable_name': os.path.join(bin_dir, 'glance-registry'),
+            'config_files': ['/etc/glance/glance-registry.conf'],
+            'log_file': '/var/log/glance/registry.log',
+        }
 
-    # NOTE(coreycb): Needs systemd support
-    templates_dir = 'hooks/charmhelpers/contrib/openstack/templates'
-    templates_dir = os.path.join(charm_dir(), templates_dir)
-    render('git.upstart', '/etc/init/glance-api.conf',
-           glance_api_context, perms=0o644, templates_dir=templates_dir)
-    render('git.upstart', '/etc/init/glance-registry.conf',
-           glance_registry_context, perms=0o644, templates_dir=templates_dir)
+        templates_dir = 'hooks/charmhelpers/contrib/openstack/templates'
+        templates_dir = os.path.join(charm_dir(), templates_dir)
+        render('git.upstart', '/etc/init/glance-api.conf',
+               glance_api_context, perms=0o644,
+               templates_dir=templates_dir)
+        render('git.upstart', '/etc/init/glance-registry.conf',
+               glance_registry_context, perms=0o644,
+               templates_dir=templates_dir)
 
     # Don't restart services if the unit is supposed to be paused.
     if not is_unit_paused_set():

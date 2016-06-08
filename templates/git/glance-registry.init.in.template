@@ -1,0 +1,21 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          glance-registry
+# Required-Start:    $network $local_fs $remote_fs $syslog
+# Required-Stop:     $remote_fs
+# Should-Start:      postgresql mysql keystone ntp rabbitmq-server
+# Should-Stop:       postgresql mysql keystone ntp rabbitmq-server
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Glance registry server
+# Description:       Frontend Glance registry server
+### END INIT INFO
+
+# Author: Julien Danjou <acid@debian.org>
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DESC="OpenStack Image Service Registry"
+PROJECT_NAME=glance
+NAME=${PROJECT_NAME}-registry
+CONFIG_FILE=/etc/${PROJECT_NAME}/${NAME}.conf
+DAEMON={{ daemon_path }}
