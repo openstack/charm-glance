@@ -142,9 +142,9 @@ class GlanceRelationTests(CharmTestCase):
         self.apt_install.assert_called_with(
             ['apache2', 'haproxy', 'libffi-dev', 'libmysqlclient-dev',
              'libssl-dev', 'libxml2-dev', 'libxslt1-dev', 'libyaml-dev',
-             'python-dev', 'python-mysqldb', 'python-pip', 'python-psycopg2',
-             'python-setuptools', 'python-six', 'uuid', 'zlib1g-dev'],
-            fatal=True)
+             'openstack-pkg-tools', 'python-dev', 'python-mysqldb',
+             'python-pip', 'python-psycopg2', 'python-setuptools',
+             'python-six', 'uuid', 'zlib1g-dev'], fatal=True)
         self.git_install.assert_called_with(projects_yaml)
 
     def test_db_joined(self):
