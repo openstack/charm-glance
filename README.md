@@ -58,27 +58,41 @@ have already deployed Ceph using the ceph charm:
 This configuration can also be used to support Glance in HA/Scale-out
 deployments.
 
-Glance HA/Scale-out
+HA/Clustering
 ===================
 
-The Glance charm can also be used in a HA/scale-out configuration using
-the hacluster charm:
+There are two mutually exclusive high availability options: using virtual
+IP(s) or DNS. In both cases, a relationship to hacluster is required which
+provides the corosync back end HA functionality.
 
-    juju deploy -n 3 glance
-    juju deploy hacluster haglance
-    juju set glance vip=<virtual IP address to access glance over>
-    juju add-relation glance haglance
-    juju add-relation glance mysql
-    juju add-relation glance keystone
-    juju add-relation glance nova-cloud-controller
-    juju add-relation glance ceph|swift-proxy
+To use virtual IP(s) the clustered nodes must be on the same subnet such that
+the VIP is a valid IP on the subnet for one of the node's interfaces and each
+node has an interface in said subnet. The VIP becomes a highly-available API
+endpoint.
 
-In this configuration, 3 service units host the Glance image service;
-API requests are load balanced across all 3 service units via the
-configured virtual IP address (which is also registered into Keystone
-as the endpoint for Glance).
+At a minimum, the config option 'vip' must be set in order to use virtual IP
+HA. If multiple networks are being used, a VIP should be provided for each
+network, separated by spaces. Optionally, vip_iface or vip_cidr may be
+specified.
 
-Note that Glance in this configuration must be used with either Ceph or
+To use DNS high availability there are several prerequisites. However, DNS HA
+does not require the clustered nodes to be on the same subnet.
+Currently the DNS HA feature is only available for MAAS 2.0 or greater
+environments. MAAS 2.0 requires Juju 2.0 or greater. The clustered nodes must
+have static or "reserved" IP addresses registered in MAAS. The DNS hostname(s)
+must be pre-registered in MAAS before use with DNS HA.
+
+At a minimum, the config option 'dns-ha' must be set to true and at least one
+of 'os-public-hostname', 'os-internal-hostname' or 'os-internal-hostname' must
+be set in order to use DNS HA. One or more of the above hostnames may be set.
+
+The charm will throw an exception in the following circumstances:
+If neither 'vip' nor 'dns-ha' is set and the charm is related to hacluster
+If both 'vip' and 'dns-ha' are set as they are mutually exclusive
+If 'dns-ha' is set and none of the os-{admin,internal,public}-hostname(s) are
+set
+
+Note that Glance in HA configuration must be used with either Ceph or
 Swift providing backing image storage.
 
 Glance metering

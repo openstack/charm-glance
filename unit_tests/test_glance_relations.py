@@ -55,6 +55,8 @@ TO_PATCH = [
     'configure_installation_source',
     'os_release',
     'openstack_upgrade_available',
+    # charmhelpers.contrib.openstack.ha.utils
+    'update_dns_ha_resource_params',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'is_elected_leader',
     # hooks.glance_utils
@@ -763,6 +765,41 @@ class GlanceRelationTests(CharmTestCase):
                 'res_glance_haproxy': 'op monitor interval="5s"'},
             'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
         }
+        self.relation_set.assert_called_with(**args)
+
+    def test_ha_joined_dns_ha(self):
+        def _fake_update(resources, resource_params, relation_id=None):
+            resources.update({'res_glance_public_hostname': 'ocf:maas:dns'})
+            resource_params.update({'res_glance_public_hostname':
+                                    'params fqdn="keystone.maas" '
+                                    'ip_address="10.0.0.1"'})
+
+        self.test_config.set('dns-ha', True)
+        self.get_hacluster_config.return_value = {
+            'vip': None,
+            'ha-bindiface': 'em0',
+            'ha-mcastport': '8080',
+            'os-admin-hostname': None,
+            'os-internal-hostname': None,
+            'os-public-hostname': 'keystone.maas',
+        }
+        args = {
+            'relation_id': None,
+            'corosync_bindiface': 'em0',
+            'corosync_mcastport': '8080',
+            'init_services': {'res_glance_haproxy': 'haproxy'},
+            'resources': {'res_glance_public_hostname': 'ocf:maas:dns',
+                          'res_glance_haproxy': 'lsb:haproxy'},
+            'resource_params': {
+                'res_glance_public_hostname': 'params fqdn="keystone.maas" '
+                                              'ip_address="10.0.0.1"',
+                'res_glance_haproxy': 'op monitor interval="5s"'},
+            'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
+        }
+        self.update_dns_ha_resource_params.side_effect = _fake_update
+
+        relations.ha_relation_joined()
+        self.assertTrue(self.update_dns_ha_resource_params.called)
         self.relation_set.assert_called_with(**args)
 
     def test_ha_relation_changed_not_clustered(self):

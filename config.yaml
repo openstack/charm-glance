@@ -112,6 +112,12 @@ options:
       effect (although it can be changed in ceph by manually configuring
       your ceph cluster).
   # HA configuration settings
+  dns-ha:
+    type: boolean
+    default: False
+    description: |
+        Use DNS HA with MAAS 2.0. Note if this is set do not set vip
+        settings below.
   vip:
     type: string
     default:
@@ -232,6 +238,30 @@ options:
       create a public endpoint for glance of:
       .
       https://glance.example.com:9292/
+  os-internal-hostname:
+    type: string
+    default:
+    description: |
+      The hostname or address of the internal endpoints created for glance
+      in the keystone identity provider.
+      .
+      This value will be used for internal endpoints. For example, an
+      os-internal-hostname set to 'glance.internal.example.com' with ssl enabled will
+      create a internal endpoint for glance of:
+      .
+      https://glance.internal.example.com:9292/
+  os-admin-hostname:
+    type: string
+    default:
+    description: |
+      The hostname or address of the admin endpoints created for glance
+      in the keystone identity provider.
+      .
+      This value will be used for admin endpoints. For example, an
+      os-admin-hostname set to 'glance.admin.example.com' with ssl enabled will
+      create a admin endpoint for glance of:
+      .
+      https://glance.admin.example.com:9292/
   prefer-ipv6:
     type: boolean
     default: False

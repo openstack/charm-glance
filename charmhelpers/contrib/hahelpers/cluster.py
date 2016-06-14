@@ -280,14 +280,14 @@ def get_hacluster_config(exclude_keys=None):
     for initiating a relation to hacluster:
 
         ha-bindiface, ha-mcastport, vip, os-internal-hostname,
-        os-admin-hostname, os-public-hostname
+        os-admin-hostname, os-public-hostname, os-access-hostname
 
     param: exclude_keys: list of setting key(s) to be excluded.
     returns: dict: A dict containing settings keyed by setting name.
     raises: HAIncompleteConfig if settings are missing or incorrect.
     '''
     settings = ['ha-bindiface', 'ha-mcastport', 'vip', 'os-internal-hostname',
-                'os-admin-hostname', 'os-public-hostname']
+                'os-admin-hostname', 'os-public-hostname', 'os-access-hostname']
     conf = {}
     for setting in settings:
         if exclude_keys and setting in exclude_keys:
@@ -324,7 +324,7 @@ def valid_hacluster_config():
     # If dns-ha then one of os-*-hostname must be set
     if dns:
         dns_settings = ['os-internal-hostname', 'os-admin-hostname',
-                        'os-public-hostname']
+                        'os-public-hostname', 'os-access-hostname']
         # At this point it is unknown if one or all of the possible
         # network spaces are in HA. Validate at least one is set which is
         # the minimum required.

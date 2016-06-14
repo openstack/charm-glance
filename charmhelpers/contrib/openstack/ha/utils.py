@@ -36,6 +36,10 @@ from charmhelpers.core.hookenv import (
     DEBUG,
 )
 
+from charmhelpers.core.host import (
+    lsb_release
+)
+
 from charmhelpers.contrib.openstack.ip import (
     resolve_address,
 )
@@ -63,8 +67,11 @@ def update_dns_ha_resource_params(resources, resource_params,
                     DNS HA
     """
 
+    # Validate the charm environment for DNS HA
+    assert_charm_supports_dns_ha()
+
     settings = ['os-admin-hostname', 'os-internal-hostname',
-                'os-public-hostname']
+                'os-public-hostname', 'os-access-hostname']
 
     # Check which DNS settings are set and update dictionaries
     hostname_group = []
@@ -109,3 +116,15 @@ def update_dns_ha_resource_params(resources, resource_params,
         msg = 'DNS HA: Hostname group has no members.'
         status_set('blocked', msg)
         raise DNSHAException(msg)
+
+
+def assert_charm_supports_dns_ha():
+    """Validate prerequisites for DNS HA
+    The MAAS client is only available on Xenial or greater
+    """
+    if lsb_release().get('DISTRIB_RELEASE') < '16.04':
+        msg = ('DNS HA is only supported on 16.04 and greater '
+               'versions of Ubuntu.')
+        status_set('blocked', msg)
+        raise DNSHAException(msg)
+    return True
