@@ -45,14 +45,29 @@ options:
     default:
     type: string
     description: |
-      Specifies a YAML-formatted dictionary listing the git
-      repositories and branches from which to install OpenStack and
-      its dependencies.
+      Specifies a default OpenStack release name, or a YAML dictionary
+      listing the git repositories to install from.
+
+      The default Openstack release name may be one of the following, where
+      the corresponding OpenStack github branch will be used:
+        * icehouse
+        * kilo
+        * liberty
+        * mitaka
+        * master
+
+      The YAML must minimally include requirements and glance repositories,
+      and may also include repositories for other dependencies:
+        repositories:
+        - {name: requirements,
+           repository: 'git://github.com/openstack/requirements',
+           branch: master}
+        - {name: glance,
+           repository: 'git://github.com/openstack/glance',
+           branch: master}
 
       Note that the installed config files will be determined based on
       the OpenStack release of the openstack-origin option.
-
-      For more details see README.md.
   database-user:
     default: glance
     type: string

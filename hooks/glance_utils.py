@@ -54,6 +54,7 @@ from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
     git_clone_and_install,
+    git_default_repos,
     git_generate_systemd_init_files,
     git_install_requested,
     git_pip_venv_dir,
@@ -334,6 +335,7 @@ def git_install(projects_yaml):
     """Perform setup, and install git repos specified in yaml parameter."""
     if git_install_requested():
         git_pre_install()
+        projects_yaml = git_default_repos(projects_yaml)
         git_clone_and_install(projects_yaml, core_project='glance')
         git_post_install(projects_yaml)
 
