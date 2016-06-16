@@ -25,6 +25,7 @@ from glance_utils import (
     swift_temp_url_key,
     assess_status,
     reinstall_paste_ini,
+    is_api_ready,
 )
 from charmhelpers.core.hookenv import (
     config,
@@ -43,6 +44,7 @@ from charmhelpers.core.hookenv import (
     status_set,
     network_get_primary_address,
 )
+
 from charmhelpers.core.host import (
     # restart_on_change,
     service_reload,
@@ -195,6 +197,9 @@ def db_changed():
             juju_log('allowed_units either not presented, or local unit '
                      'not in acl list: %s' % allowed_units)
 
+    for rid in relation_ids('image-service'):
+        image_service_joined(rid)
+
 
 @hooks.hook('pgsql-db-relation-changed')
 @restart_on_change(restart_map())
@@ -221,6 +226,9 @@ def pgsql_db_changed():
         juju_log('Cluster leader, performing db sync')
         migrate_database()
 
+    for rid in relation_ids('image-service'):
+        image_service_joined(rid)
+
 
 @hooks.hook('image-service-relation-joined')
 def image_service_joined(relation_id=None):
@@ -228,6 +236,11 @@ def image_service_joined(relation_id=None):
         'glance-api-server':
         "{}:9292".format(canonical_url(CONFIGS, INTERNAL))
     }
+
+    if is_api_ready(CONFIGS):
+        relation_data['glance-api-ready'] = 'yes'
+    else:
+        relation_data['glance-api-ready'] = 'no'
 
     juju_log("%s: image-service_joined: To peer glance-api-server=%s" %
              (CHARM, relation_data['glance-api-server']))
@@ -338,6 +351,9 @@ def keystone_changed():
 
     # possibly configure HTTPS for API and registry
     configure_https()
+
+    for rid in relation_ids('image-service'):
+        image_service_joined(rid)
 
 
 @hooks.hook('config-changed')

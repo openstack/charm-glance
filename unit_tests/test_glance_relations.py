@@ -264,6 +264,14 @@ class GlanceRelationTests(CharmTestCase):
                           configs.write.call_args_list)
         self.assertFalse(self.migrate_database.called)
 
+    @patch.object(relations, 'image_service_joined')
+    @patch.object(relations, 'CONFIGS')
+    def test_db_changed_image_service_joined(self, configs, imgsj):
+        rids = ['nova-cloud-controller:1', 'nova-compute:1']
+        self.relation_ids.return_value = rids
+        self._shared_db_test(configs, 'glance/2', None)
+        [self.assertIn(call(r), imgsj.call_args_list) for r in rids]
+
     @patch.object(relations, 'CONFIGS')
     def test_postgresql_db_changed_no_essex(self, configs):
         self._postgresql_db_test(configs)
@@ -300,6 +308,14 @@ class GlanceRelationTests(CharmTestCase):
         )
         self.migrate_database.assert_called_with()
 
+    @patch.object(relations, 'image_service_joined')
+    @patch.object(relations, 'CONFIGS')
+    def test_postgresql_db_changed_image_service_joined(self, configs, imgsj):
+        rids = ['nova-cloud-controller:1', 'nova-compute:1']
+        self.relation_ids.return_value = rids
+        self._postgresql_db_test(configs)
+        [self.assertIn(call(r), imgsj.call_args_list) for r in rids]
+
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_with_essex_setting_version_control(self, configs):
         self.os_release.return_value = "essex"
@@ -331,11 +347,14 @@ class GlanceRelationTests(CharmTestCase):
         )
         self.migrate_database.assert_called_with()
 
+    @patch.object(relations, 'is_api_ready')
     @patch.object(relations, 'canonical_url')
-    def test_image_service_joined_leader(self, _canonical_url):
+    def test_image_service_joined_leader(self, _canonical_url, _api_ready):
+        _api_ready.return_value = True
         _canonical_url.return_value = 'http://glancehost'
         relations.image_service_joined()
         args = {
+            'glance-api-ready': 'yes',
             'glance-api-server': 'http://glancehost:9292',
             'relation_id': None
         }
@@ -346,6 +365,7 @@ class GlanceRelationTests(CharmTestCase):
         _canonical_url.return_value = 'http://glancehost'
         relations.image_service_joined(relation_id='image-service:1')
         args = {
+            'glance-api-ready': 'no',
             'glance-api-server': 'http://glancehost:9292',
             'relation_id': 'image-service:1',
         }
@@ -524,6 +544,7 @@ class GlanceRelationTests(CharmTestCase):
                           configs.write.call_args_list)
         self.assertTrue(configure_https.called)
 
+    @patch.object(relations, 'image_service_joined')
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'object_store_joined')
     @patch.object(relations, 'CONFIGS')
@@ -531,18 +552,37 @@ class GlanceRelationTests(CharmTestCase):
     def test_keystone_changed_with_object_store_relation(self, git_requested,
                                                          configs,
                                                          object_store_joined,
-                                                         configure_https):
+                                                         configure_https,
+                                                         image_service_joined):
         git_requested.return_value = False
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['identity-service']
         configs.write = MagicMock()
-        self.relation_ids.return_value = ['object-store:0']
+        self.relation_ids.side_effect = [
+            ['object-store:0'],
+            ['image-service:0'],
+        ]
         relations.keystone_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
                            call('/etc/glance/glance-registry.conf')],
                           configs.write.call_args_list)
         object_store_joined.assert_called_with()
         self.assertTrue(configure_https.called)
+        image_service_joined.assert_called_with('image-service:0')
+
+    @patch.object(relations, 'configure_https')
+    @patch.object(relations, 'object_store_joined')
+    @patch.object(relations, 'image_service_joined')
+    @patch.object(relations, 'CONFIGS')
+    def test_keystone_changed_image_service_joined(self, configs, imgsj, osj,
+                                                   https):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['identity-service']
+
+        rids = ['nova-cloud-controller:1', 'nova-compute:1']
+        self.relation_ids.return_value = rids
+        relations.keystone_changed()
+        [self.assertIn(call(r), imgsj.call_args_list) for r in rids]
 
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'git_install_requested')

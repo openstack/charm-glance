@@ -234,12 +234,13 @@ class TestGlanceUtils(CharmTestCase):
 
     @patch('os.path.join')
     @patch('os.path.exists')
+    @patch('os.remove')
     @patch('os.symlink')
     @patch('shutil.copytree')
     @patch('shutil.rmtree')
     @patch('subprocess.check_call')
     def test_git_post_install_upstart(self, check_call, rmtree, copytree,
-                                      symlink, exists, join):
+                                      symlink, remove, exists, join):
         projects_yaml = openstack_origin_git
         join.return_value = 'joined-string'
         self.git_pip_venv_dir.return_value = '/mnt/openstack-git/venv'
@@ -393,3 +394,17 @@ class TestGlanceUtils(CharmTestCase):
         kv.return_value = test_kv
         utils.reinstall_paste_ini()
         self.assertFalse(self.apt_install.called)
+
+    def _test_is_api_ready(self, tgt):
+        fake_config = MagicMock()
+        with patch.object(utils, 'incomplete_relation_data') as ird:
+            ird.return_value = (not tgt)
+            self.assertEqual(utils.is_api_ready(fake_config), tgt)
+            ird.assert_called_with(
+                fake_config, utils.REQUIRED_INTERFACES)
+
+    def test_is_api_ready_true(self):
+        self._test_is_api_ready(True)
+
+    def test_is_api_ready_false(self):
+        self._test_is_api_ready(False)

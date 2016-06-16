@@ -65,6 +65,7 @@ from charmhelpers.contrib.openstack.utils import (
     make_assess_status_func,
     pause_unit,
     resume_unit,
+    incomplete_relation_data,
 )
 
 from charmhelpers.core.templating import render
@@ -641,3 +642,7 @@ def reinstall_paste_ini():
                     fatal=True)
         db.set(PASTE_INI_MARKER, True)
         db.flush()
+
+
+def is_api_ready(configs):
+    return (not incomplete_relation_data(configs, REQUIRED_INTERFACES))
