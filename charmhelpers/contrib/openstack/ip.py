@@ -109,7 +109,7 @@ def _get_address_override(endpoint_type=PUBLIC):
         return addr_override.format(service_name=service_name())
 
 
-def resolve_address(endpoint_type=PUBLIC):
+def resolve_address(endpoint_type=PUBLIC, override=True):
     """Return unit address depending on net config.
 
     If unit is clustered with vip(s) and has net splits defined, return vip on
@@ -119,10 +119,13 @@ def resolve_address(endpoint_type=PUBLIC):
     split if one is configured, or a Juju 2.0 extra-binding has been used.
 
     :param endpoint_type: Network endpoing type
+    :param override: Accept hostname overrides or not
     """
-    resolved_address = _get_address_override(endpoint_type)
-    if resolved_address:
-        return resolved_address
+    resolved_address = None
+    if override:
+        resolved_address = _get_address_override(endpoint_type)
+        if resolved_address:
+            return resolved_address
 
     vips = config('vip')
     if vips:

@@ -42,15 +42,23 @@ class BzrUrlFetchHandler(BaseFetchHandler):
         else:
             return True
 
-    def branch(self, source, dest):
+    def branch(self, source, dest, revno=None):
         if not self.can_handle(source):
             raise UnhandledSource("Cannot handle {}".format(source))
+        cmd_opts = []
+        if revno:
+            cmd_opts += ['-r', str(revno)]
         if os.path.exists(dest):
-            check_call(['bzr', 'pull', '--overwrite', '-d', dest, source])
+            cmd = ['bzr', 'pull']
+            cmd += cmd_opts
+            cmd += ['--overwrite', '-d', dest, source]
         else:
-            check_call(['bzr', 'branch', source, dest])
+            cmd = ['bzr', 'branch']
+            cmd += cmd_opts
+            cmd += [source, dest]
+        check_call(cmd)
 
-    def install(self, source, dest=None):
+    def install(self, source, dest=None, revno=None):
         url_parts = self.parse_url(source)
         branch_name = url_parts.path.strip("/").split("/")[-1]
         if dest:
@@ -59,10 +67,11 @@ class BzrUrlFetchHandler(BaseFetchHandler):
             dest_dir = os.path.join(os.environ.get('CHARM_DIR'), "fetched",
                                     branch_name)
 
-        if not os.path.exists(dest_dir):
-            mkdir(dest_dir, perms=0o755)
+        if dest and not os.path.exists(dest):
+            mkdir(dest, perms=0o755)
+
         try:
-            self.branch(source, dest_dir)
+            self.branch(source, dest_dir, revno)
         except OSError as e:
             raise UnhandledSource(e.strerror)
         return dest_dir
