@@ -51,6 +51,7 @@ from charmhelpers.core.hookenv import (
     related_units,
     relation_ids,
     relation_set,
+    service_name,
     status_set,
     hook_name
 )
@@ -205,6 +206,27 @@ PACKAGE_CODENAMES = {
         ('10', 'newton'),
         ('11', 'ocata'),
     ]),
+}
+
+GIT_DEFAULT_REPOS = {
+    'requirements': 'git://github.com/openstack/requirements',
+    'cinder': 'git://github.com/openstack/cinder',
+    'glance': 'git://github.com/openstack/glance',
+    'horizon': 'git://github.com/openstack/horizon',
+    'keystone': 'git://github.com/openstack/keystone',
+    'neutron': 'git://github.com/openstack/neutron',
+    'neutron-fwaas': 'git://github.com/openstack/neutron-fwaas',
+    'neutron-lbaas': 'git://github.com/openstack/neutron-lbaas',
+    'neutron-vpnaas': 'git://github.com/openstack/neutron-vpnaas',
+    'nova': 'git://github.com/openstack/nova',
+}
+
+GIT_DEFAULT_BRANCHES = {
+    'icehouse': 'icehouse-eol',
+    'kilo': 'stable/kilo',
+    'liberty': 'stable/liberty',
+    'mitaka': 'stable/mitaka',
+    'master': 'master',
 }
 
 DEFAULT_LOOPBACK_SIZE = '5G'
@@ -701,6 +723,53 @@ def git_install_requested():
 
 
 requirements_dir = None
+
+
+def git_default_repos(projects):
+    """
+    Returns default repos if a default openstack-origin-git value is specified.
+    """
+    service = service_name()
+
+    for default, branch in GIT_DEFAULT_BRANCHES.iteritems():
+        if projects == default:
+
+            # add the requirements repo first
+            repo = {
+                'name': 'requirements',
+                'repository': GIT_DEFAULT_REPOS['requirements'],
+                'branch': branch,
+            }
+            repos = [repo]
+
+            # neutron and nova charms require some additional repos
+            if service == 'neutron':
+                for svc in ['neutron-fwaas', 'neutron-lbaas', 'neutron-vpnaas']:
+                    repo = {
+                        'name': svc,
+                        'repository': GIT_DEFAULT_REPOS[svc],
+                        'branch': branch,
+                    }
+                    repos.append(repo)
+            elif service == 'nova':
+                repo = {
+                    'name': 'neutron',
+                    'repository': GIT_DEFAULT_REPOS['neutron'],
+                    'branch': branch,
+                }
+                repos.append(repo)
+
+            # finally add the current service's repo
+            repo = {
+                'name': service,
+                'repository': GIT_DEFAULT_REPOS[service],
+                'branch': branch,
+            }
+            repos.append(repo)
+
+            return yaml.dump(dict(repositories=repos))
+
+    return projects
 
 
 def _git_yaml_load(projects_yaml):

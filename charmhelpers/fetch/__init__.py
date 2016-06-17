@@ -398,16 +398,13 @@ def install_remote(source, *args, **kwargs):
     # We ONLY check for True here because can_handle may return a string
     # explaining why it can't handle a given source.
     handlers = [h for h in plugins() if h.can_handle(source) is True]
-    installed_to = None
     for handler in handlers:
         try:
-            installed_to = handler.install(source, *args, **kwargs)
+            return handler.install(source, *args, **kwargs)
         except UnhandledSource as e:
             log('Install source attempt unsuccessful: {}'.format(e),
                 level='WARNING')
-    if not installed_to:
-        raise UnhandledSource("No handler found for source {}".format(source))
-    return installed_to
+    raise UnhandledSource("No handler found for source {}".format(source))
 
 
 def install_from_config(config_var_name):

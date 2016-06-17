@@ -1231,7 +1231,7 @@ class CephConfContext(object):
 
         permitted = self.permitted_sections
         if permitted:
-            diff = set(conf.keys()).symmetric_difference(set(permitted))
+            diff = set(conf.keys()).difference(set(permitted))
             if diff:
                 log("Config-flags contains invalid keys '%s' - they will be "
                     "ignored" % (', '.join(diff)), level=WARNING)
