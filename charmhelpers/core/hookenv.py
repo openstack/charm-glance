@@ -1006,4 +1006,4 @@ def network_get_primary_address(binding):
     :raise: NotImplementedError if run on Juju < 2.0
     '''
     cmd = ['network-get', '--primary-address', binding]
-    return subprocess.check_output(cmd).strip()
+    return subprocess.check_output(cmd).decode('UTF-8').strip()

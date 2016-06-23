@@ -725,14 +725,15 @@ def git_install_requested():
 requirements_dir = None
 
 
-def git_default_repos(projects):
+def git_default_repos(projects_yaml):
     """
     Returns default repos if a default openstack-origin-git value is specified.
     """
     service = service_name()
+    core_project = service
 
     for default, branch in GIT_DEFAULT_BRANCHES.iteritems():
-        if projects == default:
+        if projects_yaml == default:
 
             # add the requirements repo first
             repo = {
@@ -742,34 +743,41 @@ def git_default_repos(projects):
             }
             repos = [repo]
 
-            # neutron and nova charms require some additional repos
-            if service == 'neutron':
-                for svc in ['neutron-fwaas', 'neutron-lbaas', 'neutron-vpnaas']:
+            # neutron-* and nova-* charms require some additional repos
+            if service in ['neutron-api', 'neutron-gateway',
+                           'neutron-openvswitch']:
+                core_project = 'neutron'
+                for project in ['neutron-fwaas', 'neutron-lbaas',
+                                'neutron-vpnaas']:
                     repo = {
-                        'name': svc,
-                        'repository': GIT_DEFAULT_REPOS[svc],
+                        'name': project,
+                        'repository': GIT_DEFAULT_REPOS[project],
                         'branch': branch,
                     }
                     repos.append(repo)
-            elif service == 'nova':
+
+            elif service in ['nova-cloud-controller', 'nova-compute']:
+                core_project = 'nova'
                 repo = {
                     'name': 'neutron',
                     'repository': GIT_DEFAULT_REPOS['neutron'],
                     'branch': branch,
                 }
                 repos.append(repo)
+            elif service == 'openstack-dashboard':
+                core_project = 'horizon'
 
-            # finally add the current service's repo
+            # finally add the current service's core project repo
             repo = {
-                'name': service,
-                'repository': GIT_DEFAULT_REPOS[service],
+                'name': core_project,
+                'repository': GIT_DEFAULT_REPOS[core_project],
                 'branch': branch,
             }
             repos.append(repo)
 
             return yaml.dump(dict(repositories=repos))
 
-    return projects
+    return projects_yaml
 
 
 def _git_yaml_load(projects_yaml):
