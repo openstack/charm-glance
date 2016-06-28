@@ -174,7 +174,7 @@ def init_is_systemd():
 
 
 def adduser(username, password=None, shell='/bin/bash', system_user=False,
-            primary_group=None, secondary_groups=None, uid=None):
+            primary_group=None, secondary_groups=None, uid=None, home_dir=None):
     """Add a user to the system.
 
     Will log but otherwise succeed if the user already exists.
@@ -186,6 +186,7 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False,
     :param str primary_group: Primary group for user; defaults to username
     :param list secondary_groups: Optional list of additional groups
     :param int uid: UID for user being created
+    :param str home_dir: Home directory for user
 
     :returns: The password database entry struct, as returned by `pwd.getpwnam`
     """
@@ -200,6 +201,8 @@ def adduser(username, password=None, shell='/bin/bash', system_user=False,
         cmd = ['useradd']
         if uid:
             cmd.extend(['--uid', str(uid)])
+        if home_dir:
+            cmd.extend(['--home', str(home_dir)])
         if system_user or password is None:
             cmd.append('--system')
         else:

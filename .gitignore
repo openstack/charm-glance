@@ -8,3 +8,4 @@ tags
 .unit-state.db
 tests/*.img
 trusty
+.idea
