@@ -80,7 +80,8 @@ def pip_install_requirements(requirements, constraints=None, **options):
     pip_execute(command)
 
 
-def pip_install(package, fatal=False, upgrade=False, venv=None, **options):
+def pip_install(package, fatal=False, upgrade=False, venv=None,
+                constraints=None, **options):
     """Install a python package"""
     if venv:
         venv_python = os.path.join(venv, 'bin/pip')
@@ -94,6 +95,9 @@ def pip_install(package, fatal=False, upgrade=False, venv=None, **options):
 
     if upgrade:
         command.append('--upgrade')
+
+    if constraints:
+        command.extend(['-c', constraints])
 
     if isinstance(package, list):
         command.extend(package)
