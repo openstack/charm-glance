@@ -1,18 +1,16 @@
 # Copyright 2014-2015 Canonical Limited.
 #
-# This file is part of charm-helpers.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# charm-helpers is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License version 3 as
-# published by the Free Software Foundation.
+#  http://www.apache.org/licenses/LICENSE-2.0
 #
-# charm-helpers is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import glob
 import json
@@ -1438,7 +1436,7 @@ class AppArmorContext(OSContextGenerator):
         :return ctxt: Dictionary of the apparmor profile or None
         """
         if config('aa-profile-mode') in ['disable', 'enforce', 'complain']:
-            ctxt = {'aa-profile-mode': config('aa-profile-mode')}
+            ctxt = {'aa_profile_mode': config('aa-profile-mode')}
         else:
             ctxt = None
         return ctxt
@@ -1482,10 +1480,10 @@ class AppArmorContext(OSContextGenerator):
             log("Not enabling apparmor Profile")
             return
         self.install_aa_utils()
-        cmd = ['aa-{}'.format(self.ctxt['aa-profile-mode'])]
-        cmd.append(self.ctxt['aa-profile'])
+        cmd = ['aa-{}'.format(self.ctxt['aa_profile_mode'])]
+        cmd.append(self.ctxt['aa_profile'])
         log("Setting up the apparmor profile for {} in {} mode."
-            "".format(self.ctxt['aa-profile'], self.ctxt['aa-profile-mode']))
+            "".format(self.ctxt['aa_profile'], self.ctxt['aa_profile_mode']))
         try:
             check_call(cmd)
         except CalledProcessError as e:
@@ -1494,12 +1492,12 @@ class AppArmorContext(OSContextGenerator):
             # apparmor is yet unaware of the profile and aa-disable aa-profile
             # fails. If aa-disable learns to read profile files first this can
             # be removed.
-            if self.ctxt['aa-profile-mode'] == 'disable':
+            if self.ctxt['aa_profile_mode'] == 'disable':
                 log("Manually disabling the apparmor profile for {}."
-                    "".format(self.ctxt['aa-profile']))
+                    "".format(self.ctxt['aa_profile']))
                 self.manually_disable_aa_profile()
                 return
             status_set('blocked', "Apparmor profile {} failed to be set to {}."
-                                  "".format(self.ctxt['aa-profile'],
-                                            self.ctxt['aa-profile-mode']))
+                                  "".format(self.ctxt['aa_profile'],
+                                            self.ctxt['aa_profile_mode']))
             raise e
