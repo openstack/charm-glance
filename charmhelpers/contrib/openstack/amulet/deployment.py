@@ -71,7 +71,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         base_charms = {
             'mysql': ['precise', 'trusty'],
             'mongodb': ['precise', 'trusty'],
-            'nrpe': ['precise', 'trusty'],
+            'nrpe': ['trusty'],
         }
 
         for svc in other_services:
