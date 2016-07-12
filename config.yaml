@@ -37,10 +37,6 @@ options:
 
       NOTE: updating this setting to a source that is known to provide
       a later version of OpenStack will trigger a software upgrade.
-
-      NOTE: when openstack-origin-git is specified, openstack specific
-      packages will be installed from source rather than from the
-      openstack-origin repository.
   openstack-origin-git:
     default:
     type: string
@@ -50,7 +46,6 @@ options:
 
       The default Openstack release name may be one of the following, where
       the corresponding OpenStack github branch will be used:
-        * kilo
         * liberty
         * mitaka
         * master
@@ -64,9 +59,7 @@ options:
         - {name: glance,
            repository: 'git://github.com/openstack/glance',
            branch: master}
-
-      Note that the installed config files will be determined based on
-      the OpenStack release of the openstack-origin option.
+        release: master
   database-user:
     default: glance
     type: string
