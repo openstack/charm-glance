@@ -71,7 +71,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         base_charms = {
             'mysql': ['precise', 'trusty'],
             'mongodb': ['precise', 'trusty'],
-            'nrpe': ['precise', 'trusty'],
+            'nrpe': ['precise', 'trusty', 'wily', 'xenial'],
         }
 
         for svc in other_services:
@@ -112,7 +112,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         # Charms which should use the source config option
         use_source = ['mysql', 'mongodb', 'rabbitmq-server', 'ceph',
-                      'ceph-osd', 'ceph-radosgw', 'ceph-mon']
+                      'ceph-osd', 'ceph-radosgw', 'ceph-mon', 'ceph-proxy']
 
         # Charms which can not use openstack-origin, ie. many subordinates
         no_origin = ['cinder-ceph', 'hacluster', 'neutron-openvswitch', 'nrpe',
