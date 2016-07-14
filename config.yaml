@@ -267,8 +267,8 @@ options:
       disabled and a non-temporary address must be configured/available on
       your network interface.
   worker-multiplier:
-    type: int
-    default: 2
+    type: float
+    default: 2.0
     description: |
       The CPU core multiplier to use when configuring worker processes for
       Glance.  By default, the number of workers for each daemon is set to
