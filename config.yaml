@@ -103,6 +103,21 @@ options:
       rbd pool has been created, changing this value will not have any
       effect (although it can be changed in ceph by manually configuring
       your ceph cluster).
+  ceph-pool-weight:
+    type: int
+    default: 5
+    description: |
+      Defines a relative weighting of the pool as a percentage of the total
+      amount of data in the Ceph cluster. This effectively weights the number
+      of placement groups for the pool created to be appropriately portioned
+      to the amount of data expected. For example, if the compute images
+      for the OpenStack compute instances are expected to take up 20% of the
+      overall configuration then this value would be specified as 20. Note -
+      it is important to choose an appropriate value for the pool weight as
+      this directly affects the number of placement groups which will be
+      created for the pool. The number of placement groups for a pool can
+      only be increased, never decreased - so it is important to identify the
+      percent of data that will likely reside in the pool.
   # HA configuration settings
   dns-ha:
     type: boolean

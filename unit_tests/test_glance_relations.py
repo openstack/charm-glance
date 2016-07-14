@@ -26,7 +26,7 @@ sys.modules['apt'] = mock_apt
 mock_apt.apt_pkg = MagicMock()
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
-import hooks.glance_utils as utils
+import hooks.glance_utils as utils  # noqa
 
 _reg = utils.register_configs
 _map = utils.restart_map
@@ -464,6 +464,16 @@ class GlanceRelationTests(CharmTestCase):
                                                     group='glance')
         for c in [call('/etc/glance/glance.conf')]:
             self.assertNotIn(c, configs.write.call_args_list)
+
+    @patch('hooks.charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_create_pool')
+    def test_create_pool_op(self, mock_broker):
+        self.service_name.return_value = 'glance'
+        self.test_config.set('ceph-osd-replication-count', 3)
+        self.test_config.set('ceph-pool-weight', 6)
+        relations.get_ceph_request()
+        mock_broker.assert_called_with(name='glance', replica_count=3,
+                                       weight=6)
 
     @patch.object(relations, 'get_ceph_request')
     @patch.object(relations, 'send_request_if_needed')
