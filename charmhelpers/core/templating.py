@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import sys
 
 from charmhelpers.core import host
 from charmhelpers.core import hookenv
@@ -38,8 +39,9 @@ def render(source, target, context, owner='root', group='root',
     The rendered template will be written to the file as well as being returned
     as a string.
 
-    Note: Using this requires python-jinja2; if it is not installed, calling
-    this will attempt to use charmhelpers.fetch.apt_install to install it.
+    Note: Using this requires python-jinja2 or python3-jinja2; if it is not
+    installed, calling this will attempt to use charmhelpers.fetch.apt_install
+    to install it.
     """
     try:
         from jinja2 import FileSystemLoader, Environment, exceptions
@@ -51,7 +53,10 @@ def render(source, target, context, owner='root', group='root',
                         'charmhelpers.fetch to install it',
                         level=hookenv.ERROR)
             raise
-        apt_install('python-jinja2', fatal=True)
+        if sys.version_info.major == 2:
+            apt_install('python-jinja2', fatal=True)
+        else:
+            apt_install('python3-jinja2', fatal=True)
         from jinja2 import FileSystemLoader, Environment, exceptions
 
     if template_loader:
