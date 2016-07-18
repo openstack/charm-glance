@@ -414,7 +414,7 @@ def ns_query(address):
     try:
         import dns.resolver
     except ImportError:
-        apt_install('python-dnspython')
+        apt_install('python-dnspython', fatal=True)
         import dns.resolver
 
     if isinstance(address, dns.name.Name):
@@ -458,7 +458,7 @@ def get_hostname(address, fqdn=True):
         try:
             import dns.reversename
         except ImportError:
-            apt_install("python-dnspython")
+            apt_install("python-dnspython", fatal=True)
             import dns.reversename
 
         rev = dns.reversename.from_address(address)
