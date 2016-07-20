@@ -386,11 +386,12 @@ def git_post_install(projects_yaml):
     """Perform glance post-install setup."""
     http_proxy = git_yaml_value(projects_yaml, 'http_proxy')
     if http_proxy:
-        pip_install('mysql-python', proxy=http_proxy,
-                    venv=git_pip_venv_dir(projects_yaml))
+        for pkg in ['mysql-python', 'python-cephlibs']:
+            pip_install(pkg, proxy=http_proxy,
+                        venv=git_pip_venv_dir(projects_yaml))
     else:
-        pip_install('mysql-python',
-                    venv=git_pip_venv_dir(projects_yaml))
+        for pkg in ['mysql-python', 'python-cephlibs']:
+            pip_install(pkg, venv=git_pip_venv_dir(projects_yaml))
 
     src_etc = os.path.join(git_src_dir(projects_yaml, 'glance'), 'etc')
     configs = {
@@ -407,14 +408,6 @@ def git_post_install(projects_yaml):
         {'src': os.path.join(git_pip_venv_dir(projects_yaml),
                              'bin/glance-manage'),
          'link': '/usr/local/bin/glance-manage'},
-        # NOTE(coreycb): This is ugly but couldn't find pypi package that
-        #                installs rbd.py and rados.py.
-        {'src': '/usr/lib/python2.7/dist-packages/rbd.py',
-         'link': os.path.join(git_pip_venv_dir(projects_yaml),
-                              'lib/python2.7/site-packages/rbd.py')},
-        {'src': '/usr/lib/python2.7/dist-packages/rados.py',
-         'link': os.path.join(git_pip_venv_dir(projects_yaml),
-                              'lib/python2.7/site-packages/rados.py')},
     ]
 
     for s in symlinks:
