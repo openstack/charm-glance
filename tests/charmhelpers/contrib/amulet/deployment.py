@@ -78,11 +78,15 @@ class AmuletDeployment(object):
 
     def _deploy(self):
         """Deploy environment and wait for all hooks to finish executing."""
+        timeout = int(os.environ.get('AMULET_SETUP_TIMEOUT', 900))
         try:
-            self.d.setup(timeout=900)
-            self.d.sentry.wait(timeout=900)
+            self.d.setup(timeout=timeout)
+            self.d.sentry.wait(timeout=timeout)
         except amulet.helpers.TimeoutError:
-            amulet.raise_status(amulet.FAIL, msg="Deployment timed out")
+            amulet.raise_status(
+                amulet.FAIL,
+                msg="Deployment timed out ({}s)".format(timeout)
+            )
         except Exception:
             raise
 

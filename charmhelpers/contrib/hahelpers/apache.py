@@ -22,6 +22,7 @@
 #  Adam Gandelman <adamg@ubuntu.com>
 #
 
+import os
 import subprocess
 
 from charmhelpers.core.hookenv import (
@@ -72,9 +73,23 @@ def get_ca_cert():
     return ca_cert
 
 
+def retrieve_ca_cert(cert_file):
+    cert = None
+    if os.path.isfile(cert_file):
+        with open(cert_file, 'r') as crt:
+            cert = crt.read()
+    return cert
+
+
 def install_ca_cert(ca_cert):
     if ca_cert:
-        with open('/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt',
-                  'w') as crt:
-            crt.write(ca_cert)
-        subprocess.check_call(['update-ca-certificates', '--fresh'])
+        cert_file = ('/usr/local/share/ca-certificates/'
+                     'keystone_juju_ca_cert.crt')
+        old_cert = retrieve_ca_cert(cert_file)
+        if old_cert and old_cert == ca_cert:
+            log("CA cert is the same as installed version", level=INFO)
+        else:
+            log("Installing new CA cert", level=INFO)
+            with open(cert_file, 'w') as crt:
+                crt.write(ca_cert)
+            subprocess.check_call(['update-ca-certificates', '--fresh'])
