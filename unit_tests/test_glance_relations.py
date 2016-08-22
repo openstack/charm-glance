@@ -35,9 +35,13 @@ utils.register_configs = MagicMock()
 utils.restart_map = MagicMock()
 
 with patch('hooks.charmhelpers.contrib.hardening.harden.harden') as mock_dec:
-    mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
-                            lambda *args, **kwargs: f(*args, **kwargs))
-    import hooks.glance_relations as relations
+    with patch('hooks.charmhelpers.contrib.openstack.'
+               'utils.os_requires_version') as mock_os:
+        mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                                lambda *args, **kwargs: f(*args, **kwargs))
+        mock_os.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                               lambda *args, **kwargs: f(*args, **kwargs))
+        import hooks.glance_relations as relations
 
 relations.hooks._config_save = False
 
@@ -933,3 +937,14 @@ class GlanceRelationTests(CharmTestCase):
     def test_relation_broken(self, configs):
         relations.relation_broken()
         self.assertTrue(configs.write_all.called)
+
+    @patch.object(relations, 'CONFIGS')
+    def test_cinder_volume_joined(self, configs):
+        self.filter_installed_packages.side_effect = lambda pkgs: pkgs
+        relations.cinder_volume_service_relation_joined()
+        self.assertTrue(configs.write_all.called)
+        self.apt_install.assert_called_with(
+            ["python-cinderclient",
+             "python-os-brick",
+             "python-oslo.rootwrap"], fatal=True
+        )

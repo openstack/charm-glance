@@ -30,6 +30,10 @@ from charmhelpers.contrib.hahelpers.cluster import (
     determine_api_port,
 )
 
+from charmhelpers.contrib.openstack.utils import (
+    os_release
+)
+
 
 class CephGlanceContext(OSContextGenerator):
     interfaces = ['ceph-glance']
@@ -65,6 +69,21 @@ class ObjectStoreContext(OSContextGenerator):
         }
 
 
+class CinderStoreContext(OSContextGenerator):
+    interfaces = ['cinder-volume-service']
+
+    def __call__(self):
+        """Cinder store config.
+        Used to generate template context to be added to glance-api.conf in
+        the presence of a 'cinder-volume-service' relation.
+        """
+        if not relation_ids('cinder-volume-service'):
+            return {}
+        return {
+            'cinder_store': True,
+        }
+
+
 class MultiStoreContext(OSContextGenerator):
 
     def __call__(self):
@@ -76,6 +95,9 @@ class MultiStoreContext(OSContextGenerator):
         for store_relation, store_type in store_mapping.iteritems():
             if relation_ids(store_relation):
                 stores.append(store_type)
+        if (relation_ids('cinder-volume-service') and
+                os_release('glance-common') >= 'mitaka'):
+            stores.append('glance.store.cinder.Store')
         return {
             'known_stores': ','.join(stores)
         }

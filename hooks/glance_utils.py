@@ -142,8 +142,6 @@ HTTPS_APACHE_CONF = "/etc/apache2/sites-available/openstack_https_frontend"
 HTTPS_APACHE_24_CONF = "/etc/apache2/sites-available/" \
     "openstack_https_frontend.conf"
 
-CONF_DIR = "/etc/glance"
-
 TEMPLATES = 'templates/'
 
 # The interface is said to be satisfied if anyone of the interfaces in the
@@ -182,6 +180,7 @@ CONFIG_FILES = OrderedDict([
                               service_user='glance'),
                           glance_contexts.CephGlanceContext(),
                           glance_contexts.ObjectStoreContext(),
+                          glance_contexts.CinderStoreContext(),
                           glance_contexts.HAProxyContext(),
                           context.SyslogContext(),
                           glance_contexts.LoggingConfigContext(),
@@ -396,7 +395,7 @@ def git_post_install(projects_yaml):
     src_etc = os.path.join(git_src_dir(projects_yaml, 'glance'), 'etc')
     configs = {
         'src': src_etc,
-        'dest': '/etc/glance',
+        'dest': GLANCE_CONF_DIR,
     }
 
     if os.path.exists(configs['dest']):
@@ -418,7 +417,7 @@ def git_post_install(projects_yaml):
     bin_dir = os.path.join(git_pip_venv_dir(projects_yaml), 'bin')
     # Use systemd init units/scripts from ubuntu wily onward
     if lsb_release()['DISTRIB_RELEASE'] >= '15.10':
-        templates_dir = os.path.join(charm_dir(), 'templates/git')
+        templates_dir = os.path.join(charm_dir(), TEMPLATES, 'git')
         daemons = ['glance-api', 'glance-glare', 'glance-registry']
         for daemon in daemons:
             glance_context = {
@@ -437,7 +436,7 @@ def git_post_install(projects_yaml):
             'start_dir': '/var/lib/glance',
             'process_name': 'glance-api',
             'executable_name': os.path.join(bin_dir, 'glance-api'),
-            'config_files': ['/etc/glance/glance-api.conf'],
+            'config_files': [GLANCE_API_CONF],
             'log_file': '/var/log/glance/api.log',
         }
 
@@ -448,7 +447,7 @@ def git_post_install(projects_yaml):
             'start_dir': '/var/lib/glance',
             'process_name': 'glance-registry',
             'executable_name': os.path.join(bin_dir, 'glance-registry'),
-            'config_files': ['/etc/glance/glance-registry.conf'],
+            'config_files': [GLANCE_REGISTRY_CONF],
             'log_file': '/var/log/glance/registry.log',
         }
 
@@ -477,8 +476,10 @@ def get_optional_interfaces():
     if relation_ids('ha'):
         optional_interfaces['ha'] = ['cluster']
 
-    if relation_ids('ceph') or relation_ids('object-store'):
-        optional_interfaces['storage-backend'] = ['ceph', 'object-store']
+    if (relation_ids('ceph') or relation_ids('object-store') or
+            relation_ids('cinder-volume-service')):
+        optional_interfaces['storage-backend'] = ['ceph', 'object-store',
+                                                  'cinder']
 
     if relation_ids('amqp'):
         optional_interfaces['messaging'] = ['amqp']

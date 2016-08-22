@@ -88,6 +88,7 @@ from charmhelpers.contrib.openstack.utils import (
     sync_db_with_multi_ipv6_addresses,
     pausable_restart_on_change as restart_on_change,
     is_unit_paused_set,
+    os_requires_version,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
@@ -526,7 +527,8 @@ def ha_relation_changed():
 @hooks.hook('identity-service-relation-broken',
             'object-store-relation-broken',
             'shared-db-relation-broken',
-            'pgsql-db-relation-broken')
+            'pgsql-db-relation-broken',
+            'cinder-volume-service-relation-broken')
 def relation_broken():
     CONFIGS.write_all()
 
@@ -588,6 +590,17 @@ def update_nrpe_config():
 @harden()
 def update_status():
     juju_log('Updating status.')
+
+
+@hooks.hook('cinder-volume-service-relation-joined')
+@os_requires_version('mitaka', 'glance-common')
+@restart_on_change(restart_map(), stopstart=True)
+def cinder_volume_service_relation_joined(relid=None):
+    optional_packages = ["python-cinderclient",
+                         "python-os-brick",
+                         "python-oslo.rootwrap"]
+    apt_install(filter_installed_packages(optional_packages), fatal=True)
+    CONFIGS.write_all()
 
 
 if __name__ == '__main__':

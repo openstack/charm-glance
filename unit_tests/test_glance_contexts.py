@@ -26,6 +26,7 @@ TO_PATCH = [
     'service_name',
     'determine_apache_port',
     'determine_api_port',
+    'os_release',
 ]
 
 
@@ -62,13 +63,24 @@ class TestGlanceContexts(CharmTestCase):
              'expose_image_locations': True})
         self.config.assert_called_with('expose-image-locations')
 
-    def test_multistore(self):
+    def test_multistore_below_mitaka(self):
+        self.os_release.return_value = 'liberty'
         self.relation_ids.return_value = ['random_rid']
         self.assertEquals(contexts.MultiStoreContext()(),
                           {'known_stores': "glance.store.filesystem.Store,"
                                            "glance.store.http.Store,"
                                            "glance.store.rbd.Store,"
                                            "glance.store.swift.Store"})
+
+    def test_multistore_for_mitaka_and_upper(self):
+        self.os_release.return_value = 'mitaka'
+        self.relation_ids.return_value = ['random_rid']
+        self.assertEquals(contexts.MultiStoreContext()(),
+                          {'known_stores': "glance.store.filesystem.Store,"
+                                           "glance.store.http.Store,"
+                                           "glance.store.rbd.Store,"
+                                           "glance.store.swift.Store,"
+                                           "glance.store.cinder.Store"})
 
     def test_multistore_defaults(self):
         self.relation_ids.return_value = []

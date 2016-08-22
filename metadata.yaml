@@ -37,6 +37,8 @@ requires:
   ha:
     interface: hacluster
     scope: container
+  cinder-volume-service:
+    interface: cinder
 peers:
   cluster:
     interface: glance-ha
