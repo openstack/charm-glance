@@ -528,7 +528,8 @@ def ha_relation_changed():
             'object-store-relation-broken',
             'shared-db-relation-broken',
             'pgsql-db-relation-broken',
-            'cinder-volume-service-relation-broken')
+            'cinder-volume-service-relation-broken',
+            'storage-backend-relation-broken')
 def relation_broken():
     CONFIGS.write_all()
 
@@ -592,15 +593,30 @@ def update_status():
     juju_log('Updating status.')
 
 
-@hooks.hook('cinder-volume-service-relation-joined')
-@os_requires_version('mitaka', 'glance-common')
-@restart_on_change(restart_map(), stopstart=True)
-def cinder_volume_service_relation_joined(relid=None):
+def install_packages_for_cinder_store():
     optional_packages = ["python-cinderclient",
                          "python-os-brick",
                          "python-oslo.rootwrap"]
     apt_install(filter_installed_packages(optional_packages), fatal=True)
+
+
+@hooks.hook('cinder-volume-service-relation-joined')
+@os_requires_version('mitaka', 'glance-common')
+@restart_on_change(restart_map(), stopstart=True)
+def cinder_volume_service_relation_joined(relid=None):
+    install_packages_for_cinder_store()
     CONFIGS.write_all()
+
+
+@hooks.hook('storage-backend-relation-changed')
+@os_requires_version('mitaka', 'glance-common')
+@restart_on_change(restart_map(), stopstart=True)
+def storage_backend_hook():
+    if 'storage-backend' not in CONFIGS.complete_contexts():
+        juju_log('storage-backend relation incomplete. Peer not ready?')
+        return
+    install_packages_for_cinder_store()
+    CONFIGS.write(GLANCE_API_CONF)
 
 
 if __name__ == '__main__':

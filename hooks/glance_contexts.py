@@ -15,6 +15,8 @@
 from charmhelpers.core.hookenv import (
     is_relation_made,
     relation_ids,
+    relation_get,
+    related_units,
     service_name,
     config
 )
@@ -70,18 +72,22 @@ class ObjectStoreContext(OSContextGenerator):
 
 
 class CinderStoreContext(OSContextGenerator):
-    interfaces = ['cinder-volume-service']
+    interfaces = ['cinder-volume-service', 'storage-backend']
 
     def __call__(self):
         """Cinder store config.
         Used to generate template context to be added to glance-api.conf in
-        the presence of a 'cinder-volume-service' relation.
+        the presence of a 'cinder-volume-service' relation or in the
+        presence of a flag 'cinder-backend' in the 'storage-backend' relation.
         """
-        if not relation_ids('cinder-volume-service'):
-            return {}
-        return {
-            'cinder_store': True,
-        }
+        if relation_ids('cinder-volume-service'):
+            return {'cinder_store': True}
+        for rid in relation_ids('storage-backend'):
+            for unit in related_units(rid):
+                value = relation_get('cinder-backend', rid=rid, unit=unit)
+                # value is a boolean flag
+                return {'cinder_store': value}
+        return {}
 
 
 class MultiStoreContext(OSContextGenerator):
@@ -95,8 +101,12 @@ class MultiStoreContext(OSContextGenerator):
         for store_relation, store_type in store_mapping.iteritems():
             if relation_ids(store_relation):
                 stores.append(store_type)
-        if (relation_ids('cinder-volume-service') and
+        if ((relation_ids('cinder-volume-service') or
+                relation_ids('storage-backend')) and
                 os_release('glance-common') >= 'mitaka'):
+            # even if storage-backend is present with cinder-backend=False it
+            # means that glance should not store images in cinder by default
+            # but can read images from cinder.
             stores.append('glance.store.cinder.Store')
         return {
             'known_stores': ','.join(stores)

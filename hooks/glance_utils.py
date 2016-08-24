@@ -190,7 +190,11 @@ CONFIG_FILES = OrderedDict([
                           context.OSConfigFlagContext(
                               charm_flag='api-config-flags',
                               template_flag='api_config_flags'),
-                          context.InternalEndpointContext()],
+                          context.InternalEndpointContext(),
+                          context.SubordinateConfigContext(
+                              interface=['storage-backend'],
+                              service=['glance-api'],
+                              config_file=GLANCE_API_CONF)],
         'services': ['glance-api']
     }),
     (ceph_config_file(), {
@@ -477,9 +481,11 @@ def get_optional_interfaces():
         optional_interfaces['ha'] = ['cluster']
 
     if (relation_ids('ceph') or relation_ids('object-store') or
-            relation_ids('cinder-volume-service')):
+            relation_ids('cinder-volume-service') or
+            relation_ids('storage-backend')):
         optional_interfaces['storage-backend'] = ['ceph', 'object-store',
-                                                  'cinder']
+                                                  'cinder-volume-service',
+                                                  'storage-backend']
 
     if relation_ids('amqp'):
         optional_interfaces['messaging'] = ['amqp']

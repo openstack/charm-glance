@@ -47,6 +47,20 @@ class TestGlanceContexts(CharmTestCase):
         self.assertEquals(contexts.ObjectStoreContext()(),
                           {'swift_store': True})
 
+    def test_cinder_not_related(self):
+        self.relation_ids.return_value = []
+        self.assertEquals(contexts.CinderStoreContext()(), {})
+
+    def test_cinder_related(self):
+        self.relation_ids.return_value = ['cinder-volume-service:0']
+        self.assertEquals(contexts.CinderStoreContext()(),
+                          {'cinder_store': True})
+
+    def test_cinder_related_via_subordinate(self):
+        self.relation_ids.return_value = ['cinder-backend:0']
+        self.assertEquals(contexts.CinderStoreContext()(),
+                          {'cinder_store': True})
+
     def test_ceph_not_related(self):
         self.is_relation_made.return_value = False
         self.assertEquals(contexts.CephGlanceContext()(), {})

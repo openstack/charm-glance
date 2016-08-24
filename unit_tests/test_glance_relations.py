@@ -948,3 +948,18 @@ class GlanceRelationTests(CharmTestCase):
              "python-os-brick",
              "python-oslo.rootwrap"], fatal=True
         )
+
+    @patch.object(relations, 'CONFIGS')
+    def test_storage_backend_changed(self, configs):
+        self.filter_installed_packages.side_effect = lambda pkgs: pkgs
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['storage-backend']
+        configs.write = MagicMock()
+        relations.storage_backend_hook()
+        self.assertEquals([call('/etc/glance/glance-api.conf')],
+                          configs.write.call_args_list)
+        self.apt_install.assert_called_with(
+            ["python-cinderclient",
+             "python-os-brick",
+             "python-oslo.rootwrap"], fatal=True
+        )

@@ -39,6 +39,9 @@ requires:
     scope: container
   cinder-volume-service:
     interface: cinder
+  storage-backend:
+    interface: glance-backend
+    scope: container
 peers:
   cluster:
     interface: glance-ha
