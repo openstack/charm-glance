@@ -1,0 +1,3 @@
+  This file was created by release-tools to ensure that this empty
+  directory is preserved in vcs re: lint check definitions in global
+  tox.ini files. This file can be removed if/when this dir is actually in use.
