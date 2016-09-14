@@ -10,6 +10,11 @@ tags:
   - openstack
   - storage
   - misc
+series:
+  - xenial
+  - trusty
+  - precise
+  - yakkety
 extra-bindings:
   public:
   admin:
