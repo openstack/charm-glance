@@ -81,6 +81,7 @@ from charmhelpers.contrib.openstack.utils import (
     pause_unit,
     resume_unit,
     incomplete_relation_data,
+    os_application_version_set,
 )
 
 from charmhelpers.core.templating import render
@@ -97,6 +98,8 @@ CLUSTER_RES = "grp_glance_vips"
 PACKAGES = [
     "apache2", "glance", "python-mysqldb", "python-swiftclient",
     "python-psycopg2", "python-keystone", "python-six", "uuid", "haproxy", ]
+
+VERSION_PACKAGE = 'glance-common'
 
 BASE_GIT_PACKAGES = [
     'libffi-dev',
@@ -568,6 +571,7 @@ def assess_status(configs):
     @returns None - this function is executed for its side-effect
     """
     assess_status_func(configs)()
+    os_application_version_set(VERSION_PACKAGE)
 
 
 def assess_status_func(configs):

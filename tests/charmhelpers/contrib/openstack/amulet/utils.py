@@ -83,6 +83,56 @@ class OpenStackAmuletUtils(AmuletUtils):
         if not found:
             return 'endpoint not found'
 
+    def validate_v3_endpoint_data(self, endpoints, admin_port, internal_port,
+                                  public_port, expected):
+        """Validate keystone v3 endpoint data.
+
+        Validate the v3 endpoint data which has changed from v2.  The
+        ports are used to find the matching endpoint.
+
+        The new v3 endpoint data looks like:
+
+        [<Endpoint enabled=True,
+                   id=0432655fc2f74d1e9fa17bdaa6f6e60b,
+                   interface=admin,
+                   links={u'self': u'<RESTful URL of this endpoint>'},
+                   region=RegionOne,
+                   region_id=RegionOne,
+                   service_id=17f842a0dc084b928e476fafe67e4095,
+                   url=http://10.5.6.5:9312>,
+         <Endpoint enabled=True,
+                   id=6536cb6cb92f4f41bf22b079935c7707,
+                   interface=admin,
+                   links={u'self': u'<RESTful url of this endpoint>'},
+                   region=RegionOne,
+                   region_id=RegionOne,
+                   service_id=72fc8736fb41435e8b3584205bb2cfa3,
+                   url=http://10.5.6.6:35357/v3>,
+                   ... ]
+        """
+        self.log.debug('Validating v3 endpoint data...')
+        self.log.debug('actual: {}'.format(repr(endpoints)))
+        found = []
+        for ep in endpoints:
+            self.log.debug('endpoint: {}'.format(repr(ep)))
+            if ((admin_port in ep.url and ep.interface == 'admin') or
+                    (internal_port in ep.url and ep.interface == 'internal') or
+                    (public_port in ep.url and ep.interface == 'public')):
+                found.append(ep.interface)
+                # note we ignore the links member.
+                actual = {'id': ep.id,
+                          'region': ep.region,
+                          'region_id': ep.region_id,
+                          'interface': self.not_null,
+                          'url': ep.url,
+                          'service_id': ep.service_id, }
+                ret = self._validate_dict_data(expected, actual)
+                if ret:
+                    return 'unexpected endpoint data - {}'.format(ret)
+
+        if len(found) != 3:
+            return 'Unexpected number of endpoints found'
+
     def validate_svc_catalog_endpoint_data(self, expected, actual):
         """Validate service catalog endpoint data.
 
@@ -96,6 +146,72 @@ class OpenStackAmuletUtils(AmuletUtils):
                 ret = self._validate_dict_data(expected[k][0], actual[k][0])
                 if ret:
                     return self.endpoint_error(k, ret)
+            else:
+                return "endpoint {} does not exist".format(k)
+        return ret
+
+    def validate_v3_svc_catalog_endpoint_data(self, expected, actual):
+        """Validate the keystone v3 catalog endpoint data.
+
+        Validate a list of dictinaries that make up the keystone v3 service
+        catalogue.
+
+        It is in the form of:
+
+
+        {u'identity': [{u'id': u'48346b01c6804b298cdd7349aadb732e',
+                        u'interface': u'admin',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'url': u'http://10.5.5.224:35357/v3'},
+                       {u'id': u'8414f7352a4b47a69fddd9dbd2aef5cf',
+                        u'interface': u'public',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'url': u'http://10.5.5.224:5000/v3'},
+                       {u'id': u'd5ca31440cc24ee1bf625e2996fb6a5b',
+                        u'interface': u'internal',
+                        u'region': u'RegionOne',
+                        u'region_id': u'RegionOne',
+                        u'url': u'http://10.5.5.224:5000/v3'}],
+         u'key-manager': [{u'id': u'68ebc17df0b045fcb8a8a433ebea9e62',
+                           u'interface': u'public',
+                           u'region': u'RegionOne',
+                           u'region_id': u'RegionOne',
+                           u'url': u'http://10.5.5.223:9311'},
+                          {u'id': u'9cdfe2a893c34afd8f504eb218cd2f9d',
+                           u'interface': u'internal',
+                           u'region': u'RegionOne',
+                           u'region_id': u'RegionOne',
+                           u'url': u'http://10.5.5.223:9311'},
+                          {u'id': u'f629388955bc407f8b11d8b7ca168086',
+                           u'interface': u'admin',
+                           u'region': u'RegionOne',
+                           u'region_id': u'RegionOne',
+                           u'url': u'http://10.5.5.223:9312'}]}
+
+        Note, that an added complication is that the order of admin, public,
+        internal against 'interface' in each region.
+
+        Thus, the function sorts the expected and actual lists using the
+        interface key as a sort key, prior to the comparison.
+        """
+        self.log.debug('Validating v3 service catalog endpoint data...')
+        self.log.debug('actual: {}'.format(repr(actual)))
+        for k, v in six.iteritems(expected):
+            if k in actual:
+                l_expected = sorted(v, key=lambda x: x['interface'])
+                l_actual = sorted(actual[k], key=lambda x: x['interface'])
+                if len(l_actual) != len(l_expected):
+                    return ("endpoint {} has differing number of interfaces "
+                            " - expected({}), actual({})"
+                            .format(k, len(l_expected), len(l_actual)))
+                for i_expected, i_actual in zip(l_expected, l_actual):
+                    self.log.debug("checking interface {}"
+                                   .format(i_expected['interface']))
+                    ret = self._validate_dict_data(i_expected, i_actual)
+                    if ret:
+                        return self.endpoint_error(k, ret)
             else:
                 return "endpoint {} does not exist".format(k)
         return ret
@@ -928,7 +1044,8 @@ class OpenStackAmuletUtils(AmuletUtils):
                                                    retry_delay=5,
                                                    socket_timeout=1)
             connection = pika.BlockingConnection(parameters)
-            assert connection.server_properties['product'] == 'RabbitMQ'
+            assert connection.is_open is True
+            assert connection.is_closing is False
             self.log.debug('Connect OK')
             return connection
         except Exception as e:

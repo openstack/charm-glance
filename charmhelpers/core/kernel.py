@@ -15,15 +15,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
+import re
+import subprocess
 
+from charmhelpers.osplatform import get_platform
 from charmhelpers.core.hookenv import (
     log,
     INFO
 )
 
-from subprocess import check_call, check_output
-import re
+__platform__ = get_platform()
+if __platform__ == "ubuntu":
+    from charmhelpers.core.kernel_factory.ubuntu import (
+        persistent_modprobe,
+        update_initramfs,
+    )  # flake8: noqa -- ignore F401 for this import
+elif __platform__ == "centos":
+    from charmhelpers.core.kernel_factory.centos import (
+        persistent_modprobe,
+        update_initramfs,
+    )  # flake8: noqa -- ignore F401 for this import
+
+__author__ = "Jorge Niedbalski <jorge.niedbalski@canonical.com>"
 
 
 def modprobe(module, persist=True):
@@ -32,11 +45,9 @@ def modprobe(module, persist=True):
 
     log('Loading kernel module %s' % module, level=INFO)
 
-    check_call(cmd)
+    subprocess.check_call(cmd)
     if persist:
-        with open('/etc/modules', 'r+') as modules:
-            if module not in modules.read():
-                modules.write(module)
+        persistent_modprobe(module)
 
 
 def rmmod(module, force=False):
@@ -46,21 +57,16 @@ def rmmod(module, force=False):
         cmd.append('-f')
     cmd.append(module)
     log('Removing kernel module %s' % module, level=INFO)
-    return check_call(cmd)
+    return subprocess.check_call(cmd)
 
 
 def lsmod():
     """Shows what kernel modules are currently loaded"""
-    return check_output(['lsmod'],
-                        universal_newlines=True)
+    return subprocess.check_output(['lsmod'],
+                                   universal_newlines=True)
 
 
 def is_module_loaded(module):
     """Checks if a kernel module is already loaded"""
     matches = re.findall('^%s[ ]+' % module, lsmod(), re.M)
     return len(matches) > 0
-
-
-def update_initramfs(version='all'):
-    """Updates an initramfs image"""
-    return check_call(["update-initramfs", "-k", version, "-u"])

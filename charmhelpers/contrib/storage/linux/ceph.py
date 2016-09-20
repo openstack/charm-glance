@@ -87,6 +87,7 @@ clog to syslog = {use_syslog}
 DEFAULT_PGS_PER_OSD_TARGET = 100
 DEFAULT_POOL_WEIGHT = 10.0
 LEGACY_PG_COUNT = 200
+DEFAULT_MINIMUM_PGS = 2
 
 
 def validator(value, valid_type, valid_range=None):
@@ -265,6 +266,11 @@ class Pool(object):
         percent_data /= 100.0
         target_pgs_per_osd = config('pgs-per-osd') or DEFAULT_PGS_PER_OSD_TARGET
         num_pg = (target_pgs_per_osd * osd_count * percent_data) // pool_size
+
+        # NOTE: ensure a sane minimum number of PGS otherwise we don't get any
+        #       reasonable data distribution in minimal OSD configurations
+        if num_pg < DEFAULT_MINIMUM_PGS:
+            num_pg = DEFAULT_MINIMUM_PGS
 
         # The CRUSH algorithm has a slight optimization for placement groups
         # with powers of 2 so find the nearest power of 2. If the nearest

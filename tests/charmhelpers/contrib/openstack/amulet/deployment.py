@@ -220,7 +220,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
          self.trusty_icehouse, self.trusty_juno, self.utopic_juno,
          self.trusty_kilo, self.vivid_kilo, self.trusty_liberty,
          self.wily_liberty, self.trusty_mitaka,
-         self.xenial_mitaka) = range(14)
+         self.xenial_mitaka, self.xenial_newton,
+         self.yakkety_newton) = range(16)
 
         releases = {
             ('precise', None): self.precise_essex,
@@ -236,7 +237,10 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('utopic', None): self.utopic_juno,
             ('vivid', None): self.vivid_kilo,
             ('wily', None): self.wily_liberty,
-            ('xenial', None): self.xenial_mitaka}
+            ('xenial', None): self.xenial_mitaka,
+            ('xenial', 'cloud:xenial-newton'): self.xenial_newton,
+            ('yakkety', None): self.yakkety_newton,
+        }
         return releases[(self.series, self.openstack)]
 
     def _get_openstack_release_string(self):

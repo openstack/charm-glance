@@ -245,6 +245,10 @@ def neutron_plugins():
             'networking_plumgrid.neutron.plugins.plugin.NeutronPluginPLUMgridV2')
         plugins['plumgrid']['server_packages'].remove(
             'neutron-plugin-plumgrid')
+    if release >= 'mitaka':
+        plugins['nsx']['server_packages'].remove('neutron-plugin-vmware')
+        plugins['nsx']['server_packages'].append('python-vmware-nsx')
+        plugins['nsx']['config'] = '/etc/neutron/nsx.ini'
     return plugins
 
 

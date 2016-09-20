@@ -18,19 +18,20 @@ from charmhelpers.fetch import (
     BaseFetchHandler,
     UnhandledSource,
     filter_installed_packages,
-    apt_install,
+    install,
 )
 from charmhelpers.core.host import mkdir
 
 
 if filter_installed_packages(['bzr']) != []:
-    apt_install(['bzr'])
+    install(['bzr'])
     if filter_installed_packages(['bzr']) != []:
         raise NotImplementedError('Unable to install bzr')
 
 
 class BzrUrlFetchHandler(BaseFetchHandler):
-    """Handler for bazaar branches via generic and lp URLs"""
+    """Handler for bazaar branches via generic and lp URLs."""
+
     def can_handle(self, source):
         url_parts = self.parse_url(source)
         if url_parts.scheme not in ('bzr+ssh', 'lp', ''):

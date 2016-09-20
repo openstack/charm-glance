@@ -18,17 +18,18 @@ from charmhelpers.fetch import (
     BaseFetchHandler,
     UnhandledSource,
     filter_installed_packages,
-    apt_install,
+    install,
 )
 
 if filter_installed_packages(['git']) != []:
-    apt_install(['git'])
+    install(['git'])
     if filter_installed_packages(['git']) != []:
         raise NotImplementedError('Unable to install git')
 
 
 class GitUrlFetchHandler(BaseFetchHandler):
-    """Handler for git branches via generic and github URLs"""
+    """Handler for git branches via generic and github URLs."""
+
     def can_handle(self, source):
         url_parts = self.parse_url(source)
         # TODO (mattyw) no support for ssh git@ yet

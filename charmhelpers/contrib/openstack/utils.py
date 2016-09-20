@@ -51,7 +51,8 @@ from charmhelpers.core.hookenv import (
     relation_set,
     service_name,
     status_set,
-    hook_name
+    hook_name,
+    application_version_set,
 )
 
 from charmhelpers.contrib.storage.linux.lvm import (
@@ -1889,3 +1890,29 @@ def config_flags_parser(config_flags):
         flags[key.strip(post_strippers)] = value.rstrip(post_strippers)
 
     return flags
+
+
+def os_application_version_set(package):
+    '''Set version of application for Juju 2.0 and later'''
+    import apt_pkg as apt
+    cache = apt_cache()
+    application_version = None
+    application_codename = os_release(package)
+
+    try:
+        pkg = cache[package]
+        if not pkg.current_ver:
+            juju_log('Package {} is not currently installed.'.format(package),
+                     DEBUG)
+        else:
+            application_version = apt.upstream_version(pkg.current_ver.ver_str)
+    except:
+        juju_log('Package {} has no installation candidate.'.format(package),
+                 DEBUG)
+
+    # NOTE(jamespage) if not able to figure out package version, fallback to
+    #                 openstack codename version detection.
+    if not application_version:
+        application_version_set(application_codename)
+    else:
+        application_version_set(application_version)

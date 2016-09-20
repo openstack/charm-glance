@@ -30,13 +30,29 @@ import subprocess
 import hashlib
 import functools
 import itertools
-from contextlib import contextmanager
-from collections import OrderedDict
-
 import six
 
+from contextlib import contextmanager
+from collections import OrderedDict
 from .hookenv import log
 from .fstab import Fstab
+from charmhelpers.osplatform import get_platform
+
+__platform__ = get_platform()
+if __platform__ == "ubuntu":
+    from charmhelpers.core.host_factory.ubuntu import (
+        service_available,
+        add_new_group,
+        lsb_release,
+        cmp_pkgrevno,
+    )  # flake8: noqa -- ignore F401 for this import
+elif __platform__ == "centos":
+    from charmhelpers.core.host_factory.centos import (
+        service_available,
+        add_new_group,
+        lsb_release,
+        cmp_pkgrevno,
+    )  # flake8: noqa -- ignore F401 for this import
 
 
 def service_start(service_name):
@@ -144,25 +160,16 @@ def service_running(service_name):
                 return False
             else:
                 # This works for upstart scripts where the 'service' command
-                # returns a consistent string to represent running 'start/running'
-                if "start/running" in output:
+                # returns a consistent string to represent running
+                # 'start/running'
+                if ("start/running" in output or
+                        "is running" in output or
+                        "up and running" in output):
                     return True
         elif os.path.exists(_INIT_D_CONF.format(service_name)):
             # Check System V scripts init script return codes
             return service('status', service_name)
         return False
-
-
-def service_available(service_name):
-    """Determine whether a system service is available"""
-    try:
-        subprocess.check_output(
-            ['service', service_name, 'status'],
-            stderr=subprocess.STDOUT).decode('UTF-8')
-    except subprocess.CalledProcessError as e:
-        return b'unrecognized service' not in e.output
-    else:
-        return True
 
 
 SYSTEMD_SYSTEM = '/run/systemd/system'
@@ -173,8 +180,9 @@ def init_is_systemd():
     return os.path.isdir(SYSTEMD_SYSTEM)
 
 
-def adduser(username, password=None, shell='/bin/bash', system_user=False,
-            primary_group=None, secondary_groups=None, uid=None, home_dir=None):
+def adduser(username, password=None, shell='/bin/bash',
+            system_user=False, primary_group=None,
+            secondary_groups=None, uid=None, home_dir=None):
     """Add a user to the system.
 
     Will log but otherwise succeed if the user already exists.
@@ -286,17 +294,7 @@ def add_group(group_name, system_group=False, gid=None):
             log('group with gid {0} already exists!'.format(gid))
     except KeyError:
         log('creating group {0}'.format(group_name))
-        cmd = ['addgroup']
-        if gid:
-            cmd.extend(['--gid', str(gid)])
-        if system_group:
-            cmd.append('--system')
-        else:
-            cmd.extend([
-                '--group',
-            ])
-        cmd.append(group_name)
-        subprocess.check_call(cmd)
+        add_new_group(group_name, system_group, gid)
         group_info = grp.getgrnam(group_name)
     return group_info
 
@@ -541,16 +539,6 @@ def restart_on_change_helper(lambda_f, restart_map, stopstart=False,
     return r
 
 
-def lsb_release():
-    """Return /etc/lsb-release in a dict"""
-    d = {}
-    with open('/etc/lsb-release', 'r') as lsb:
-        for l in lsb:
-            k, v = l.split('=')
-            d[k.strip()] = v.strip()
-    return d
-
-
 def pwgen(length=None):
     """Generate a random pasword."""
     if length is None:
@@ -672,25 +660,6 @@ def get_nic_hwaddr(nic):
     if 'link/ether' in words:
         hwaddr = words[words.index('link/ether') + 1]
     return hwaddr
-
-
-def cmp_pkgrevno(package, revno, pkgcache=None):
-    """Compare supplied revno with the revno of the installed package
-
-    *  1 => Installed revno is greater than supplied arg
-    *  0 => Installed revno is the same as supplied arg
-    * -1 => Installed revno is less than supplied arg
-
-    This function imports apt_cache function from charmhelpers.fetch if
-    the pkgcache argument is None. Be sure to add charmhelpers.fetch if
-    you call this function, or pass an apt_pkg.Cache() instance.
-    """
-    import apt_pkg
-    if not pkgcache:
-        from charmhelpers.fetch import apt_cache
-        pkgcache = apt_cache()
-    pkg = pkgcache[package]
-    return apt_pkg.version_compare(pkg.current_ver.ver_str, revno)
 
 
 @contextmanager
