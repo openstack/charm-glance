@@ -48,6 +48,7 @@ options:
       the corresponding OpenStack github branch will be used:
         * liberty
         * mitaka
+        * newton
         * master
 
       The YAML must minimally include requirements and glance repositories,

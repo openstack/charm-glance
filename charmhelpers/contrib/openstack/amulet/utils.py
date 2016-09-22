@@ -306,10 +306,8 @@ class OpenStackAmuletUtils(AmuletUtils):
                                   password, tenant):
         """Authenticates admin user with cinder."""
         # NOTE(beisner): cinder python client doesn't accept tokens.
-        service_ip = \
-            keystone_sentry.relation('shared-db',
-                                     'mysql:shared-db')['private-address']
-        ept = "http://{}:5000/v2.0".format(service_ip.strip().decode('utf-8'))
+        keystone_ip = keystone_sentry.info['public-address']
+        ept = "http://{}:5000/v2.0".format(keystone_ip.strip().decode('utf-8'))
         return cinder_client.Client(username, password, tenant, ept)
 
     def authenticate_keystone_admin(self, keystone_sentry, user, password,
@@ -317,10 +315,9 @@ class OpenStackAmuletUtils(AmuletUtils):
                                     keystone_ip=None):
         """Authenticates admin user with the keystone admin endpoint."""
         self.log.debug('Authenticating keystone admin...')
-        unit = keystone_sentry
         if not keystone_ip:
-            keystone_ip = unit.relation('shared-db',
-                                        'mysql:shared-db')['private-address']
+            keystone_ip = keystone_sentry.info['public-address']
+
         base_ep = "http://{}:35357".format(keystone_ip.strip().decode('utf-8'))
         if not api_version or api_version == 2:
             ep = base_ep + "/v2.0"

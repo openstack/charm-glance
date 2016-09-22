@@ -156,7 +156,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         use_source = list(set(
             use_source + ['mysql', 'mongodb', 'rabbitmq-server', 'ceph',
                           'ceph-osd', 'ceph-radosgw', 'ceph-mon',
-                          'ceph-proxy']))
+                          'ceph-proxy', 'percona-cluster', 'lxd']))
 
         # Charms which can not use openstack-origin, ie. many subordinates
         no_origin = list(set(

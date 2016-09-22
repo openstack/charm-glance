@@ -55,9 +55,10 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         self._deploy()
 
         u.log.info('Waiting on extended status checks...')
-        exclude_services = ['mysql']
+        exclude_services = []
         self._auto_wait_for_status(exclude_services=exclude_services)
 
+        self.d.sentry.wait()
         self._initialize_tests()
 
     def _assert_services(self, should_run):
@@ -73,17 +74,19 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
            compatible with the local charm (e.g. stable or next).
            """
         this_service = {'name': 'glance'}
-        other_services = [{'name': 'mysql'},
-                          {'name': 'rabbitmq-server'},
-                          {'name': 'keystone'}]
+        other_services = [
+            {'name': 'percona-cluster', 'constraints': {'mem': '3072M'}},
+            {'name': 'rabbitmq-server'},
+            {'name': 'keystone'},
+        ]
         super(GlanceBasicDeployment, self)._add_services(this_service,
                                                          other_services)
 
     def _add_relations(self):
         """Add relations for the services."""
         relations = {'glance:identity-service': 'keystone:identity-service',
-                     'glance:shared-db': 'mysql:shared-db',
-                     'keystone:shared-db': 'mysql:shared-db',
+                     'glance:shared-db': 'percona-cluster:shared-db',
+                     'keystone:shared-db': 'percona-cluster:shared-db',
                      'glance:amqp': 'rabbitmq-server:amqp'}
         super(GlanceBasicDeployment, self)._add_relations(relations)
 
@@ -117,18 +120,27 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             glance_config['openstack-origin-git'] = \
                 yaml.dump(openstack_origin_git)
 
-        keystone_config = {'admin-password': 'openstack',
-                           'admin-token': 'ubuntutesting'}
-        mysql_config = {'dataset-size': '50%'}
-        configs = {'glance': glance_config,
-                   'keystone': keystone_config,
-                   'mysql': mysql_config}
+        keystone_config = {
+            'admin-password': 'openstack',
+            'admin-token': 'ubuntutesting',
+        }
+        pxc_config = {
+            'dataset-size': '25%',
+            'max-connections': 1000,
+            'root-password': 'ChangeMe123',
+            'sst-password': 'ChangeMe123',
+        }
+        configs = {
+            'glance': glance_config,
+            'keystone': keystone_config,
+            'percona-cluster': pxc_config,
+        }
         super(GlanceBasicDeployment, self)._configure_services(configs)
 
     def _initialize_tests(self):
         """Perform final initialization before tests get run."""
         # Access the sentries for inspecting service units
-        self.mysql_sentry = self.d.sentry['mysql'][0]
+        self.pxc_sentry = self.d.sentry['percona-cluster'][0]
         self.glance_sentry = self.d.sentry['glance'][0]
         self.keystone_sentry = self.d.sentry['keystone'][0]
         self.rabbitmq_sentry = self.d.sentry['rabbitmq-server'][0]
@@ -142,7 +154,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                                                       user='admin',
                                                       password='openstack',
                                                       tenant='admin')
-
         # Authenticate admin with glance endpoint
         self.glance = u.authenticate_glance_admin(self.keystone)
 
@@ -150,7 +161,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         """Verify that the expected services are running on the
            corresponding service units."""
         services = {
-            self.mysql_sentry: ['mysql'],
             self.keystone_sentry: ['keystone'],
             self.glance_sentry: ['glance-api', 'glance-registry'],
             self.rabbitmq_sentry: ['rabbitmq-server']
@@ -244,7 +254,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
     def test_200_mysql_glance_db_relation(self):
         """Verify the mysql:glance shared-db relation data"""
         u.log.debug('Checking mysql to glance shared-db relation data...')
-        unit = self.mysql_sentry
+        unit = self.pxc_sentry
         relation = ['shared-db', 'glance:shared-db']
         expected = {
             'private-address': u.valid_ip,
@@ -259,7 +269,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         """Verify the glance:mysql shared-db relation data"""
         u.log.debug('Checking glance to mysql shared-db relation data...')
         unit = self.glance_sentry
-        relation = ['shared-db', 'mysql:shared-db']
+        relation = ['shared-db', 'percona-cluster:shared-db']
         expected = {
             'private-address': u.valid_ip,
             'hostname': u.valid_ip,
@@ -415,7 +425,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         rel_mq_gl = self.rabbitmq_sentry.relation('amqp', 'glance:amqp')
         rel_ks_gl = unit_ks.relation('identity-service',
                                      'glance:identity-service')
-        rel_my_gl = self.mysql_sentry.relation('shared-db', 'glance:shared-db')
+        rel_my_gl = self.pxc_sentry.relation('shared-db', 'glance:shared-db')
         db_uri = "mysql://{}:{}@{}/{}".format('glance', rel_my_gl['password'],
                                               rel_my_gl['db_host'], 'glance')
         conf = '/etc/glance/glance-api.conf'
@@ -488,7 +498,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         unit_ks = self.keystone_sentry
         rel_ks_gl = unit_ks.relation('identity-service',
                                      'glance:identity-service')
-        rel_my_gl = self.mysql_sentry.relation('shared-db', 'glance:shared-db')
+        rel_my_gl = self.pxc_sentry.relation('shared-db', 'glance:shared-db')
         db_uri = "mysql://{}:{}@{}/{}".format('glance', rel_my_gl['password'],
                                               rel_my_gl['db_host'], 'glance')
         conf = '/etc/glance/glance-registry.conf'

@@ -1,6 +1,6 @@
 # Bootstrap the model if necessary.
 bootstrap: True
-# Re-use bootstrap node instead of destroying/re-bootstrapping.
+# Re-use bootstrap node.
 reset: True
 # Use tox/requirements to drive the venv instead of bundletester's venv feature.
 virtualenv: False
