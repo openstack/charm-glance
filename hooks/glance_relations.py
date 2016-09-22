@@ -428,6 +428,7 @@ def cluster_joined(relation_id=None):
 
 
 @hooks.hook('cluster-relation-changed')
+@hooks.hook('cluster-relation-departed')
 @restart_on_change(restart_map(), stopstart=True)
 def cluster_changed():
     configure_https()
