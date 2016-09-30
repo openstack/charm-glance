@@ -81,7 +81,12 @@ from charmhelpers.core.host import (
     service_resume,
     restart_on_change_helper,
 )
-from charmhelpers.fetch import apt_install, apt_cache, install_remote
+from charmhelpers.fetch import (
+    apt_install,
+    apt_cache,
+    install_remote,
+    get_upstream_version
+)
 from charmhelpers.contrib.storage.linux.utils import is_block_device, zap_disk
 from charmhelpers.contrib.storage.linux.loopback import ensure_loopback_device
 from charmhelpers.contrib.openstack.exceptions import OSContextError
@@ -146,7 +151,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('mitaka',
         ['2.5.0', '2.6.0', '2.7.0']),
     ('newton',
-        ['2.8.0', '2.9.0']),
+        ['2.8.0', '2.9.0', '2.10.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -1894,25 +1899,10 @@ def config_flags_parser(config_flags):
 
 def os_application_version_set(package):
     '''Set version of application for Juju 2.0 and later'''
-    import apt_pkg as apt
-    cache = apt_cache()
-    application_version = None
-    application_codename = os_release(package)
-
-    try:
-        pkg = cache[package]
-        if not pkg.current_ver:
-            juju_log('Package {} is not currently installed.'.format(package),
-                     DEBUG)
-        else:
-            application_version = apt.upstream_version(pkg.current_ver.ver_str)
-    except:
-        juju_log('Package {} has no installation candidate.'.format(package),
-                 DEBUG)
-
+    application_version = get_upstream_version(package)
     # NOTE(jamespage) if not able to figure out package version, fallback to
     #                 openstack codename version detection.
     if not application_version:
-        application_version_set(application_codename)
+        application_version_set(os_release(package))
     else:
         application_version_set(application_version)

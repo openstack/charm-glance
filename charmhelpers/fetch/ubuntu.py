@@ -314,3 +314,23 @@ def _run_apt_command(cmd, fatal=False):
 
     else:
         subprocess.call(cmd, env=env)
+
+
+def get_upstream_version(package):
+    """Determine upstream version based on installed package
+
+    @returns None (if not installed) or the upstream version
+    """
+    import apt_pkg
+    cache = apt_cache()
+    try:
+        pkg = cache[package]
+    except:
+        # the package is unknown to the current apt cache.
+        return None
+
+    if not pkg.current_ver:
+        # package is known, but no version is currently installed.
+        return None
+
+    return apt_pkg.upstream_version(pkg.current_ver.ver_str)

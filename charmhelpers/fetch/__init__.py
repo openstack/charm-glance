@@ -92,6 +92,7 @@ if __platform__ == "ubuntu":
     apt_mark = fetch.apt_mark
     apt_hold = fetch.apt_hold
     apt_unhold = fetch.apt_unhold
+    get_upstream_version = fetch.get_upstream_version
 elif __platform__ == "centos":
     yum_search = fetch.yum_search
 

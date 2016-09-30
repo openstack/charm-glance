@@ -98,8 +98,47 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         return other_services
 
-    def _add_services(self, this_service, other_services):
-        """Add services to the deployment and set openstack-origin/source."""
+    def _add_services(self, this_service, other_services, use_source=None,
+                      no_origin=None):
+        """Add services to the deployment and optionally set
+        openstack-origin/source.
+
+        :param this_service dict: Service dictionary describing the service
+                                  whose amulet tests are being run
+        :param other_services dict: List of service dictionaries describing
+                                    the services needed to support the target
+                                    service
+        :param use_source list: List of services which use the 'source' config
+                                option rather than 'openstack-origin'
+        :param no_origin list: List of services which do not support setting
+                               the Cloud Archive.
+        Service Dict:
+            {
+                'name': str charm-name,
+                'units': int number of units,
+                'constraints': dict of juju constraints,
+                'location': str location of charm,
+            }
+        eg
+        this_service = {
+            'name': 'openvswitch-odl',
+            'constraints': {'mem': '8G'},
+        }
+        other_services = [
+            {
+                'name': 'nova-compute',
+                'units': 2,
+                'constraints': {'mem': '4G'},
+                'location': cs:~bob/xenial/nova-compute
+            },
+            {
+                'name': 'mysql',
+                'constraints': {'mem': '2G'},
+            },
+            {'neutron-api-odl'}]
+        use_source = ['mysql']
+        no_origin = ['neutron-api-odl']
+        """
         self.log.info('OpenStackAmuletDeployment:  adding services')
 
         other_services = self._determine_branch_locations(other_services)
@@ -110,16 +149,22 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         services = other_services
         services.append(this_service)
 
+        use_source = use_source or []
+        no_origin = no_origin or []
+
         # Charms which should use the source config option
-        use_source = ['mysql', 'mongodb', 'rabbitmq-server', 'ceph',
-                      'ceph-osd', 'ceph-radosgw', 'ceph-mon', 'ceph-proxy']
+        use_source = list(set(
+            use_source + ['mysql', 'mongodb', 'rabbitmq-server', 'ceph',
+                          'ceph-osd', 'ceph-radosgw', 'ceph-mon',
+                          'ceph-proxy']))
 
         # Charms which can not use openstack-origin, ie. many subordinates
-        no_origin = ['cinder-ceph', 'hacluster', 'neutron-openvswitch', 'nrpe',
-                     'openvswitch-odl', 'neutron-api-odl', 'odl-controller',
-                     'cinder-backup', 'nexentaedge-data',
-                     'nexentaedge-iscsi-gw', 'nexentaedge-swift-gw',
-                     'cinder-nexentaedge', 'nexentaedge-mgmt']
+        no_origin = list(set(
+            no_origin + ['cinder-ceph', 'hacluster', 'neutron-openvswitch',
+                         'nrpe', 'openvswitch-odl', 'neutron-api-odl',
+                         'odl-controller', 'cinder-backup', 'nexentaedge-data',
+                         'nexentaedge-iscsi-gw', 'nexentaedge-swift-gw',
+                         'cinder-nexentaedge', 'nexentaedge-mgmt']))
 
         if self.openstack:
             for svc in services:
@@ -258,6 +303,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('vivid', 'kilo'),
             ('wily', 'liberty'),
             ('xenial', 'mitaka'),
+            ('yakkety', 'newton'),
         ])
         if self.openstack:
             os_origin = self.openstack.split(':')[1]

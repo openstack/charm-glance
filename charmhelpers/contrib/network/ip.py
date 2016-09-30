@@ -406,7 +406,7 @@ def is_ip(address):
         # Test to see if already an IPv4/IPv6 address
         address = netaddr.IPAddress(address)
         return True
-    except netaddr.AddrFormatError:
+    except (netaddr.AddrFormatError, ValueError):
         return False
 
 

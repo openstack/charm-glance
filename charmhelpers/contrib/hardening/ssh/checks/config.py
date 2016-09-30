@@ -14,6 +14,11 @@
 
 import os
 
+from charmhelpers.contrib.network.ip import (
+    get_address_in_network,
+    get_iface_addr,
+    is_ip,
+)
 from charmhelpers.core.hookenv import (
     log,
     DEBUG,
@@ -121,6 +126,36 @@ class SSHConfigContext(object):
 
         return cipher[weak_ciphers]
 
+    def get_listening(self, listen=['0.0.0.0']):
+        """Returns a list of addresses SSH can list on
+
+        Turns input into a sensible list of IPs SSH can listen on. Input
+        must be a python list of interface names, IPs and/or CIDRs.
+
+        :param listen: list of IPs, CIDRs, interface names
+
+        :returns: list of IPs available on the host
+        """
+        if listen == ['0.0.0.0']:
+            return listen
+
+        value = []
+        for network in listen:
+            try:
+                ip = get_address_in_network(network=network, fatal=True)
+            except ValueError:
+                if is_ip(network):
+                    ip = network
+                else:
+                    try:
+                        ip = get_iface_addr(iface=network, fatal=False)[0]
+                    except IndexError:
+                        continue
+            value.append(ip)
+        if value == []:
+            return ['0.0.0.0']
+        return value
+
     def __call__(self):
         settings = utils.get_settings('ssh')
         if settings['common']['network_ipv6_enable']:
@@ -180,7 +215,7 @@ class SSHDConfigContext(SSHConfigContext):
             addr_family = 'inet'
 
         ctxt = {
-            'ssh_ip': settings['server']['listen_to'],
+            'ssh_ip': self.get_listening(settings['server']['listen_to']),
             'password_auth_allowed':
             settings['server']['password_authentication'],
             'ports': settings['common']['ports'],

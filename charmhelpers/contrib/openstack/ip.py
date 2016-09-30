@@ -30,6 +30,7 @@ from charmhelpers.contrib.hahelpers.cluster import is_clustered
 PUBLIC = 'public'
 INTERNAL = 'int'
 ADMIN = 'admin'
+ACCESS = 'access'
 
 ADDRESS_MAP = {
     PUBLIC: {
@@ -49,7 +50,13 @@ ADDRESS_MAP = {
         'config': 'os-admin-network',
         'fallback': 'private-address',
         'override': 'os-admin-hostname',
-    }
+    },
+    ACCESS: {
+        'binding': 'access',
+        'config': 'access-network',
+        'fallback': 'private-address',
+        'override': 'os-access-hostname',
+    },
 }
 
 

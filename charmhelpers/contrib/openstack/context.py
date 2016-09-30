@@ -1421,9 +1421,9 @@ class InternalEndpointContext(OSContextGenerator):
 class AppArmorContext(OSContextGenerator):
     """Base class for apparmor contexts."""
 
-    def __init__(self):
+    def __init__(self, profile_name=None):
         self._ctxt = None
-        self.aa_profile = None
+        self.aa_profile = profile_name
         self.aa_utils_packages = ['apparmor-utils']
 
     @property
@@ -1442,6 +1442,8 @@ class AppArmorContext(OSContextGenerator):
         if config('aa-profile-mode') in ['disable', 'enforce', 'complain']:
             ctxt = {'aa_profile_mode': config('aa-profile-mode'),
                     'ubuntu_release': lsb_release()['DISTRIB_RELEASE']}
+            if self.aa_profile:
+                ctxt['aa_profile'] = self.aa_profile
         else:
             ctxt = None
         return ctxt
