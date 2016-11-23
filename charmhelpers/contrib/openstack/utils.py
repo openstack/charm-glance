@@ -109,7 +109,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('wily', 'liberty'),
     ('xenial', 'mitaka'),
     ('yakkety', 'newton'),
-    ('zebra', 'ocata'),  # TODO: upload with real Z name
+    ('zesty', 'ocata'),
 ])
 
 
@@ -152,6 +152,8 @@ SWIFT_CODENAMES = OrderedDict([
         ['2.5.0', '2.6.0', '2.7.0']),
     ('newton',
         ['2.8.0', '2.9.0', '2.10.0']),
+    ('ocata',
+        ['2.11.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -410,14 +412,26 @@ def get_os_version_package(pkg, fatal=True):
 os_rel = None
 
 
-def os_release(package, base='essex'):
+def reset_os_release():
+    '''Unset the cached os_release version'''
+    global os_rel
+    os_rel = None
+
+
+def os_release(package, base='essex', reset_cache=False):
     '''
     Returns OpenStack release codename from a cached global.
+
+    If reset_cache then unset the cached os_release version and return the
+    freshly determined version.
+
     If the codename can not be determined from either an installed package or
     the installation source, the earliest release supported by the charm should
     be returned.
     '''
     global os_rel
+    if reset_cache:
+        reset_os_release()
     if os_rel:
         return os_rel
     os_rel = (git_os_codename_install_source(config('openstack-origin-git')) or
@@ -535,6 +549,9 @@ def configure_installation_source(rel):
             'newton': 'xenial-updates/newton',
             'newton/updates': 'xenial-updates/newton',
             'newton/proposed': 'xenial-proposed/newton',
+            'zesty': 'zesty-updates/ocata',
+            'zesty/updates': 'xenial-updates/ocata',
+            'zesty/proposed': 'xenial-proposed/ocata',
         }
 
         try:
@@ -667,6 +684,7 @@ def clean_storage(block_device):
         remove_lvm_physical_volume(block_device)
     else:
         zap_disk(block_device)
+
 
 is_ip = ip.is_ip
 ns_query = ip.ns_query

@@ -5,7 +5,7 @@ def persistent_modprobe(module):
     """Load a kernel module and configure for auto-load on reboot."""
     with open('/etc/modules', 'r+') as modules:
         if module not in modules.read():
-            modules.write(module)
+            modules.write(module + "\n")
 
 
 def update_initramfs(version='all'):

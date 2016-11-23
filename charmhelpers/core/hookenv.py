@@ -332,6 +332,8 @@ def config(scope=None):
     config_cmd_line = ['config-get']
     if scope is not None:
         config_cmd_line.append(scope)
+    else:
+        config_cmd_line.append('--all')
     config_cmd_line.append('--format=json')
     try:
         config_data = json.loads(

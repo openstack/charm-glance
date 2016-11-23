@@ -32,6 +32,7 @@ def headers_package():
     kver = check_output(['uname', '-r']).decode('UTF-8').strip()
     return 'linux-headers-%s' % kver
 
+
 QUANTUM_CONF_DIR = '/etc/quantum'
 
 
@@ -90,6 +91,7 @@ def quantum_plugins():
             'server_services': ['quantum-server']
         }
     }
+
 
 NEUTRON_CONF_DIR = '/etc/neutron'
 

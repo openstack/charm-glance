@@ -105,6 +105,14 @@ CLOUD_ARCHIVE_POCKETS = {
     'newton/proposed': 'xenial-proposed/newton',
     'xenial-newton/proposed': 'xenial-proposed/newton',
     'xenial-proposed/newton': 'xenial-proposed/newton',
+    # Ocata
+    'ocata': 'xenial-updates/ocata',
+    'xenial-ocata': 'xenial-updates/ocata',
+    'xenial-ocata/updates': 'xenial-updates/ocata',
+    'xenial-updates/ocata': 'xenial-updates/ocata',
+    'ocata/proposed': 'xenial-proposed/ocata',
+    'xenial-ocata/proposed': 'xenial-proposed/ocata',
+    'xenial-ocata/newton': 'xenial-proposed/ocata',
 }
 
 APT_NO_LOCK = 100  # The return code for "couldn't acquire lock" in APT.

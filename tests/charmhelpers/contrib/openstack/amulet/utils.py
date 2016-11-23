@@ -28,6 +28,7 @@ import keystoneclient.v2_0 as keystone_client
 from keystoneclient.auth.identity import v3 as keystone_id_v3
 from keystoneclient import session as keystone_session
 from keystoneclient.v3 import client as keystone_client_v3
+from novaclient import exceptions
 
 import novaclient.client as nova_client
 import pika
@@ -376,6 +377,16 @@ class OpenStackAmuletUtils(AmuletUtils):
                                       key=password,
                                       tenant_name=tenant,
                                       auth_version='2.0')
+
+    def create_flavor(self, nova, name, ram, vcpus, disk, flavorid="auto",
+                      ephemeral=0, swap=0, rxtx_factor=1.0, is_public=True):
+        """Create the specified flavor."""
+        try:
+            nova.flavors.find(name=name)
+        except (exceptions.NotFound, exceptions.NoUniqueMatch):
+            self.log.debug('Creating flavor ({})'.format(name))
+            nova.flavors.create(name, ram, vcpus, disk, flavorid,
+                                ephemeral, swap, rxtx_factor, is_public)
 
     def create_cirros_image(self, glance, image_name):
         """Download the latest cirros image and upload it to glance,

@@ -14,10 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Amulet tests on a basic Glance deployment on yakkety-newton."""
+"""Amulet tests on a basic glance deployment on xenial-ocata."""
 
 from basic_deployment import GlanceBasicDeployment
 
 if __name__ == '__main__':
-    deployment = GlanceBasicDeployment(series='yakkety')
+    deployment = GlanceBasicDeployment(series='xenial',
+                                         openstack='cloud:xenial-ocata',
+                                         source='cloud:xenial-updates/ocata')
     deployment.run_tests()

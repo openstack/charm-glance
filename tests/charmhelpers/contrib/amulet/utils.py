@@ -546,7 +546,7 @@ class AmuletUtils(object):
             raise if it is present.
         :returns: List of process IDs
         """
-        cmd = 'pidof -x {}'.format(process_name)
+        cmd = 'pidof -x "{}"'.format(process_name)
         if not expect_success:
             cmd += " || exit 0 && exit 1"
         output, code = sentry_unit.run(cmd)

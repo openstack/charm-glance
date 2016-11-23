@@ -69,9 +69,9 @@ class OpenStackAmuletDeployment(AmuletDeployment):
 
         # Charms outside the ~openstack-charmers
         base_charms = {
-            'mysql': ['precise', 'trusty'],
-            'mongodb': ['precise', 'trusty'],
-            'nrpe': ['precise', 'trusty', 'wily', 'xenial'],
+            'mysql': ['trusty'],
+            'mongodb': ['trusty'],
+            'nrpe': ['trusty', 'xenial'],
         }
 
         for svc in other_services:
@@ -260,31 +260,20 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            release.
            """
         # Must be ordered by OpenStack release (not by Ubuntu release):
-        (self.precise_essex, self.precise_folsom, self.precise_grizzly,
-         self.precise_havana, self.precise_icehouse,
-         self.trusty_icehouse, self.trusty_juno, self.utopic_juno,
-         self.trusty_kilo, self.vivid_kilo, self.trusty_liberty,
-         self.wily_liberty, self.trusty_mitaka,
-         self.xenial_mitaka, self.xenial_newton,
-         self.yakkety_newton) = range(16)
+        (self.trusty_icehouse, self.trusty_kilo, self.trusty_liberty,
+         self.trusty_mitaka, self.xenial_mitaka, self.xenial_newton,
+         self.yakkety_newton, self.xenial_ocata, self.zesty_ocata) = range(9)
 
         releases = {
-            ('precise', None): self.precise_essex,
-            ('precise', 'cloud:precise-folsom'): self.precise_folsom,
-            ('precise', 'cloud:precise-grizzly'): self.precise_grizzly,
-            ('precise', 'cloud:precise-havana'): self.precise_havana,
-            ('precise', 'cloud:precise-icehouse'): self.precise_icehouse,
             ('trusty', None): self.trusty_icehouse,
-            ('trusty', 'cloud:trusty-juno'): self.trusty_juno,
             ('trusty', 'cloud:trusty-kilo'): self.trusty_kilo,
             ('trusty', 'cloud:trusty-liberty'): self.trusty_liberty,
             ('trusty', 'cloud:trusty-mitaka'): self.trusty_mitaka,
-            ('utopic', None): self.utopic_juno,
-            ('vivid', None): self.vivid_kilo,
-            ('wily', None): self.wily_liberty,
             ('xenial', None): self.xenial_mitaka,
             ('xenial', 'cloud:xenial-newton'): self.xenial_newton,
+            ('xenial', 'cloud:xenial-ocata'): self.xenial_ocata,
             ('yakkety', None): self.yakkety_newton,
+            ('zesty', None): self.zesty_ocata,
         }
         return releases[(self.series, self.openstack)]
 
@@ -294,16 +283,10 @@ class OpenStackAmuletDeployment(AmuletDeployment):
            Return a string representing the openstack release.
            """
         releases = OrderedDict([
-            ('precise', 'essex'),
-            ('quantal', 'folsom'),
-            ('raring', 'grizzly'),
-            ('saucy', 'havana'),
             ('trusty', 'icehouse'),
-            ('utopic', 'juno'),
-            ('vivid', 'kilo'),
-            ('wily', 'liberty'),
             ('xenial', 'mitaka'),
             ('yakkety', 'newton'),
+            ('zesty', 'ocata'),
         ])
         if self.openstack:
             os_origin = self.openstack.split(':')[1]
