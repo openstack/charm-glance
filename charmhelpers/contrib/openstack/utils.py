@@ -549,9 +549,9 @@ def configure_installation_source(rel):
             'newton': 'xenial-updates/newton',
             'newton/updates': 'xenial-updates/newton',
             'newton/proposed': 'xenial-proposed/newton',
-            'zesty': 'zesty-updates/ocata',
-            'zesty/updates': 'xenial-updates/ocata',
-            'zesty/proposed': 'xenial-proposed/ocata',
+            'ocata': 'xenial-updates/ocata',
+            'ocata/updates': 'xenial-updates/ocata',
+            'ocata/proposed': 'xenial-proposed/ocata',
         }
 
         try:
