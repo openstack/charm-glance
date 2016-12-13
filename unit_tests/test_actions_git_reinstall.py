@@ -31,7 +31,8 @@ with patch('actions.hooks.charmhelpers.contrib.hardening.harden.harden') as \
                             lambda *args, **kwargs: f(*args, **kwargs))
     with patch('actions.hooks.charmhelpers.core.hookenv.config') as config:
         with patch('actions.hooks.glance_utils.register_configs'):
-            from actions import git_reinstall
+            with patch('actions.hooks.glance_utils.restart_map'):
+                from actions import git_reinstall
 
 TO_PATCH = [
     'config',

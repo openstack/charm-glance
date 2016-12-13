@@ -109,8 +109,11 @@ class GlanceRelationTests(CharmTestCase):
         self.config.side_effect = self.test_config.get
         self.network_get_primary_address.side_effect = NotImplementedError
 
+    @patch.object(utils, 'config')
+    @patch.object(utils, 'token_cache_pkgs')
     @patch.object(utils, 'git_install_requested')
-    def test_install_hook(self, git_requested):
+    def test_install_hook(self, git_requested, token_cache_pkgs, util_config):
+        token_cache_pkgs.return_value = ['memcached']
         git_requested.return_value = False
         repo = 'cloud:precise-grizzly'
         self.test_config.set('openstack-origin', repo)
@@ -119,14 +122,18 @@ class GlanceRelationTests(CharmTestCase):
         self.configure_installation_source.assert_called_with(repo)
         self.apt_update.assert_called_with(fatal=True)
         self.apt_install.assert_called_with(
-            ['apache2', 'glance', 'haproxy', 'python-keystone',
+            ['apache2', 'glance', 'haproxy', 'memcached', 'python-keystone',
              'python-mysqldb', 'python-psycopg2', 'python-six',
              'python-swiftclient', 'uuid'], fatal=True)
         self.assertTrue(self.execd_preinstall.called)
         self.git_install.assert_called_with(None)
 
+    @patch.object(utils, 'config')
+    @patch.object(utils, 'token_cache_pkgs')
     @patch.object(utils, 'git_install_requested')
-    def test_install_hook_precise_distro(self, git_requested):
+    def test_install_hook_precise_distro(self, git_requested, token_cache_pkgs,
+                                         util_config):
+        token_cache_pkgs.return_value = []
         git_requested.return_value = False
         self.test_config.set('openstack-origin', 'distro')
         self.lsb_release.return_value = {'DISTRIB_RELEASE': 12.04,
@@ -137,8 +144,11 @@ class GlanceRelationTests(CharmTestCase):
             "cloud:precise-folsom"
         )
 
+    @patch.object(utils, 'config')
+    @patch.object(utils, 'token_cache_pkgs')
     @patch.object(utils, 'git_install_requested')
-    def test_install_hook_git(self, git_requested):
+    def test_install_hook_git(self, git_requested, token_cache_pkgs,
+                              util_config):
         git_requested.return_value = True
         repo = 'cloud:trusty-juno'
         openstack_origin_git = {
@@ -702,9 +712,12 @@ class GlanceRelationTests(CharmTestCase):
                            call('/etc/haproxy/haproxy.cfg')],
                           configs.write.call_args_list)
 
+    @patch.object(utils, 'config')
+    @patch.object(utils, 'token_cache_pkgs')
     @patch.object(relations, 'CONFIGS')
     @patch.object(utils, 'git_install_requested')
-    def test_upgrade_charm(self, git_requested, configs):
+    def test_upgrade_charm(self, git_requested, configs, token_cache_pkgs,
+                           util_config):
         git_requested.return_value = False
         self.filter_installed_packages.return_value = ['test']
         relations.upgrade_charm()

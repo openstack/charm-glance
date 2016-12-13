@@ -1133,3 +1133,70 @@ class OpenStackAmuletUtils(AmuletUtils):
         else:
             msg = 'No message retrieved.'
             amulet.raise_status(amulet.FAIL, msg)
+
+    def validate_memcache(self, sentry_unit, conf, os_release,
+                          earliest_release=5, section='keystone_authtoken',
+                          check_kvs=None):
+        """Check Memcache is running and is configured to be used
+
+        Example call from Amulet test:
+
+            def test_110_memcache(self):
+                u.validate_memcache(self.neutron_api_sentry,
+                                    '/etc/neutron/neutron.conf',
+                                    self._get_openstack_release())
+
+        :param sentry_unit: sentry unit
+        :param conf: OpenStack config file to check memcache settings
+        :param os_release: Current OpenStack release int code
+        :param earliest_release: Earliest Openstack release to check int code
+        :param section: OpenStack config file section to check
+        :param check_kvs: Dict of settings to check in config file
+        :returns: None
+        """
+        if os_release < earliest_release:
+            self.log.debug('Skipping memcache checks for deployment. {} <'
+                           'mitaka'.format(os_release))
+            return
+        _kvs = check_kvs or {'memcached_servers': 'inet6:[::1]:11211'}
+        self.log.debug('Checking memcached is running')
+        ret = self.validate_services_by_name({sentry_unit: ['memcached']})
+        if ret:
+            amulet.raise_status(amulet.FAIL, msg='Memcache running check'
+                                'failed {}'.format(ret))
+        else:
+            self.log.debug('OK')
+        self.log.debug('Checking memcache url is configured in {}'.format(
+            conf))
+        if self.validate_config_data(sentry_unit, conf, section, _kvs):
+            message = "Memcache config error in: {}".format(conf)
+            amulet.raise_status(amulet.FAIL, msg=message)
+        else:
+            self.log.debug('OK')
+        self.log.debug('Checking memcache configuration in '
+                       '/etc/memcached.conf')
+        contents = self.file_contents_safe(sentry_unit, '/etc/memcached.conf',
+                                           fatal=True)
+        ubuntu_release, _ = self.run_cmd_unit(sentry_unit, 'lsb_release -cs')
+        if ubuntu_release <= 'trusty':
+            memcache_listen_addr = 'ip6-localhost'
+        else:
+            memcache_listen_addr = '::1'
+        expected = {
+            '-p': '11211',
+            '-l': memcache_listen_addr}
+        found = []
+        for key, value in expected.items():
+            for line in contents.split('\n'):
+                if line.startswith(key):
+                    self.log.debug('Checking {} is set to {}'.format(
+                        key,
+                        value))
+                    assert value == line.split()[-1]
+                    self.log.debug(line.split()[-1])
+                    found.append(key)
+        if sorted(found) == sorted(expected.keys()):
+            self.log.debug('OK')
+        else:
+            message = "Memcache config error in: /etc/memcached.conf"
+            amulet.raise_status(amulet.FAIL, msg=message)
