@@ -49,6 +49,8 @@ TO_PATCH = [
     'install_alternative',
     'lsb_release',
     'os_application_version_set',
+    'enable_memcache',
+    'token_cache_pkgs',
 ]
 
 DPKG_OPTS = [
@@ -132,6 +134,8 @@ class TestGlanceUtils(CharmTestCase):
         self.mkdir.assert_called_with('/etc/ceph')
 
     def test_restart_map(self):
+        self.enable_memcache.return_value = True
+        self.config.side_effect = None
         self.service_name.return_value = 'glance'
 
         ex_map = OrderedDict([
@@ -140,19 +144,31 @@ class TestGlanceUtils(CharmTestCase):
             (utils.ceph_config_file(), ['glance-api', 'glance-registry']),
             (utils.HAPROXY_CONF, ['haproxy']),
             (utils.HTTPS_APACHE_CONF, ['apache2']),
-            (utils.HTTPS_APACHE_24_CONF, ['apache2'])
+            (utils.HTTPS_APACHE_24_CONF, ['apache2']),
+            (utils.MEMCACHED_CONF, ['memcached'])
         ])
         self.assertEquals(ex_map, utils.restart_map())
+        self.enable_memcache.return_value = False
+        del ex_map[utils.MEMCACHED_CONF]
+        self.assertEquals(ex_map, utils.restart_map())
 
+    @patch.object(utils, 'token_cache_pkgs')
     @patch.object(utils, 'git_install_requested')
-    def test_determine_packages(self, git_install_requested):
+    def test_determine_packages(self, git_install_requested, token_cache_pkgs):
+        self.config.side_effect = None
+        token_cache_pkgs.return_value = []
         git_install_requested.return_value = False
-        result = utils.determine_packages()
         ex = utils.PACKAGES
-        self.assertEquals(set(ex), set(result))
+        self.assertEquals(set(ex), set(utils.determine_packages()))
+        token_cache_pkgs.return_value = ['memcached']
+        ex.append('memcached')
+        self.assertEquals(set(ex), set(utils.determine_packages()))
 
+    @patch.object(utils, 'token_cache_pkgs')
     @patch.object(utils, 'git_install_requested')
-    def test_determine_packages_git(self, git_install_requested):
+    def test_determine_packages_git(self, git_install_requested,
+                                    token_cache_pkgs):
+        self.config.side_effect = None
         git_install_requested.return_value = True
         result = utils.determine_packages()
         ex = utils.PACKAGES + utils.BASE_GIT_PACKAGES

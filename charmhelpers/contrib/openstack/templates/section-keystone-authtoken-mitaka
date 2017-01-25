@@ -14,4 +14,7 @@ project_name = {{ admin_tenant_name }}
 username = {{ admin_user }}
 password = {{ admin_password }}
 signing_dir = {{ signing_dir }}
+{% if use_memcache == true %}
+memcached_servers = {{ memcache_url }}
+{% endif -%}
 {% endif -%}

@@ -82,6 +82,8 @@ from charmhelpers.contrib.openstack.utils import (
     resume_unit,
     incomplete_relation_data,
     os_application_version_set,
+    token_cache_pkgs,
+    enable_memcache,
 )
 
 from charmhelpers.core.templating import render
@@ -144,6 +146,7 @@ HAPROXY_CONF = "/etc/haproxy/haproxy.cfg"
 HTTPS_APACHE_CONF = "/etc/apache2/sites-available/openstack_https_frontend"
 HTTPS_APACHE_24_CONF = "/etc/apache2/sites-available/" \
     "openstack_https_frontend.conf"
+MEMCACHED_CONF = '/etc/memcached.conf'
 
 TEMPLATES = 'templates/'
 
@@ -171,7 +174,8 @@ CONFIG_FILES = OrderedDict([
                           context.WorkerConfigContext(),
                           context.OSConfigFlagContext(
                               charm_flag='registry-config-flags',
-                              template_flag='registry_config_flags')],
+                              template_flag='registry_config_flags'),
+                          context.MemcacheContext()],
         'services': ['glance-registry']
     }),
     (GLANCE_API_CONF, {
@@ -197,7 +201,8 @@ CONFIG_FILES = OrderedDict([
                           context.SubordinateConfigContext(
                               interface=['storage-backend'],
                               service=['glance-api'],
-                              config_file=GLANCE_API_CONF)],
+                              config_file=GLANCE_API_CONF),
+                          context.MemcacheContext()],
         'services': ['glance-api']
     }),
     (ceph_config_file(), {
@@ -256,6 +261,8 @@ def register_configs():
         configs.register(HTTPS_APACHE_CONF,
                          CONFIG_FILES[HTTPS_APACHE_CONF]['hook_contexts'])
 
+    if enable_memcache(release=release):
+        configs.register(MEMCACHED_CONF, [context.MemcacheContext()])
     return configs
 
 
@@ -266,6 +273,7 @@ def determine_packages():
         packages |= set(BASE_GIT_PACKAGES)
         packages -= set(GIT_PACKAGE_BLACKLIST)
 
+    packages |= set(token_cache_pkgs(source=config('openstack-origin')))
     return sorted(packages)
 
 
@@ -328,6 +336,10 @@ def restart_map():
             svcs.append(svc)
         if svcs:
             _map.append((f, svcs))
+
+    if enable_memcache(source=config('openstack-origin')):
+        _map.append((MEMCACHED_CONF, ['memcached']))
+
     return OrderedDict(_map)
 
 

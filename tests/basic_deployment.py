@@ -251,6 +251,16 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         if ret:
             amulet.raise_status(amulet.FAIL, msg=ret)
 
+    def test_115_memcache(self):
+        u.validate_memcache(self.glance_sentry,
+                            '/etc/glance/glance-api.conf',
+                            self._get_openstack_release(),
+                            earliest_release=self.trusty_mitaka)
+        u.validate_memcache(self.glance_sentry,
+                            '/etc/glance/glance-registry.conf',
+                            self._get_openstack_release(),
+                            earliest_release=self.trusty_mitaka)
+
     def test_200_mysql_glance_db_relation(self):
         """Verify the mysql:glance shared-db relation data"""
         u.log.debug('Checking mysql to glance shared-db relation data...')
