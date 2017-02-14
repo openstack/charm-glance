@@ -1045,13 +1045,13 @@ class CephBrokerRq(object):
         self.ops = []
 
     def add_op_request_access_to_group(self, name, namespace=None,
-                                       permission=None):
+                                       permission=None, key_name=None):
         """
         Adds the requested permissions to the current service's Ceph key,
         allowing the key to access only the specified pools
         """
         self.ops.append({'op': 'add-permissions-to-key', 'group': name,
-                         'namespace': namespace, 'name': service_name(),
+                         'namespace': namespace, 'name': key_name or service_name(),
                          'group-permission': permission})
 
     def add_op_create_pool(self, name, replica_count=3, pg_num=None,
