@@ -303,7 +303,10 @@ def get_ceph_request():
     replicas = config('ceph-osd-replication-count')
     weight = config('ceph-pool-weight')
     rq.add_op_create_pool(name=service, replica_count=replicas,
-                          weight=weight)
+                          weight=weight, group='images')
+    if config('restrict-ceph-pools'):
+        rq.add_op_request_access_to_group(name="images",
+                                          permission='rwx')
     return rq
 
 
@@ -408,6 +411,10 @@ def config_changed():
     [cluster_joined(rid) for rid in relation_ids('cluster')]
     for r_id in relation_ids('ha'):
         ha_relation_joined(relation_id=r_id)
+
+    # NOTE(jamespage): trigger any configuration related changes
+    #                  for cephx permissions restrictions
+    ceph_changed()
 
 
 @hooks.hook('cluster-relation-joined')

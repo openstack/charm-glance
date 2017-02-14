@@ -119,6 +119,11 @@ options:
       created for the pool. The number of placement groups for a pool can
       only be increased, never decreased - so it is important to identify the
       percent of data that will likely reside in the pool.
+  restrict-ceph-pools:
+    default: False
+    type: boolean
+    description: |
+      Optionally restrict Ceph key permissions to access pools as required.
   # HA configuration settings
   dns-ha:
     type: boolean

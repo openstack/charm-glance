@@ -40,6 +40,7 @@ from subprocess import (
 )
 from charmhelpers.core.hookenv import (
     config,
+    service_name,
     local_unit,
     relation_get,
     relation_ids,
@@ -1043,8 +1044,18 @@ class CephBrokerRq(object):
             self.request_id = str(uuid.uuid1())
         self.ops = []
 
+    def add_op_request_access_to_group(self, name, namespace=None,
+                                       permission=None):
+        """
+        Adds the requested permissions to the current service's Ceph key,
+        allowing the key to access only the specified pools
+        """
+        self.ops.append({'op': 'add-permissions-to-key', 'group': name,
+                         'namespace': namespace, 'name': service_name(),
+                         'group-permission': permission})
+
     def add_op_create_pool(self, name, replica_count=3, pg_num=None,
-                           weight=None):
+                           weight=None, group=None, namespace=None):
         """Adds an operation to create a pool.
 
         @param pg_num setting:  optional setting. If not provided, this value
@@ -1058,7 +1069,8 @@ class CephBrokerRq(object):
 
         self.ops.append({'op': 'create-pool', 'name': name,
                          'replicas': replica_count, 'pg_num': pg_num,
-                         'weight': weight})
+                         'weight': weight, 'group': group,
+                         'group-namespace': namespace})
 
     def set_ops(self, ops):
         """Set request ops to provided value.

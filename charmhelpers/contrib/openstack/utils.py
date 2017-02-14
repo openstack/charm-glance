@@ -153,7 +153,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('newton',
         ['2.8.0', '2.9.0', '2.10.0']),
     ('ocata',
-        ['2.11.0']),
+        ['2.11.0', '2.12.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -1119,6 +1119,35 @@ def git_generate_systemd_init_files(templates_dir):
                 shutil.copyfile(service_source, service_dest)
 
 
+def git_determine_usr_bin():
+    """Return the /usr/bin path for Apache2 config.
+
+    The /usr/bin path will be located in the virtualenv if the charm
+    is configured to deploy from source.
+    """
+    if git_install_requested():
+        projects_yaml = config('openstack-origin-git')
+        projects_yaml = git_default_repos(projects_yaml)
+        return os.path.join(git_pip_venv_dir(projects_yaml), 'bin')
+    else:
+        return '/usr/bin'
+
+
+def git_determine_python_path():
+    """Return the python-path for Apache2 config.
+
+    Returns 'None' unless the charm is configured to deploy from source,
+    in which case the path of the virtualenv's site-packages is returned.
+    """
+    if git_install_requested():
+        projects_yaml = config('openstack-origin-git')
+        projects_yaml = git_default_repos(projects_yaml)
+        return os.path.join(git_pip_venv_dir(projects_yaml),
+                            'lib/python2.7/site-packages')
+    else:
+        return None
+
+
 def os_workload_status(configs, required_interfaces, charm_func=None):
     """
     Decorator to set workload status based on complete contexts
@@ -1927,16 +1956,24 @@ def os_application_version_set(package):
         application_version_set(application_version)
 
 
-def enable_memcache(source=None, release=None):
+def enable_memcache(source=None, release=None, package=None):
     """Determine if memcache should be enabled on the local unit
 
-    @param source: source string for charm
     @param release: release of OpenStack currently deployed
+    @param package: package to derive OpenStack version deployed
     @returns boolean Whether memcache should be enabled
     """
-    if not release:
-        release = get_os_codename_install_source(source)
-    return release >= 'mitaka'
+    _release = None
+    if release:
+        _release = release
+    else:
+        _release = os_release(package, base='icehouse')
+    if not _release:
+        _release = get_os_codename_install_source(source)
+
+    # TODO: this should be changed to a numeric comparison using a known list
+    # of releases and comparing by index.
+    return _release >= 'mitaka'
 
 
 def token_cache_pkgs(source=None, release=None):
