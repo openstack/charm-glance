@@ -126,3 +126,14 @@ def assert_charm_supports_dns_ha():
         status_set('blocked', msg)
         raise DNSHAException(msg)
     return True
+
+
+def expect_ha():
+    """ Determine if the unit expects to be in HA
+
+    Check for VIP or dns-ha settings which indicate the unit should expect to
+    be related to hacluster.
+
+    @returns boolean
+    """
+    return config('vip') or config('dns-ha')

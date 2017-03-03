@@ -306,6 +306,8 @@ SYSTEMD_SYSTEM = '/run/systemd/system'
 
 def init_is_systemd():
     """Return True if the host system uses systemd, False otherwise."""
+    if lsb_release()['DISTRIB_CODENAME'] == 'trusty':
+        return False
     return os.path.isdir(SYSTEMD_SYSTEM)
 
 
