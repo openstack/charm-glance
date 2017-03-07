@@ -32,6 +32,7 @@ from keystoneclient.v3 import client as keystone_client_v3
 from novaclient import exceptions
 
 import novaclient.client as nova_client
+import novaclient
 import pika
 import swiftclient
 
@@ -434,9 +435,14 @@ class OpenStackAmuletUtils(AmuletUtils):
         self.log.debug('Authenticating nova user ({})...'.format(user))
         ep = keystone.service_catalog.url_for(service_type='identity',
                                               endpoint_type='publicURL')
-        return nova_client.Client(NOVA_CLIENT_VERSION,
-                                  username=user, api_key=password,
-                                  project_id=tenant, auth_url=ep)
+        if novaclient.__version__[0] >= "7":
+            return nova_client.Client(NOVA_CLIENT_VERSION,
+                                      username=user, password=password,
+                                      project_name=tenant, auth_url=ep)
+        else:
+            return nova_client.Client(NOVA_CLIENT_VERSION,
+                                      username=user, api_key=password,
+                                      project_id=tenant, auth_url=ep)
 
     def authenticate_swift_user(self, keystone, user, password, tenant):
         """Authenticates a regular user with swift api."""

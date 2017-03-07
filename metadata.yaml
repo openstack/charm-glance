@@ -12,6 +12,7 @@ tags:
   - misc
 series:
   - xenial
+  - zesty
   - trusty
   - yakkety
 extra-bindings:
