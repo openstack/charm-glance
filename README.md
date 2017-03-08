@@ -136,10 +136,3 @@ alternatively these can also be provided as part of a juju native bundle configu
 NOTE: Spaces must be configured in the underlying provider prior to attempting to use them.
 
 NOTE: Existing deployments using os-*-network configuration options will continue to function; these options are preferred over any network space binding provided if set.
-
-Contact Information
--------------------
-
-Author: Adam Gandelman <adamg@canonical.com>
-Report bugs at: http://bugs.launchpad.net/charms/+source/glance
-Location: http://jujucharms.com
