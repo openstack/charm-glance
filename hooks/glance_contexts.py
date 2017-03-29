@@ -33,7 +33,8 @@ from charmhelpers.contrib.hahelpers.cluster import (
 )
 
 from charmhelpers.contrib.openstack.utils import (
-    os_release
+    os_release,
+    CompareOpenStackReleases,
 )
 
 
@@ -101,9 +102,10 @@ class MultiStoreContext(OSContextGenerator):
         for store_relation, store_type in store_mapping.iteritems():
             if relation_ids(store_relation):
                 stores.append(store_type)
+        _release = os_release('glance-common')
         if ((relation_ids('cinder-volume-service') or
                 relation_ids('storage-backend')) and
-                os_release('glance-common') >= 'mitaka'):
+                CompareOpenStackReleases(_release) >= 'mitaka'):
             # even if storage-backend is present with cinder-backend=False it
             # means that glance should not store images in cinder by default
             # but can read images from cinder.

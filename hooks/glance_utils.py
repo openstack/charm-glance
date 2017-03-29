@@ -46,13 +46,14 @@ from charmhelpers.core.host import (
     adduser,
     add_group,
     add_user_to_group,
+    CompareHostReleases,
+    lsb_release,
     mkdir,
+    pwgen,
     service_stop,
     service_start,
     service_restart,
-    lsb_release,
     write_file,
-    pwgen
 )
 
 from charmhelpers.contrib.openstack import (
@@ -66,6 +67,11 @@ from charmhelpers.contrib.hahelpers.cluster import (
 
 from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.openstack.utils import (
+    CompareOpenStackReleases,
+    configure_installation_source,
+    enable_memcache,
+    incomplete_relation_data,
+    is_unit_paused_set,
     get_os_codename_install_source,
     git_clone_and_install,
     git_default_repos,
@@ -74,16 +80,12 @@ from charmhelpers.contrib.openstack.utils import (
     git_pip_venv_dir,
     git_src_dir,
     git_yaml_value,
-    configure_installation_source,
-    os_release,
-    is_unit_paused_set,
     make_assess_status_func,
+    os_application_version_set,
+    os_release,
     pause_unit,
     resume_unit,
-    incomplete_relation_data,
-    os_application_version_set,
     token_cache_pkgs,
-    enable_memcache,
 )
 
 from charmhelpers.core.templating import render
@@ -350,13 +352,14 @@ def services():
 
 def setup_ipv6():
     ubuntu_rel = lsb_release()['DISTRIB_CODENAME'].lower()
-    if ubuntu_rel < "trusty":
+    if CompareHostReleases(ubuntu_rel) < "trusty":
         raise Exception("IPv6 is not supported in the charms for Ubuntu "
                         "versions less than Trusty 14.04")
 
     # Need haproxy >= 1.5.3 for ipv6 so for Trusty if we are <= Kilo we need to
     # use trusty-backports otherwise we can use the UCA.
-    if ubuntu_rel == 'trusty' and os_release('glance') < 'liberty':
+    if (ubuntu_rel == 'trusty' and
+            CompareOpenStackReleases(os_release('glance')) < 'liberty'):
         add_source('deb http://archive.ubuntu.com/ubuntu trusty-backports '
                    'main')
         apt_update()
