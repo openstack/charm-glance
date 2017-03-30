@@ -2,6 +2,22 @@ import subprocess
 import yum
 import os
 
+from charmhelpers.core.strutils import BasicStringComparator
+
+
+class CompareHostReleases(BasicStringComparator):
+    """Provide comparisons of Host releases.
+
+    Use in the form of
+
+    if CompareHostReleases(release) > 'trusty':
+        # do something with mitaka
+    """
+
+    def __init__(self, item):
+        raise NotImplementedError(
+            "CompareHostReleases() is not implemented for CentOS")
+
 
 def service_available(service_name):
     # """Determine whether a system service is available."""

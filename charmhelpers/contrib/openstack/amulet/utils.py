@@ -40,6 +40,7 @@ from charmhelpers.contrib.amulet.utils import (
     AmuletUtils
 )
 from charmhelpers.core.decorators import retry_on_exception
+from charmhelpers.core.host import CompareHostReleases
 
 DEBUG = logging.DEBUG
 ERROR = logging.ERROR
@@ -546,7 +547,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         """Create the specified instance."""
         self.log.debug('Creating instance '
                        '({}|{}|{})'.format(instance_name, image_name, flavor))
-        image = nova.images.find(name=image_name)
+        image = nova.glance.find_image(image_name)
         flavor = nova.flavors.find(name=flavor)
         instance = nova.servers.create(name=instance_name, image=image,
                                        flavor=flavor)
@@ -1255,7 +1256,7 @@ class OpenStackAmuletUtils(AmuletUtils):
         contents = self.file_contents_safe(sentry_unit, '/etc/memcached.conf',
                                            fatal=True)
         ubuntu_release, _ = self.run_cmd_unit(sentry_unit, 'lsb_release -cs')
-        if ubuntu_release <= 'trusty':
+        if CompareHostReleases(ubuntu_release) <= 'trusty':
             memcache_listen_addr = 'ip6-localhost'
         else:
             memcache_listen_addr = '::1'

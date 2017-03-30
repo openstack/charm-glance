@@ -33,9 +33,7 @@ import yaml
 
 from charmhelpers.contrib.network import ip
 
-from charmhelpers.core import (
-    unitdata,
-)
+from charmhelpers.core import unitdata
 
 from charmhelpers.core.hookenv import (
     action_fail,
@@ -54,6 +52,8 @@ from charmhelpers.core.hookenv import (
     hook_name,
     application_version_set,
 )
+
+from charmhelpers.core.strutils import BasicStringComparator
 
 from charmhelpers.contrib.storage.linux.lvm import (
     deactivate_lvm_volume_group,
@@ -96,6 +96,22 @@ CLOUD_ARCHIVE_KEY_ID = '5EDB1B62EC4926EA'
 
 DISTRO_PROPOSED = ('deb http://archive.ubuntu.com/ubuntu/ %s-proposed '
                    'restricted main multiverse universe')
+
+OPENSTACK_RELEASES = (
+    'diablo',
+    'essex',
+    'folsom',
+    'grizzly',
+    'havana',
+    'icehouse',
+    'juno',
+    'kilo',
+    'liberty',
+    'mitaka',
+    'newton',
+    'ocata',
+    'pike',
+)
 
 UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('oneiric', 'diablo'),
@@ -236,6 +252,17 @@ GIT_DEFAULT_BRANCHES = {
 }
 
 DEFAULT_LOOPBACK_SIZE = '5G'
+
+
+class CompareOpenStackReleases(BasicStringComparator):
+    """Provide comparisons of OpenStack releases.
+
+    Use in the form of
+
+    if CompareOpenStackReleases(release) > 'mitaka':
+        # do something with mitaka
+    """
+    _list = OPENSTACK_RELEASES
 
 
 def error_out(msg):
@@ -1066,7 +1093,8 @@ def git_generate_systemd_init_files(templates_dir):
 
             shutil.copyfile(init_in_source, init_source)
             with open(init_source, 'a') as outfile:
-                template = '/usr/share/openstack-pkg-tools/init-script-template'
+                template = ('/usr/share/openstack-pkg-tools/'
+                            'init-script-template')
                 with open(template) as infile:
                     outfile.write('\n\n{}'.format(infile.read()))
 
@@ -1971,9 +1999,7 @@ def enable_memcache(source=None, release=None, package=None):
     if not _release:
         _release = get_os_codename_install_source(source)
 
-    # TODO: this should be changed to a numeric comparison using a known list
-    # of releases and comparing by index.
-    return _release >= 'mitaka'
+    return CompareOpenStackReleases(_release) >= 'mitaka'
 
 
 def token_cache_pkgs(source=None, release=None):

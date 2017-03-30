@@ -11,3 +11,6 @@ hardening:
     traceenable: 'off'
     allowed_http_methods: "GET POST"
     modules_to_disable: [ cgi, cgid ]
+    servertokens: 'Prod'
+    honor_cipher_order: 'on'
+    cipher_suite: 'ALL:+MEDIUM:+HIGH:!LOW:!MD5:!RC4:!eNULL:!aNULL:!3DES'

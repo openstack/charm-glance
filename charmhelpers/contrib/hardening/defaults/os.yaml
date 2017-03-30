@@ -58,6 +58,7 @@ security:
         rsync
     kernel_enable_module_loading: True  # (type:boolean)
     kernel_enable_core_dump: False  # (type:boolean)
+    ssh_tmout: 300
 
 sysctl:
     kernel_secure_sysrq: 244  # 4 + 16 + 32 + 64 + 128

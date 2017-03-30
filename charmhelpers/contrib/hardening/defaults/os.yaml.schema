@@ -34,6 +34,7 @@ security:
     packages_list:
     kernel_enable_module_loading:
     kernel_enable_core_dump:
+    ssh_tmout:
 sysctl:
     kernel_secure_sysrq:
     kernel_enable_sysrq:

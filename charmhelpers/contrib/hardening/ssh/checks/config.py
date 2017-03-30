@@ -27,7 +27,10 @@ from charmhelpers.fetch import (
     apt_install,
     apt_update,
 )
-from charmhelpers.core.host import lsb_release
+from charmhelpers.core.host import (
+    lsb_release,
+    CompareHostReleases,
+)
 from charmhelpers.contrib.hardening.audits.file import (
     TemplatedFile,
     FileContentAudit,
@@ -68,7 +71,8 @@ class SSHConfigContext(object):
                    'weak': default + ',hmac-sha1'}
 
         # Use newer ciphers on Ubuntu Trusty and above
-        if lsb_release()['DISTRIB_CODENAME'].lower() >= 'trusty':
+        _release = lsb_release()['DISTRIB_CODENAME'].lower()
+        if CompareHostReleases(_release) >= 'trusty':
             log("Detected Ubuntu 14.04 or newer, using new macs", level=DEBUG)
             macs = macs_66
 
@@ -96,7 +100,8 @@ class SSHConfigContext(object):
                   'weak': weak}
 
         # Use newer kex on Ubuntu Trusty and above
-        if lsb_release()['DISTRIB_CODENAME'].lower() >= 'trusty':
+        _release = lsb_release()['DISTRIB_CODENAME'].lower()
+        if CompareHostReleases(_release) >= 'trusty':
             log('Detected Ubuntu 14.04 or newer, using new key exchange '
                 'algorithms', level=DEBUG)
             kex = kex_66
@@ -119,7 +124,8 @@ class SSHConfigContext(object):
                       'weak': default + ',aes256-cbc,aes192-cbc,aes128-cbc'}
 
         # Use newer ciphers on ubuntu Trusty and above
-        if lsb_release()['DISTRIB_CODENAME'].lower() >= 'trusty':
+        _release = lsb_release()['DISTRIB_CODENAME'].lower()
+        if CompareHostReleases(_release) >= 'trusty':
             log('Detected Ubuntu 14.04 or newer, using new ciphers',
                 level=DEBUG)
             cipher = ciphers_66
@@ -291,7 +297,8 @@ class SSHConfigFileContentAudit(FileContentAudit):
         self.fail_cases = []
         settings = utils.get_settings('ssh')
 
-        if lsb_release()['DISTRIB_CODENAME'].lower() >= 'trusty':
+        _release = lsb_release()['DISTRIB_CODENAME'].lower()
+        if CompareHostReleases(_release) >= 'trusty':
             if not settings['server']['weak_hmac']:
                 self.pass_cases.append(r'^MACs.+,hmac-ripemd160$')
             else:
@@ -364,7 +371,8 @@ class SSHDConfigFileContentAudit(FileContentAudit):
         self.fail_cases = []
         settings = utils.get_settings('ssh')
 
-        if lsb_release()['DISTRIB_CODENAME'].lower() >= 'trusty':
+        _release = lsb_release()['DISTRIB_CODENAME'].lower()
+        if CompareHostReleases(_release) >= 'trusty':
             if not settings['server']['weak_hmac']:
                 self.pass_cases.append(r'^MACs.+,hmac-ripemd160$')
             else:

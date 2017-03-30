@@ -373,7 +373,7 @@ def add_init_service_checks(nrpe, services, unit_name, immediate_check=True):
             checkpath = '%s/service-check-%s.txt' % (nrpe.homedir, svc)
             croncmd = (
                 '/usr/local/lib/nagios/plugins/check_exit_status.pl '
-                '-s /etc/init.d/%s status' % svc
+                '-e -s /etc/init.d/%s status' % svc
             )
             cron_file = '*/5 * * * * root %s > %s\n' % (croncmd, checkpath)
             f = open(cronpath, 'w')

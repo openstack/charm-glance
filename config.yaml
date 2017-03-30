@@ -289,11 +289,13 @@ options:
       your network interface.
   worker-multiplier:
     type: float
-    default: 2.0
+    default:
     description: |
       The CPU core multiplier to use when configuring worker processes for
       Glance.  By default, the number of workers for each daemon is set to
-      twice the number of CPU cores a service unit has.
+      twice the number of CPU cores a service unit has.  When deployed in
+      a LXD container, this default value will be capped to 4 workers
+      unless this configuration option is set.
   nagios_context:
     default: "juju"
     type: string
