@@ -25,7 +25,6 @@ def get_audits():
     audits = []
 
     settings = utils.get_settings('os')
-
     # If core dumps are not enabled, then don't allow core dumps to be
     # created as they may contain sensitive information.
     if not settings['security']['kernel_enable_core_dump']:
@@ -33,11 +32,18 @@ def get_audits():
                                     ProfileContext(),
                                     template_dir=TEMPLATES_DIR,
                                     mode=0o0755, user='root', group='root'))
+    if settings['security']['ssh_tmout']:
+        audits.append(TemplatedFile('/etc/profile.d/99-hardening.sh',
+                                    ProfileContext(),
+                                    template_dir=TEMPLATES_DIR,
+                                    mode=0o0644, user='root', group='root'))
     return audits
 
 
 class ProfileContext(object):
 
     def __call__(self):
-        ctxt = {}
+        settings = utils.get_settings('os')
+        ctxt = {'ssh_tmout':
+                settings['security']['ssh_tmout']}
         return ctxt

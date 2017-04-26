@@ -23,7 +23,10 @@ from charmhelpers.core.hookenv import (
     ERROR,
 )
 
-from charmhelpers.contrib.openstack.utils import os_release
+from charmhelpers.contrib.openstack.utils import (
+    os_release,
+    CompareOpenStackReleases,
+)
 
 
 def headers_package():
@@ -198,7 +201,8 @@ def neutron_plugins():
         },
         'plumgrid': {
             'config': '/etc/neutron/plugins/plumgrid/plumgrid.ini',
-            'driver': 'neutron.plugins.plumgrid.plumgrid_plugin.plumgrid_plugin.NeutronPluginPLUMgridV2',
+            'driver': ('neutron.plugins.plumgrid.plumgrid_plugin'
+                       '.plumgrid_plugin.NeutronPluginPLUMgridV2'),
             'contexts': [
                 context.SharedDBContext(user=config('database-user'),
                                         database=config('database'),
@@ -225,7 +229,7 @@ def neutron_plugins():
             'server_services': ['neutron-server']
         }
     }
-    if release >= 'icehouse':
+    if CompareOpenStackReleases(release) >= 'icehouse':
         # NOTE: patch in ml2 plugin for icehouse onwards
         plugins['ovs']['config'] = '/etc/neutron/plugins/ml2/ml2_conf.ini'
         plugins['ovs']['driver'] = 'neutron.plugins.ml2.plugin.Ml2Plugin'
@@ -233,10 +237,10 @@ def neutron_plugins():
                                              'neutron-plugin-ml2']
         # NOTE: patch in vmware renames nvp->nsx for icehouse onwards
         plugins['nvp'] = plugins['nsx']
-    if release >= 'kilo':
+    if CompareOpenStackReleases(release) >= 'kilo':
         plugins['midonet']['driver'] = (
             'neutron.plugins.midonet.plugin.MidonetPluginV2')
-    if release >= 'liberty':
+    if CompareOpenStackReleases(release) >= 'liberty':
         plugins['midonet']['driver'] = (
             'midonet.neutron.plugin_v1.MidonetPluginV2')
         plugins['midonet']['server_packages'].remove(
@@ -244,10 +248,11 @@ def neutron_plugins():
         plugins['midonet']['server_packages'].append(
             'python-networking-midonet')
         plugins['plumgrid']['driver'] = (
-            'networking_plumgrid.neutron.plugins.plugin.NeutronPluginPLUMgridV2')
+            'networking_plumgrid.neutron.plugins'
+            '.plugin.NeutronPluginPLUMgridV2')
         plugins['plumgrid']['server_packages'].remove(
             'neutron-plugin-plumgrid')
-    if release >= 'mitaka':
+    if CompareOpenStackReleases(release) >= 'mitaka':
         plugins['nsx']['server_packages'].remove('neutron-plugin-vmware')
         plugins['nsx']['server_packages'].append('python-vmware-nsx')
         plugins['nsx']['config'] = '/etc/neutron/nsx.ini'

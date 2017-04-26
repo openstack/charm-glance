@@ -1,5 +1,37 @@
 import subprocess
 
+from charmhelpers.core.strutils import BasicStringComparator
+
+
+UBUNTU_RELEASES = (
+    'lucid',
+    'maverick',
+    'natty',
+    'oneiric',
+    'precise',
+    'quantal',
+    'raring',
+    'saucy',
+    'trusty',
+    'utopic',
+    'vivid',
+    'wily',
+    'xenial',
+    'yakkety',
+    'zesty',
+)
+
+
+class CompareHostReleases(BasicStringComparator):
+    """Provide comparisons of Ubuntu releases.
+
+    Use in the form of
+
+    if CompareHostReleases(release) > 'trusty':
+        # do something with mitaka
+    """
+    _list = UBUNTU_RELEASES
+
 
 def service_available(service_name):
     """Determine whether a system service is available"""

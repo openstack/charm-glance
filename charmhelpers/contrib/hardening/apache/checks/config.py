@@ -26,6 +26,7 @@ from charmhelpers.contrib.hardening.audits.file import (
     DirectoryPermissionAudit,
     NoReadWriteForOther,
     TemplatedFile,
+    DeletedFile
 )
 from charmhelpers.contrib.hardening.audits.apache import DisabledModuleAudit
 from charmhelpers.contrib.hardening.apache import TEMPLATES_DIR
@@ -52,13 +53,13 @@ def get_audits():
                                    'mods-available/alias.conf'),
                       context,
                       TEMPLATES_DIR,
-                      mode=0o0755,
+                      mode=0o0640,
                       user='root',
                       service_actions=[{'service': 'apache2',
                                         'actions': ['restart']}]),
 
         TemplatedFile(os.path.join(settings['common']['apache_dir'],
-                                   'conf-enabled/hardening.conf'),
+                                   'conf-enabled/99-hardening.conf'),
                       context,
                       TEMPLATES_DIR,
                       mode=0o0640,
@@ -69,11 +70,13 @@ def get_audits():
         DirectoryPermissionAudit(settings['common']['apache_dir'],
                                  user='root',
                                  group='root',
-                                 mode=0o640),
+                                 mode=0o0750),
 
         DisabledModuleAudit(settings['hardening']['modules_to_disable']),
 
         NoReadWriteForOther(settings['common']['apache_dir']),
+
+        DeletedFile(['/var/www/html/index.html'])
     ]
 
     return audits
@@ -94,5 +97,4 @@ class ApacheConfContext(object):
         ctxt['apache_version'] = re.search(r'.+version: Apache/(.+?)\s.+',
                                            out).group(1)
         ctxt['apache_icondir'] = '/usr/share/apache2/icons/'
-        ctxt['traceenable'] = settings['hardening']['traceenable']
         return ctxt

@@ -49,13 +49,6 @@ class BaseAudit(object):  # NO-QA
 
         # Invoke the callback if there is one.
         if hasattr(self.unless, '__call__'):
-            results = self.unless()
-            if results:
-                return False
-            else:
-                return True
+            return not self.unless()
 
-        if self.unless:
-            return False
-        else:
-            return True
+        return not self.unless
