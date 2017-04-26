@@ -59,9 +59,8 @@ TO_PATCH = [
     'relation_ids',
     'relation_set',
     'relation_get',
+    'related_units',
     'service_name',
-    'unit_get',
-    'network_get_primary_address',
     # charmhelpers.core.host
     'apt_install',
     'apt_update',
@@ -99,6 +98,7 @@ TO_PATCH = [
     'get_ipv6_addr',
     'sync_db_with_multi_ipv6_addresses',
     'delete_keyring',
+    'get_relation_ip',
 ]
 
 
@@ -107,7 +107,6 @@ class GlanceRelationTests(CharmTestCase):
     def setUp(self):
         super(GlanceRelationTests, self).setUp(relations, TO_PATCH)
         self.config.side_effect = self.test_config.get
-        self.network_get_primary_address.side_effect = NotImplementedError
 
     @patch.object(utils, 'config')
     @patch.object(utils, 'token_cache_pkgs')
@@ -178,40 +177,15 @@ class GlanceRelationTests(CharmTestCase):
         self.git_install.assert_called_with(projects_yaml)
 
     def test_db_joined(self):
-        self.unit_get.return_value = 'glance.foohost.com'
+        self.get_relation_ip.return_value = '10.0.0.1'
         self.is_relation_made.return_value = False
         relations.db_joined()
         self.relation_set.assert_called_with(database='glance',
                                              username='glance',
-                                             hostname='glance.foohost.com')
-        self.unit_get.assert_called_with('private-address')
-
-    def test_db_joined_network_spaces(self):
-        self.network_get_primary_address.side_effect = None
-        self.network_get_primary_address.return_value = '192.168.20.1'
-        self.unit_get.return_value = 'glance.foohost.com'
-        self.is_relation_made.return_value = False
-        relations.db_joined()
-        self.relation_set.assert_called_with(database='glance',
-                                             username='glance',
-                                             hostname='192.168.20.1')
-        self.assertFalse(self.unit_get.called)
-
-    def test_db_joined_with_ipv6(self):
-        self.test_config.set('prefer-ipv6', True)
-        self.is_relation_made.return_value = False
-        relations.db_joined()
-        relation_data = {
-            'database': 'glance',
-            'username': 'glance',
-        }
-        relation_data['hostname'] = '2001:db8:1::1'
-
-        self.sync_db_with_multi_ipv6_addresses.assert_called_with(
-            'glance', 'glance')
+                                             hostname='10.0.0.1')
+        self.get_relation_ip.assert_called_with('shared-db', cidr_network=None)
 
     def test_postgresql_db_joined(self):
-        self.unit_get.return_value = 'glance.foohost.com'
         self.is_relation_made.return_value = False
         relations.pgsql_db_joined()
         self.relation_set.assert_called_with(database='glance'),

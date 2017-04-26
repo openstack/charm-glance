@@ -53,11 +53,10 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_set,
     relation_ids,
+    related_units,
     service_name,
-    unit_get,
     UnregisteredHookError,
     status_set,
-    network_get_primary_address,
 )
 
 from charmhelpers.core.host import (
@@ -105,7 +104,8 @@ from charmhelpers.contrib.network.ip import (
     get_netmask_for_address,
     get_iface_for_address,
     get_ipv6_addr,
-    is_ipv6
+    is_ipv6,
+    get_relation_ip,
 )
 from charmhelpers.contrib.openstack.ip import (
     canonical_url,
@@ -158,13 +158,14 @@ def db_joined():
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
     else:
-        host = None
-        try:
-            # NOTE: try to use network spaces
-            host = network_get_primary_address('shared-db')
-        except NotImplementedError:
-            # NOTE: fallback to private-address
-            host = unit_get('private-address')
+        # Avoid churn check for access-network early
+        access_network = None
+        for unit in related_units():
+            access_network = relation_get(unit=unit,
+                                          attribute='access-network')
+            if access_network:
+                break
+        host = get_relation_ip('shared-db', cidr_network=access_network)
 
         relation_set(database=config('database'),
                      username=config('database-user'),

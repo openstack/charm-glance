@@ -1232,31 +1232,50 @@ MAX_DEFAULT_WORKERS = 4
 DEFAULT_MULTIPLIER = 2
 
 
+def _calculate_workers():
+    '''
+    Determine the number of worker processes based on the CPU
+    count of the unit containing the application.
+
+    Workers will be limited to MAX_DEFAULT_WORKERS in
+    container environments where no worker-multipler configuration
+    option been set.
+
+    @returns int: number of worker processes to use
+    '''
+    multiplier = config('worker-multiplier') or DEFAULT_MULTIPLIER
+    count = int(_num_cpus() * multiplier)
+    if multiplier > 0 and count == 0:
+        count = 1
+
+    if config('worker-multiplier') is None and is_container():
+        # NOTE(jamespage): Limit unconfigured worker-multiplier
+        #                  to MAX_DEFAULT_WORKERS to avoid insane
+        #                  worker configuration in LXD containers
+        #                  on large servers
+        # Reference: https://pad.lv/1665270
+        count = min(count, MAX_DEFAULT_WORKERS)
+
+    return count
+
+
+def _num_cpus():
+    '''
+    Compatibility wrapper for calculating the number of CPU's
+    a unit has.
+
+    @returns: int: number of CPU cores detected
+    '''
+    try:
+        return psutil.cpu_count()
+    except AttributeError:
+        return psutil.NUM_CPUS
+
+
 class WorkerConfigContext(OSContextGenerator):
 
-    @property
-    def num_cpus(self):
-        # NOTE: use cpu_count if present (16.04 support)
-        if hasattr(psutil, 'cpu_count'):
-            return psutil.cpu_count()
-        else:
-            return psutil.NUM_CPUS
-
     def __call__(self):
-        multiplier = config('worker-multiplier') or DEFAULT_MULTIPLIER
-        count = int(self.num_cpus * multiplier)
-        if multiplier > 0 and count == 0:
-            count = 1
-
-        if config('worker-multiplier') is None and is_container():
-            # NOTE(jamespage): Limit unconfigured worker-multiplier
-            #                  to MAX_DEFAULT_WORKERS to avoid insane
-            #                  worker configuration in LXD containers
-            #                  on large servers
-            # Reference: https://pad.lv/1665270
-            count = min(count, MAX_DEFAULT_WORKERS)
-
-        ctxt = {"workers": count}
+        ctxt = {"workers": _calculate_workers()}
         return ctxt
 
 
@@ -1264,7 +1283,7 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
 
     def __init__(self, name=None, script=None, admin_script=None,
                  public_script=None, process_weight=1.00,
-                 admin_process_weight=0.75, public_process_weight=0.25):
+                 admin_process_weight=0.25, public_process_weight=0.75):
         self.service_name = name
         self.user = name
         self.group = name
@@ -1276,8 +1295,7 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
         self.public_process_weight = public_process_weight
 
     def __call__(self):
-        multiplier = config('worker-multiplier') or 1
-        total_processes = self.num_cpus * multiplier
+        total_processes = _calculate_workers()
         ctxt = {
             "service_name": self.service_name,
             "user": self.user,
