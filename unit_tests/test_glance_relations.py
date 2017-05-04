@@ -95,7 +95,6 @@ TO_PATCH = [
     'get_hacluster_config',
     'get_netmask_for_address',
     'get_iface_for_address',
-    'get_ipv6_addr',
     'sync_db_with_multi_ipv6_addresses',
     'delete_keyring',
     'get_relation_ip',
@@ -691,7 +690,7 @@ class GlanceRelationTests(CharmTestCase):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['cluster']
         configs.write = MagicMock()
-        self.get_ipv6_addr.return_value = '2001:db8:1::1'
+        self.get_relation_ip.return_value = '2001:db8:1::1'
         self.relation_ids.return_value = ['cluster:0']
         relations.cluster_changed()
         self.assertEquals([call('/etc/glance/glance-api.conf'),
