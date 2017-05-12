@@ -19,6 +19,7 @@ UBUNTU_RELEASES = (
     'xenial',
     'yakkety',
     'zesty',
+    'artful',
 )
 
 

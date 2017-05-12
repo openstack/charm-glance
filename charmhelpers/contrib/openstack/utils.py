@@ -111,6 +111,8 @@ OPENSTACK_RELEASES = (
     'newton',
     'ocata',
     'pike',
+    'queens',
+    'rocky',
 )
 
 UBUNTU_OPENSTACK_RELEASE = OrderedDict([
@@ -126,6 +128,7 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('xenial', 'mitaka'),
     ('yakkety', 'newton'),
     ('zesty', 'ocata'),
+    ('artful', 'pike'),
 ])
 
 
@@ -142,6 +145,7 @@ OPENSTACK_CODENAMES = OrderedDict([
     ('2016.1', 'mitaka'),
     ('2016.2', 'newton'),
     ('2017.1', 'ocata'),
+    ('2017.2', 'pike'),
 ])
 
 # The ugly duckling - must list releases oldest to newest
@@ -170,6 +174,8 @@ SWIFT_CODENAMES = OrderedDict([
         ['2.8.0', '2.9.0', '2.10.0']),
     ('ocata',
         ['2.11.0', '2.12.0', '2.13.0']),
+    ('pike',
+        ['2.13.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -179,54 +185,81 @@ PACKAGE_CODENAMES = {
         ('13', 'mitaka'),
         ('14', 'newton'),
         ('15', 'ocata'),
+        ('16', 'pike'),
+        ('17', 'queens'),
+        ('18', 'rocky'),
     ]),
     'neutron-common': OrderedDict([
         ('7', 'liberty'),
         ('8', 'mitaka'),
         ('9', 'newton'),
         ('10', 'ocata'),
+        ('11', 'pike'),
+        ('12', 'queens'),
+        ('13', 'rocky'),
     ]),
     'cinder-common': OrderedDict([
         ('7', 'liberty'),
         ('8', 'mitaka'),
         ('9', 'newton'),
         ('10', 'ocata'),
+        ('11', 'pike'),
+        ('12', 'queens'),
+        ('13', 'rocky'),
     ]),
     'keystone': OrderedDict([
         ('8', 'liberty'),
         ('9', 'mitaka'),
         ('10', 'newton'),
         ('11', 'ocata'),
+        ('12', 'pike'),
+        ('13', 'queens'),
+        ('14', 'rocky'),
     ]),
     'horizon-common': OrderedDict([
         ('8', 'liberty'),
         ('9', 'mitaka'),
         ('10', 'newton'),
         ('11', 'ocata'),
+        ('12', 'pike'),
+        ('13', 'queens'),
+        ('14', 'rocky'),
     ]),
     'ceilometer-common': OrderedDict([
         ('5', 'liberty'),
         ('6', 'mitaka'),
         ('7', 'newton'),
         ('8', 'ocata'),
+        ('9', 'pike'),
+        ('10', 'queens'),
+        ('11', 'rocky'),
     ]),
     'heat-common': OrderedDict([
         ('5', 'liberty'),
         ('6', 'mitaka'),
         ('7', 'newton'),
         ('8', 'ocata'),
+        ('9', 'pike'),
+        ('10', 'queens'),
+        ('11', 'rocky'),
     ]),
     'glance-common': OrderedDict([
         ('11', 'liberty'),
         ('12', 'mitaka'),
         ('13', 'newton'),
         ('14', 'ocata'),
+        ('15', 'pike'),
+        ('16', 'queens'),
+        ('17', 'rocky'),
     ]),
     'openstack-dashboard': OrderedDict([
         ('8', 'liberty'),
         ('9', 'mitaka'),
         ('10', 'newton'),
         ('11', 'ocata'),
+        ('12', 'pike'),
+        ('13', 'queens'),
+        ('14', 'rocky'),
     ]),
 }
 
@@ -579,6 +612,12 @@ def configure_installation_source(rel):
             'ocata': 'xenial-updates/ocata',
             'ocata/updates': 'xenial-updates/ocata',
             'ocata/proposed': 'xenial-proposed/ocata',
+            'pike': 'xenial-updates/pike',
+            'pike/updates': 'xenial-updates/pike',
+            'pike/proposed': 'xenial-proposed/pike',
+            'queens': 'xenial-updates/queens',
+            'queens/updates': 'xenial-updates/queens',
+            'queens/proposed': 'xenial-proposed/queens',
         }
 
         try:
