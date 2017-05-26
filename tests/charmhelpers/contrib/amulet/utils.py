@@ -785,37 +785,30 @@ class AmuletUtils(object):
         generating test messages which need to be unique-ish."""
         return '[{}-{}]'.format(uuid.uuid4(), time.time())
 
-# amulet juju action helpers:
+    # amulet juju action helpers:
     def run_action(self, unit_sentry, action,
                    _check_output=subprocess.check_output,
                    params=None):
-        """Run the named action on a given unit sentry.
+        """Translate to amulet's built in run_action(). Deprecated.
+
+        Run the named action on a given unit sentry.
 
         params a dict of parameters to use
-        _check_output parameter is used for dependency injection.
+        _check_output parameter is no longer used
 
         @return action_id.
         """
-        unit_id = unit_sentry.info["unit_name"]
-        command = ["juju", "action", "do", "--format=json", unit_id, action]
-        if params is not None:
-            for key, value in params.iteritems():
-                command.append("{}={}".format(key, value))
-        self.log.info("Running command: %s\n" % " ".join(command))
-        output = _check_output(command, universal_newlines=True)
-        data = json.loads(output)
-        action_id = data[u'Action queued with id']
-        return action_id
+        self.log.warn('charmhelpers.contrib.amulet.utils.run_action has been '
+                      'deprecated for amulet.run_action')
+        return unit_sentry.run_action(action, action_args=params)
 
     def wait_on_action(self, action_id, _check_output=subprocess.check_output):
         """Wait for a given action, returning if it completed or not.
 
-        _check_output parameter is used for dependency injection.
+        action_id a string action uuid
+        _check_output parameter is no longer used
         """
-        command = ["juju", "action", "fetch", "--format=json", "--wait=0",
-                   action_id]
-        output = _check_output(command, universal_newlines=True)
-        data = json.loads(output)
+        data = amulet.actions.get_action_output(action_id, full_output=True)
         return data.get(u"status") == "completed"
 
     def status_get(self, unit):
