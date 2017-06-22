@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
 import shutil
 import subprocess
@@ -37,6 +38,7 @@ from charmhelpers.core.hookenv import (
     charm_dir,
     config,
     log,
+    INFO,
     relation_ids,
     service_name,
 )
@@ -87,6 +89,7 @@ from charmhelpers.contrib.openstack.utils import (
     pause_unit,
     resume_unit,
     token_cache_pkgs,
+    update_json_file,
 )
 
 from charmhelpers.core.templating import render
@@ -142,6 +145,7 @@ GLANCE_REGISTRY_PASTE = os.path.join(GLANCE_CONF_DIR,
                                      'glance-registry-paste.ini')
 GLANCE_API_PASTE = os.path.join(GLANCE_CONF_DIR,
                                 'glance-api-paste.ini')
+GLANCE_POLICY_FILE = os.path.join(GLANCE_CONF_DIR, "policy.json")
 CEPH_CONF = "/etc/ceph/ceph.conf"
 CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
 
@@ -344,6 +348,8 @@ def restart_map():
 
     if enable_memcache(source=config('openstack-origin')):
         _map.append((MEMCACHED_CONF, ['memcached']))
+
+    _map.append((GLANCE_POLICY_FILE, ['glance-api', 'glance-registry']))
 
     return OrderedDict(_map)
 
@@ -684,3 +690,36 @@ def reinstall_paste_ini():
 
 def is_api_ready(configs):
     return (not incomplete_relation_data(configs, REQUIRED_INTERFACES))
+
+
+def update_image_location_policy():
+    """Update *_image_location policy to restrict to admin role.
+
+    We do this unconditonally and keep a record of the original as installed by
+    the package.
+    """
+    if CompareOpenStackReleases(os_release('glance-common')) < 'kilo':
+        # NOTE(hopem): at the time of writing we are unable to do this for
+        # earlier than Kilo due to LP: #1502136
+        return
+
+    db = kv()
+    policies = ["get_image_location", "set_image_location",
+                "delete_image_location"]
+    for policy_key in policies:
+        # Save original value at time of first install in case we ever need to
+        # revert.
+        db_key = "policy_{}".format(policy_key)
+        if db.get(db_key) is None:
+            p = json.loads(open(GLANCE_POLICY_FILE).read())
+            if policy_key in p:
+                db.set(db_key, p[policy_key])
+                db.flush()
+            else:
+                log("key '{}' not found in policy file".format(policy_key),
+                    level=INFO)
+
+        policy_value = 'role:admin'
+        log("Updating Glance policy file setting policy "
+            "'{}':'{}'".format(policy_key, policy_value), level=INFO)
+        update_json_file(GLANCE_POLICY_FILE, {policy_key: policy_value})

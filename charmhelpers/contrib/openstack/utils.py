@@ -2045,14 +2045,25 @@ def token_cache_pkgs(source=None, release=None):
 
 def update_json_file(filename, items):
     """Updates the json `filename` with a given dict.
-    :param filename: json filename (i.e.: /etc/glance/policy.json)
+    :param filename: path to json file (e.g. /etc/glance/policy.json)
     :param items: dict of items to update
     """
+    if not items:
+        return
+
     with open(filename) as fd:
         policy = json.load(fd)
+
+    # Compare before and after and if nothing has changed don't write the file
+    # since that could cause unnecessary service restarts.
+    before = json.dumps(policy, indent=4, sort_keys=True)
     policy.update(items)
+    after = json.dumps(policy, indent=4, sort_keys=True)
+    if before == after:
+        return
+
     with open(filename, "w") as fd:
-        fd.write(json.dumps(policy, indent=4))
+        fd.write(after)
 
 
 @cached

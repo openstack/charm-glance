@@ -41,6 +41,7 @@ from glance_utils import (
     assess_status,
     reinstall_paste_ini,
     is_api_ready,
+    update_image_location_policy,
 )
 from charmhelpers.core.hookenv import (
     config,
@@ -117,7 +118,6 @@ from charmhelpers.contrib.openstack.context import (
 )
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.contrib.hardening.harden import harden
-
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -290,7 +290,7 @@ def object_store_joined():
         return
 
     [image_service_joined(rid) for rid in relation_ids('image-service')]
-
+    update_image_location_policy()
     CONFIGS.write(GLANCE_API_CONF)
 
 
@@ -421,6 +421,7 @@ def config_changed():
     # NOTE(jamespage): trigger any configuration related changes
     #                  for cephx permissions restrictions
     ceph_changed()
+    update_image_location_policy()
 
 
 @hooks.hook('cluster-relation-joined')
@@ -456,6 +457,7 @@ def upgrade_charm():
     reinstall_paste_ini()
     configure_https()
     update_nrpe_config()
+    update_image_location_policy()
     CONFIGS.write_all()
 
 

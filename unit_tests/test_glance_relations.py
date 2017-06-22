@@ -397,9 +397,10 @@ class GlanceRelationTests(CharmTestCase):
             'swift relation incomplete'
         )
 
+    @patch.object(relations, 'update_image_location_policy')
     @patch.object(relations, 'CONFIGS')
     def test_object_store_joined_with_identity_service_with_object_store(
-            self, configs):
+            self, configs, mock_update_image_location_policy):
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['identity-service',
                                                   'object-store']
@@ -407,6 +408,18 @@ class GlanceRelationTests(CharmTestCase):
         relations.object_store_joined()
         self.assertEqual([call('/etc/glance/glance-api.conf')],
                          configs.write.call_args_list)
+        self.assertTrue(mock_update_image_location_policy.called)
+
+    @patch.object(relations, 'update_image_location_policy')
+    @patch.object(relations, 'CONFIGS')
+    def test_object_store_joined_with_expose_image_locations_false(
+            self, configs, mock_update_image_location_policy):
+        configs.complete_contexts = MagicMock()
+        configs.complete_contexts.return_value = ['identity-service',
+                                                  'object-store']
+        configs.write = MagicMock()
+        relations.object_store_joined()
+        self.assertTrue(mock_update_image_location_policy.called)
 
     def test_ceph_joined(self):
         relations.ceph_joined()
@@ -616,22 +629,27 @@ class GlanceRelationTests(CharmTestCase):
         relations.keystone_changed()
         [self.assertIn(call(r), imgsj.call_args_list) for r in rids]
 
+    @patch.object(relations, 'update_image_location_policy')
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'git_install_requested')
     def test_config_changed_no_openstack_upgrade(self, git_requested,
-                                                 configure_https):
+                                                 configure_https,
+                                                 mock_update_policy):
         git_requested.return_value = False
         self.openstack_upgrade_available.return_value = False
         relations.config_changed()
         self.open_port.assert_called_with(9292)
         self.assertTrue(configure_https.called)
+        self.assertTrue(mock_update_policy.called)
 
+    @patch.object(relations, 'update_image_location_policy')
     @patch.object(relations, 'status_set')
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'git_install_requested')
     def test_config_changed_with_openstack_upgrade(self, git_requested,
                                                    configure_https,
-                                                   status):
+                                                   status,
+                                                   mock_update_policy):
         git_requested.return_value = False
         self.openstack_upgrade_available.return_value = True
         relations.config_changed()
@@ -641,21 +659,27 @@ class GlanceRelationTests(CharmTestCase):
         )
         self.assertTrue(self.do_openstack_upgrade.called)
         self.assertTrue(configure_https.called)
+        self.assertTrue(mock_update_policy.called)
 
+    @patch.object(relations, 'update_image_location_policy')
     @patch.object(relations, 'git_install_requested')
-    def test_config_changed_with_openstack_upgrade_action(self, git_requested):
+    def test_config_changed_with_openstack_upgrade_action(self, git_requested,
+                                                          mock_update_policy):
         git_requested.return_value = False
         self.openstack_upgrade_available.return_value = True
         self.test_config.set('action-managed-upgrade', True)
 
         relations.config_changed()
         self.assertFalse(self.do_openstack_upgrade.called)
+        self.assertTrue(mock_update_policy.called)
 
+    @patch.object(relations, 'update_image_location_policy')
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'git_install_requested')
     @patch.object(relations, 'config_value_changed')
     def test_config_changed_git_updated(self, config_val_changed,
-                                        git_requested, configure_https):
+                                        git_requested, configure_https,
+                                        mock_update_image_location_policy):
         git_requested.return_value = True
         repo = 'cloud:trusty-juno'
         openstack_origin_git = {
@@ -676,6 +700,7 @@ class GlanceRelationTests(CharmTestCase):
         self.git_install.assert_called_with(projects_yaml)
         self.assertFalse(self.do_openstack_upgrade.called)
         self.assertTrue(configure_https.called)
+        self.assertTrue(mock_update_image_location_policy.called)
 
     @patch.object(relations, 'CONFIGS')
     def test_cluster_changed(self, configs):
@@ -704,18 +729,20 @@ class GlanceRelationTests(CharmTestCase):
                           call('/etc/haproxy/haproxy.cfg')],
                          configs.write.call_args_list)
 
+    @patch.object(relations, 'update_image_location_policy')
     @patch.object(utils, 'config')
     @patch.object(utils, 'token_cache_pkgs')
     @patch.object(relations, 'CONFIGS')
     @patch.object(utils, 'git_install_requested')
     def test_upgrade_charm(self, git_requested, configs, token_cache_pkgs,
-                           util_config):
+                           util_config, mock_update_image_location_policy):
         git_requested.return_value = False
         self.filter_installed_packages.return_value = ['test']
         relations.upgrade_charm()
         self.apt_install.assert_called_with(['test'], fatal=True)
         self.assertTrue(configs.write_all.called)
         self.assertTrue(self.reinstall_paste_ini.called)
+        self.assertTrue(mock_update_image_location_policy.called)
 
     def test_ha_relation_joined(self):
         self.get_hacluster_config.return_value = {

@@ -15,7 +15,7 @@
 import os
 
 from collections import OrderedDict
-from mock import patch, call, MagicMock
+from mock import patch, call, MagicMock, mock_open
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
 import hooks.glance_utils as utils
@@ -145,7 +145,8 @@ class TestGlanceUtils(CharmTestCase):
             (utils.HAPROXY_CONF, ['haproxy']),
             (utils.HTTPS_APACHE_CONF, ['apache2']),
             (utils.HTTPS_APACHE_24_CONF, ['apache2']),
-            (utils.MEMCACHED_CONF, ['memcached'])
+            (utils.MEMCACHED_CONF, ['memcached']),
+            (utils.GLANCE_POLICY_FILE, ['glance-api', 'glance-registry'])
         ])
         self.assertEqual(ex_map, utils.restart_map())
         self.enable_memcache.return_value = False
@@ -442,3 +443,40 @@ class TestGlanceUtils(CharmTestCase):
 
     def test_is_api_ready_false(self):
         self._test_is_api_ready(False)
+
+    @patch.object(utils, 'json')
+    @patch.object(utils, 'update_json_file')
+    @patch.object(utils, 'kv')
+    @patch.object(utils, 'os_release')
+    def test_update_image_location_policy(self, mock_os_release, mock_kv,
+                                          mock_update_json_file, mock_json):
+        db_vals = {}
+
+        def fake_db_get(key):
+            return db_vals.get(key)
+
+        db_obj = mock_kv.return_value
+        db_obj.get = MagicMock()
+        db_obj.get.side_effect = fake_db_get
+        db_obj.set = MagicMock()
+
+        fake_open = mock_open()
+        with patch.object(utils, 'open', fake_open, create=True):
+            mock_json.loads.return_value = {'get_image_location': '',
+                                            'set_image_location': '',
+                                            'delete_image_location': ''}
+
+            mock_os_release.return_value = 'icehouse'
+            utils.update_image_location_policy()
+            self.assertFalse(mock_kv.called)
+
+            mock_os_release.return_value = 'kilo'
+            utils.update_image_location_policy()
+            self.assertTrue(mock_kv.called)
+            db_obj.get.assert_has_calls([call('policy_get_image_location'),
+                                         call('policy_set_image_location'),
+                                         call('policy_delete_image_location')])
+            db_obj.set.assert_has_calls([call('policy_get_image_location', ''),
+                                         call('policy_set_image_location', ''),
+                                         call('policy_delete_image_location',
+                                              '')])
