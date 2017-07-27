@@ -97,6 +97,7 @@ from charmhelpers.contrib.openstack.utils import (
     git_determine_usr_bin,
     git_determine_python_path,
     enable_memcache,
+    snap_install_requested,
 )
 from charmhelpers.core.unitdata import kv
 
@@ -244,6 +245,11 @@ class SharedDBContext(OSContextGenerator):
                     'database_password': rdata.get(password_setting),
                     'database_type': 'mysql'
                 }
+                # Note(coreycb): We can drop mysql+pymysql if we want when the
+                # following review lands, though it seems mysql+pymysql would
+                # be preferred. https://review.openstack.org/#/c/462190/
+                if snap_install_requested():
+                    ctxt['database_type'] = 'mysql+pymysql'
                 if self.context_complete(ctxt):
                     db_ssl(rdata, ctxt, self.ssl_dir)
                     return ctxt
@@ -510,6 +516,10 @@ class CephContext(OSContextGenerator):
                     ctxt['auth'] = relation_get('auth', rid=rid, unit=unit)
                 if not ctxt.get('key'):
                     ctxt['key'] = relation_get('key', rid=rid, unit=unit)
+                if not ctxt.get('rbd_features'):
+                    default_features = relation_get('rbd-features', rid=rid, unit=unit)
+                    if default_features is not None:
+                        ctxt['rbd_features'] = default_features
 
                 ceph_addrs = relation_get('ceph-public-address', rid=rid,
                                           unit=unit)
@@ -1396,6 +1406,18 @@ class NeutronAPIContext(OSContextGenerator):
             'dns_domain': {
                 'rel_key': 'dns-domain',
                 'default': None,
+            },
+            'polling_interval': {
+                'rel_key': 'polling-interval',
+                'default': 2,
+            },
+            'rpc_response_timeout': {
+                'rel_key': 'rpc-response-timeout',
+                'default': 60,
+            },
+            'report_interval': {
+                'rel_key': 'report-interval',
+                'default': 30,
             },
         }
         ctxt = self.get_neutron_options({})
