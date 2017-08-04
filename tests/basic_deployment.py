@@ -479,7 +479,21 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                 'idle_timeout': '3600',
                 'connection': db_uri
             }
-            expected['DEFAULT']['notification_driver'] = 'messagingv2'
+
+            if self._get_openstack_release() >= self.trusty_mitaka:
+                del expected['DEFAULT']['notification_driver']
+                connection_uri = (
+                    "rabbit://glance:{}@{}:5672/"
+                    "openstack".format(rel_mq_gl['password'],
+                                       rel_mq_gl['hostname'])
+                )
+                expected['oslo_messaging_notifications'] = {
+                    'driver': 'messagingv2',
+                    'transport_url': connection_uri
+                }
+            else:
+                expected['DEFAULT']['notification_driver'] = 'messagingv2'
+
         else:
             # Juno or earlier
             expected['DEFAULT'].update({
