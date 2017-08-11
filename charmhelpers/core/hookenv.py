@@ -43,6 +43,7 @@ ERROR = "ERROR"
 WARNING = "WARNING"
 INFO = "INFO"
 DEBUG = "DEBUG"
+TRACE = "TRACE"
 MARKER = object()
 
 cache = {}

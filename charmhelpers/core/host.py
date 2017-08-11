@@ -34,7 +34,7 @@ import six
 
 from contextlib import contextmanager
 from collections import OrderedDict
-from .hookenv import log
+from .hookenv import log, DEBUG
 from .fstab import Fstab
 from charmhelpers.osplatform import get_platform
 
@@ -487,13 +487,37 @@ def mkdir(path, owner='root', group='root', perms=0o555, force=False):
 
 def write_file(path, content, owner='root', group='root', perms=0o444):
     """Create or overwrite a file with the contents of a byte string."""
-    log("Writing file {} {}:{} {:o}".format(path, owner, group, perms))
     uid = pwd.getpwnam(owner).pw_uid
     gid = grp.getgrnam(group).gr_gid
-    with open(path, 'wb') as target:
-        os.fchown(target.fileno(), uid, gid)
-        os.fchmod(target.fileno(), perms)
-        target.write(content)
+    # lets see if we can grab the file and compare the context, to avoid doing
+    # a write.
+    existing_content = None
+    existing_uid, existing_gid = None, None
+    try:
+        with open(path, 'rb') as target:
+            existing_content = target.read()
+        stat = os.stat(path)
+        existing_uid, existing_gid = stat.st_uid, stat.st_gid
+    except:
+        pass
+    if content != existing_content:
+        log("Writing file {} {}:{} {:o}".format(path, owner, group, perms),
+            level=DEBUG)
+        with open(path, 'wb') as target:
+            os.fchown(target.fileno(), uid, gid)
+            os.fchmod(target.fileno(), perms)
+            target.write(content)
+        return
+    # the contents were the same, but we might still need to change the
+    # ownership.
+    if existing_uid != uid:
+        log("Changing uid on already existing content: {} -> {}"
+            .format(existing_uid, uid), level=DEBUG)
+        os.chown(path, uid, -1)
+    if existing_gid != gid:
+        log("Changing gid on already existing content: {} -> {}"
+            .format(existing_gid, gid), level=DEBUG)
+        os.chown(path, -1, gid)
 
 
 def fstab_remove(mp):

@@ -186,7 +186,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('ocata',
         ['2.11.0', '2.12.0', '2.13.0']),
     ('pike',
-        ['2.13.0']),
+        ['2.13.0', '2.15.0']),
 ])
 
 # >= Liberty version->codename mapping
