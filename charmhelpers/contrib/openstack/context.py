@@ -622,7 +622,6 @@ class HAProxyContext(OSContextGenerator):
             ctxt['haproxy_connect_timeout'] = config('haproxy-connect-timeout')
 
         if config('prefer-ipv6'):
-            ctxt['ipv6'] = True
             ctxt['local_host'] = 'ip6-localhost'
             ctxt['haproxy_host'] = '::'
         else:

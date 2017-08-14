@@ -47,6 +47,7 @@ from charmhelpers.core.hookenv import (
     Hooks,
     log as juju_log,
     ERROR,
+    WARNING,
     open_port,
     is_relation_made,
     local_unit,
@@ -485,6 +486,15 @@ def ha_relation_joined(relation_id=None):
 
             if iface is not None:
                 vip_key = 'res_glance_{}_vip'.format(iface)
+                if vip_key in vip_group:
+                    if vip not in resource_params[vip_key]:
+                        vip_key = '{}_{}'.format(vip_key, vip_params)
+                    else:
+                        juju_log("Resource '{}' (vip='{}') already exists in "
+                                 "vip group - skipping".format(vip_key, vip),
+                                 WARNING)
+                        continue
+
                 resources[vip_key] = res_ks_vip
                 resource_params[vip_key] = (
                     'params {ip}="{vip}" cidr_netmask="{netmask}"'
