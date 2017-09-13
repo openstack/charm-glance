@@ -147,10 +147,10 @@ class TestGlanceUtils(CharmTestCase):
             (utils.HTTPS_APACHE_24_CONF, ['apache2']),
             (utils.MEMCACHED_CONF, ['memcached'])
         ])
-        self.assertEquals(ex_map, utils.restart_map())
+        self.assertEqual(ex_map, utils.restart_map())
         self.enable_memcache.return_value = False
         del ex_map[utils.MEMCACHED_CONF]
-        self.assertEquals(ex_map, utils.restart_map())
+        self.assertEqual(ex_map, utils.restart_map())
 
     @patch.object(utils, 'token_cache_pkgs')
     @patch.object(utils, 'git_install_requested')
@@ -159,10 +159,10 @@ class TestGlanceUtils(CharmTestCase):
         token_cache_pkgs.return_value = []
         git_install_requested.return_value = False
         ex = utils.PACKAGES
-        self.assertEquals(set(ex), set(utils.determine_packages()))
+        self.assertEqual(set(ex), set(utils.determine_packages()))
         token_cache_pkgs.return_value = ['memcached']
         ex.append('memcached')
-        self.assertEquals(set(ex), set(utils.determine_packages()))
+        self.assertEqual(set(ex), set(utils.determine_packages()))
 
     @patch.object(utils, 'token_cache_pkgs')
     @patch.object(utils, 'git_install_requested')
@@ -174,7 +174,7 @@ class TestGlanceUtils(CharmTestCase):
         ex = utils.PACKAGES + utils.BASE_GIT_PACKAGES
         for p in utils.GIT_PACKAGE_BLACKLIST:
             ex.remove(p)
-        self.assertEquals(set(ex), set(result))
+        self.assertEqual(set(ex), set(result))
 
     @patch.object(utils, 'migrate_database')
     @patch.object(utils, 'git_install_requested')
@@ -254,14 +254,14 @@ class TestGlanceUtils(CharmTestCase):
             call('/var/log/glance', owner='glance',
                  group='glance', perms=0755, force=False),
         ]
-        self.assertEquals(mkdir.call_args_list, expected)
+        self.assertEqual(mkdir.call_args_list, expected)
         expected = [
             call('/var/log/glance/glance-api.log', '', owner='glance',
                  group='glance', perms=0600),
             call('/var/log/glance/glance-registry.log', '', owner='glance',
                  group='glance', perms=0600),
         ]
-        self.assertEquals(write_file.call_args_list, expected)
+        self.assertEqual(write_file.call_args_list, expected)
 
     @patch('os.path.join')
     @patch('os.path.exists')
@@ -313,12 +313,12 @@ class TestGlanceUtils(CharmTestCase):
                  glance_registry_context, perms=0o644,
                  templates_dir='joined-string'),
         ]
-        self.assertEquals(self.render.call_args_list, expected)
+        self.assertEqual(self.render.call_args_list, expected)
         expected = [
             call('glance-api'),
             call('glance-registry'),
         ]
-        self.assertEquals(self.service_restart.call_args_list, expected)
+        self.assertEqual(self.service_restart.call_args_list, expected)
 
     @patch.object(utils, 'services')
     @patch('os.listdir')
@@ -344,7 +344,7 @@ class TestGlanceUtils(CharmTestCase):
             call('git/glance-registry.init.in.template', 'joined-string',
                  {'daemon_path': 'joined-string'}, perms=420),
         ]
-        self.assertEquals(self.render.call_args_list, expected)
+        self.assertEqual(self.render.call_args_list, expected)
 
     def test_assess_status(self):
         with patch.object(utils, 'assess_status_func') as asf:

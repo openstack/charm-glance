@@ -40,37 +40,37 @@ class TestGlanceContexts(CharmTestCase):
 
     def test_swift_not_related(self):
         self.relation_ids.return_value = []
-        self.assertEquals(contexts.ObjectStoreContext()(), {})
+        self.assertEqual(contexts.ObjectStoreContext()(), {})
 
     def test_swift_related(self):
         self.relation_ids.return_value = ['object-store:0']
-        self.assertEquals(contexts.ObjectStoreContext()(),
-                          {'swift_store': True})
+        self.assertEqual(contexts.ObjectStoreContext()(),
+                         {'swift_store': True})
 
     def test_cinder_not_related(self):
         self.relation_ids.return_value = []
-        self.assertEquals(contexts.CinderStoreContext()(), {})
+        self.assertEqual(contexts.CinderStoreContext()(), {})
 
     def test_cinder_related(self):
         self.relation_ids.return_value = ['cinder-volume-service:0']
-        self.assertEquals(contexts.CinderStoreContext()(),
-                          {'cinder_store': True})
+        self.assertEqual(contexts.CinderStoreContext()(),
+                         {'cinder_store': True})
 
     def test_cinder_related_via_subordinate(self):
         self.relation_ids.return_value = ['cinder-backend:0']
-        self.assertEquals(contexts.CinderStoreContext()(),
-                          {'cinder_store': True})
+        self.assertEqual(contexts.CinderStoreContext()(),
+                         {'cinder_store': True})
 
     def test_ceph_not_related(self):
         self.is_relation_made.return_value = False
-        self.assertEquals(contexts.CephGlanceContext()(), {})
+        self.assertEqual(contexts.CephGlanceContext()(), {})
 
     def test_ceph_related(self):
         self.is_relation_made.return_value = True
         service = 'glance'
         self.service_name.return_value = service
         self.config.return_value = True
-        self.assertEquals(
+        self.assertEqual(
             contexts.CephGlanceContext()(),
             {'rbd_pool': service,
              'rbd_user': service,
@@ -80,27 +80,27 @@ class TestGlanceContexts(CharmTestCase):
     def test_multistore_below_mitaka(self):
         self.os_release.return_value = 'liberty'
         self.relation_ids.return_value = ['random_rid']
-        self.assertEquals(contexts.MultiStoreContext()(),
-                          {'known_stores': "glance.store.filesystem.Store,"
-                                           "glance.store.http.Store,"
-                                           "glance.store.rbd.Store,"
-                                           "glance.store.swift.Store"})
+        self.assertEqual(contexts.MultiStoreContext()(),
+                         {'known_stores': "glance.store.filesystem.Store,"
+                                          "glance.store.http.Store,"
+                                          "glance.store.rbd.Store,"
+                                          "glance.store.swift.Store"})
 
     def test_multistore_for_mitaka_and_upper(self):
         self.os_release.return_value = 'mitaka'
         self.relation_ids.return_value = ['random_rid']
-        self.assertEquals(contexts.MultiStoreContext()(),
-                          {'known_stores': "glance.store.filesystem.Store,"
-                                           "glance.store.http.Store,"
-                                           "glance.store.rbd.Store,"
-                                           "glance.store.swift.Store,"
-                                           "glance.store.cinder.Store"})
+        self.assertEqual(contexts.MultiStoreContext()(),
+                         {'known_stores': "glance.store.filesystem.Store,"
+                                          "glance.store.http.Store,"
+                                          "glance.store.rbd.Store,"
+                                          "glance.store.swift.Store,"
+                                          "glance.store.cinder.Store"})
 
     def test_multistore_defaults(self):
         self.relation_ids.return_value = []
-        self.assertEquals(contexts.MultiStoreContext()(),
-                          {'known_stores': "glance.store.filesystem.Store,"
-                                           "glance.store.http.Store"})
+        self.assertEqual(contexts.MultiStoreContext()(),
+                         {'known_stores': "glance.store.filesystem.Store,"
+                                          "glance.store.http.Store"})
 
     @patch('charmhelpers.contrib.hahelpers.cluster.config_get')
     @patch('charmhelpers.contrib.openstack.context.https')
@@ -117,10 +117,10 @@ class TestGlanceContexts(CharmTestCase):
         ctxt.get_network_addresses = MagicMock()
         ctxt.get_network_addresses.return_value = [('1.2.3.4', '1.2.3.4')]
 
-        self.assertEquals(ctxt(), {'endpoints': [('1.2.3.4', '1.2.3.4',
-                                                  9282, 9272)],
-                                   'ext_ports': [9282],
-                                   'namespace': 'glance'})
+        self.assertEqual(ctxt(), {'endpoints': [('1.2.3.4', '1.2.3.4',
+                                                 9282, 9272)],
+                                  'ext_ports': [9282],
+                                  'namespace': 'glance'})
 
     @patch('charmhelpers.contrib.openstack.context.config')
     @patch("subprocess.check_output")
@@ -130,8 +130,8 @@ class TestGlanceContexts(CharmTestCase):
         mock_config.return_value = True
         mock_subprocess.return_value = 'true'
         ctxt = contexts.GlanceIPv6Context()
-        self.assertEquals(ctxt(), {'bind_host': '::',
-                                   'registry_host': '[::]'})
+        self.assertEqual(ctxt(), {'bind_host': '::',
+                                  'registry_host': '[::]'})
 
     @patch('charmhelpers.contrib.openstack.context.config')
     @patch("subprocess.check_output")
@@ -141,5 +141,5 @@ class TestGlanceContexts(CharmTestCase):
         mock_config.return_value = False
         mock_subprocess.return_value = 'false'
         ctxt = contexts.GlanceIPv6Context()
-        self.assertEquals(ctxt(), {'bind_host': '0.0.0.0',
-                                   'registry_host': '0.0.0.0'})
+        self.assertEqual(ctxt(), {'bind_host': '0.0.0.0',
+                                  'registry_host': '0.0.0.0'})

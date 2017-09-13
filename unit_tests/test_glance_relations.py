@@ -243,9 +243,9 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_allowed(self, configs):
         self._shared_db_test(configs, 'glance/0')
-        self.assertEquals([call('/etc/glance/glance-registry.conf'),
-                           call('/etc/glance/glance-api.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-registry.conf'),
+                          call('/etc/glance/glance-api.conf')],
+                         configs.write.call_args_list)
         self.juju_log.assert_called_with(
             'Cluster leader, performing db sync'
         )
@@ -254,17 +254,17 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_not_allowed(self, configs):
         self._shared_db_test(configs, 'glance/2')
-        self.assertEquals([call('/etc/glance/glance-registry.conf'),
-                           call('/etc/glance/glance-api.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-registry.conf'),
+                          call('/etc/glance/glance-api.conf')],
+                         configs.write.call_args_list)
         self.assertFalse(self.migrate_database.called)
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_no_acls(self, configs):
         self._shared_db_test(configs, 'glance/2', None)
-        self.assertEquals([call('/etc/glance/glance-registry.conf'),
-                           call('/etc/glance/glance-api.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-registry.conf'),
+                          call('/etc/glance/glance-api.conf')],
+                         configs.write.call_args_list)
         self.assertFalse(self.migrate_database.called)
 
     @patch.object(relations, 'image_service_joined')
@@ -278,9 +278,9 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'CONFIGS')
     def test_postgresql_db_changed_no_essex(self, configs):
         self._postgresql_db_test(configs)
-        self.assertEquals([call('/etc/glance/glance-registry.conf'),
-                           call('/etc/glance/glance-api.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-registry.conf'),
+                          call('/etc/glance/glance-api.conf')],
+                         configs.write.call_args_list)
         self.juju_log.assert_called_with(
             'Cluster leader, performing db sync'
         )
@@ -291,8 +291,8 @@ class GlanceRelationTests(CharmTestCase):
         self.os_release.return_value = "essex"
         self.call.return_value = 0
         self._shared_db_test(configs, 'glance/0')
-        self.assertEquals([call('/etc/glance/glance-registry.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-registry.conf')],
+                         configs.write.call_args_list)
         self.juju_log.assert_called_with(
             'Cluster leader, performing db sync'
         )
@@ -304,8 +304,8 @@ class GlanceRelationTests(CharmTestCase):
         self.os_release.return_value = "essex"
         self.call.return_value = 0
         self._postgresql_db_test(configs)
-        self.assertEquals([call('/etc/glance/glance-registry.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-registry.conf')],
+                         configs.write.call_args_list)
         self.juju_log.assert_called_with(
             'Cluster leader, performing db sync'
         )
@@ -324,8 +324,8 @@ class GlanceRelationTests(CharmTestCase):
         self.os_release.return_value = "essex"
         self.call.return_value = 1
         self._shared_db_test(configs, 'glance/0')
-        self.assertEquals([call('/etc/glance/glance-registry.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-registry.conf')],
+                         configs.write.call_args_list)
         self.check_call.assert_called_with(
             ["glance-manage", "version_control", "0"]
         )
@@ -340,8 +340,8 @@ class GlanceRelationTests(CharmTestCase):
         self.os_release.return_value = "essex"
         self.call.return_value = 1
         self._postgresql_db_test(configs)
-        self.assertEquals([call('/etc/glance/glance-registry.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-registry.conf')],
+                         configs.write.call_args_list)
         self.check_call.assert_called_with(
             ["glance-manage", "version_control", "0"]
         )
@@ -404,8 +404,8 @@ class GlanceRelationTests(CharmTestCase):
                                                   'object-store']
         configs.write = MagicMock()
         relations.object_store_joined()
-        self.assertEquals([call('/etc/glance/glance-api.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-api.conf')],
+                         configs.write.call_args_list)
 
     def test_ceph_joined(self):
         relations.ceph_joined()
@@ -489,9 +489,9 @@ class GlanceRelationTests(CharmTestCase):
         mock_request_complete.return_value = True
         self.ceph_config_file.return_value = '/etc/ceph/ceph.conf'
         relations.ceph_changed()
-        self.assertEquals([call('/etc/glance/glance-api.conf'),
-                           call('/etc/ceph/ceph.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-api.conf'),
+                          call('/etc/ceph/ceph.conf')],
+                         configs.write.call_args_list)
         self.service_restart.assert_called_with('glance-api')
 
     @patch.object(relations, 'CONFIGS')
@@ -564,9 +564,9 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         self.relation_ids.return_value = []
         relations.keystone_changed()
-        self.assertEquals([call('/etc/glance/glance-api.conf'),
-                           call('/etc/glance/glance-registry.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-api.conf'),
+                          call('/etc/glance/glance-registry.conf')],
+                         configs.write.call_args_list)
         self.assertTrue(configure_https.called)
 
     @patch.object(relations, 'image_service_joined')
@@ -588,9 +588,9 @@ class GlanceRelationTests(CharmTestCase):
             ['image-service:0'],
         ]
         relations.keystone_changed()
-        self.assertEquals([call('/etc/glance/glance-api.conf'),
-                           call('/etc/glance/glance-registry.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-api.conf'),
+                          call('/etc/glance/glance-registry.conf')],
+                         configs.write.call_args_list)
         object_store_joined.assert_called_with()
         self.assertTrue(configure_https.called)
         image_service_joined.assert_called_with('image-service:0')
@@ -677,9 +677,9 @@ class GlanceRelationTests(CharmTestCase):
         configs.complete_contexts.return_value = ['cluster']
         configs.write = MagicMock()
         relations.cluster_changed()
-        self.assertEquals([call('/etc/glance/glance-api.conf'),
-                           call('/etc/haproxy/haproxy.cfg')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-api.conf'),
+                          call('/etc/haproxy/haproxy.cfg')],
+                         configs.write.call_args_list)
 
     @patch.object(relations, 'canonical_url')
     @patch.object(relations, 'relation_set')
@@ -693,9 +693,9 @@ class GlanceRelationTests(CharmTestCase):
         self.get_relation_ip.return_value = '2001:db8:1::1'
         self.relation_ids.return_value = ['cluster:0']
         relations.cluster_changed()
-        self.assertEquals([call('/etc/glance/glance-api.conf'),
-                           call('/etc/haproxy/haproxy.cfg')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-api.conf'),
+                          call('/etc/haproxy/haproxy.cfg')],
+                         configs.write.call_args_list)
 
     @patch.object(utils, 'config')
     @patch.object(utils, 'token_cache_pkgs')
@@ -918,8 +918,8 @@ class GlanceRelationTests(CharmTestCase):
         configs.complete_contexts.return_value = ['amqp']
         configs.write = MagicMock()
         relations.amqp_changed()
-        self.assertEquals([call('/etc/glance/glance-api.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-api.conf')],
+                         configs.write.call_args_list)
         self.assertFalse(self.juju_log.called)
 
     @patch.object(relations, 'image_service_joined')
@@ -954,8 +954,8 @@ class GlanceRelationTests(CharmTestCase):
         configs.complete_contexts.return_value = ['storage-backend']
         configs.write = MagicMock()
         relations.storage_backend_hook()
-        self.assertEquals([call('/etc/glance/glance-api.conf')],
-                          configs.write.call_args_list)
+        self.assertEqual([call('/etc/glance/glance-api.conf')],
+                         configs.write.call_args_list)
         self.apt_install.assert_called_with(
             ["python-cinderclient",
              "python-os-brick",
