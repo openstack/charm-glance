@@ -158,6 +158,16 @@ options:
     type: string
     default: openstack
     description: RabbitMQ virtual host to request access on rabbitmq-server.
+  container-formats:
+    type: string
+    default:
+    description: |
+      Comma separated list of container formats that Glance will support.
+  disk-formats:
+    type: string
+    default: ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
+    description: |
+      Comma separated list of disk formats that Glance will support.
   # HA configuration settings
   dns-ha:
     type: boolean

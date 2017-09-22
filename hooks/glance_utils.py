@@ -188,6 +188,7 @@ CONFIG_FILES = OrderedDict([
                           context.IdentityServiceContext(
                               service='glance',
                               service_user='glance'),
+                          glance_contexts.GlanceContext(),
                           glance_contexts.CephGlanceContext(),
                           glance_contexts.ObjectStoreContext(),
                           glance_contexts.CinderStoreContext(),

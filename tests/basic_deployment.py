@@ -20,6 +20,7 @@ Basic glance amulet functional tests.
 
 import amulet
 import os
+import time
 import yaml
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
@@ -565,6 +566,46 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         img_new = u.create_cirros_image(self.glance, "cirros-image-1")
         img_id = img_new.id
         u.delete_resource(self.glance.images, img_id, msg="glance image")
+
+    def test_411_set_disk_format(self):
+        sleep_time = 30
+        if self._get_openstack_release() >= self.trusty_kilo:
+            section = 'image_format'
+        elif self._get_openstack_release() > self.trusty_icehouse:
+            section = 'DEFAULT'
+        else:
+            u.log.debug('Test not supported before juno')
+            return
+        sentry = self.glance_sentry
+        juju_service = 'glance'
+
+        # Expected default and alternate values
+        set_default = {
+            'disk-formats': 'ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar'}
+        set_alternate = {'disk-formats': 'qcow2'}
+
+        # Config file affected by juju set config change
+        conf_file = '/etc/glance/glance-api.conf'
+
+        # Make config change, check for service restarts
+        u.log.debug('Setting disk format {}...'.format(juju_service))
+        self.d.configure(juju_service, set_alternate)
+
+        u.log.debug('Sleeping to let hooks fire')
+        time.sleep(sleep_time)
+        u.log.debug("Checking disk format option has updated")
+        ret = u.validate_config_data(
+            sentry,
+            conf_file,
+            section,
+            {'disk_formats': 'qcow2'})
+        if ret:
+            msg = "disk_formats was not updated in section {} in {}".format(
+                section,
+                conf_file)
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
+        self.d.configure(juju_service, set_default)
 
     def test_900_glance_restart_on_config_change(self):
         """Verify that the specified services are restarted when the config

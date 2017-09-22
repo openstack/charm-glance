@@ -38,6 +38,17 @@ from charmhelpers.contrib.openstack.utils import (
 )
 
 
+class GlanceContext(OSContextGenerator):
+
+    def __call__(self):
+        ctxt = {
+            'disk_formats': config('disk-formats')
+        }
+        if config('container-formats'):
+            ctxt['container_formats'] = config('container-formats')
+        return ctxt
+
+
 class CephGlanceContext(OSContextGenerator):
     interfaces = ['ceph-glance']
 
