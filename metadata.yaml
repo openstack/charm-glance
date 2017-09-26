@@ -12,6 +12,7 @@ tags:
   - misc
 series:
   - xenial
+  - artful
   - zesty
   - trusty
 extra-bindings:
