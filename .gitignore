@@ -9,3 +9,4 @@ tags
 tests/*.img
 trusty
 .idea
+.stestr

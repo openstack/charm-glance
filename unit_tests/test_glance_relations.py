@@ -74,6 +74,7 @@ TO_PATCH = [
     'openstack_upgrade_available',
     # charmhelpers.contrib.openstack.ha.utils
     'update_dns_ha_resource_params',
+    'is_clustered',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'is_elected_leader',
     # hooks.glance_utils
@@ -547,6 +548,12 @@ class GlanceRelationTests(CharmTestCase):
             'relation_id': None,
         }
         self.relation_set.assert_called_with(**ex)
+
+    def test_keystone_joined_partial_cluster(self):
+        self.is_clustered.return_value = False
+        self.test_config.set('vip', '10.0.0.10')
+        relations.keystone_joined()
+        self.assertFalse(self.relation_set.called)
 
     @patch.object(relations, 'CONFIGS')
     def test_keystone_changes_incomplete(self, configs):

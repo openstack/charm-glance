@@ -46,6 +46,7 @@ from charmhelpers.core.hookenv import (
     config,
     Hooks,
     log as juju_log,
+    DEBUG,
     ERROR,
     WARNING,
     open_port,
@@ -72,6 +73,7 @@ from charmhelpers.fetch import (
     filter_installed_packages
 )
 from charmhelpers.contrib.hahelpers.cluster import (
+    is_clustered,
     is_elected_leader,
     get_hacluster_config
 )
@@ -345,6 +347,10 @@ def ceph_broken():
 
 @hooks.hook('identity-service-relation-joined')
 def keystone_joined(relation_id=None):
+    if config('vip') and not is_clustered():
+        juju_log('Defering registration until clustered', level=DEBUG)
+        return
+
     public_url = '{}:9292'.format(canonical_url(CONFIGS, PUBLIC))
     internal_url = '{}:9292'.format(canonical_url(CONFIGS, INTERNAL))
     admin_url = '{}:9292'.format(canonical_url(CONFIGS, ADMIN))
