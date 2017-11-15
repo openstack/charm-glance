@@ -10,3 +10,4 @@ tests/*.img
 trusty
 .idea
 .stestr
+func-results.json

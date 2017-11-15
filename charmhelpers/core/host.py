@@ -34,7 +34,7 @@ import six
 
 from contextlib import contextmanager
 from collections import OrderedDict
-from .hookenv import log, DEBUG
+from .hookenv import log, DEBUG, local_unit
 from .fstab import Fstab
 from charmhelpers.osplatform import get_platform
 
@@ -440,6 +440,49 @@ def add_user_to_group(username, group):
     log("Adding user {} to group {}".format(username, group))
     subprocess.check_call(cmd)
 
+
+def chage(username, lastday=None, expiredate=None, inactive=None,
+           mindays=None, maxdays=None, root=None, warndays=None):
+    """Change user password expiry information
+
+    :param str username: User to update
+    :param str lastday: Set when password was changed in YYYY-MM-DD format
+    :param str expiredate: Set when user's account will no longer be
+                           accessible in YYYY-MM-DD format.
+                           -1 will remove an account expiration date.
+    :param str inactive: Set the number of days of inactivity after a password
+                         has expired before the account is locked.
+                         -1 will remove an account's inactivity.
+    :param str mindays: Set the minimum number of days between password
+                        changes to MIN_DAYS.
+                        0 indicates the password can be changed anytime.
+    :param str maxdays: Set the maximum number of days during which a
+                        password is valid.
+                        -1 as MAX_DAYS will remove checking maxdays
+    :param str root: Apply changes in the CHROOT_DIR directory
+    :param str warndays: Set the number of days of warning before a password
+                         change is required
+    :raises subprocess.CalledProcessError: if call to chage fails
+    """
+    cmd = ['chage']
+    if root:
+        cmd.extend(['--root', root])
+    if lastday:
+        cmd.extend(['--lastday', lastday])
+    if expiredate:
+        cmd.extend(['--expiredate', expiredate])
+    if inactive:
+        cmd.extend(['--inactive', inactive])
+    if mindays:
+        cmd.extend(['--mindays', mindays])
+    if maxdays:
+        cmd.extend(['--maxdays', maxdays])
+    if warndays:
+        cmd.extend(['--warndays', warndays])
+    cmd.append(username)
+    subprocess.check_call(cmd)
+
+remove_password_expiry = functools.partial(chage, expiredate='-1', inactive='-1', mindays='0', maxdays='-1')
 
 def rsync(from_path, to_path, flags='-r', options=None, timeout=None):
     """Replicate the contents of a path"""
@@ -946,3 +989,31 @@ def updatedb(updatedb_text, new_path):
                 lines[i] = 'PRUNEPATHS="{}"'.format(' '.join(paths))
     output = "\n".join(lines)
     return output
+
+
+def modulo_distribution(modulo=3, wait=30):
+    """ Modulo distribution
+
+    This helper uses the unit number, a modulo value and a constant wait time
+    to produce a calculated wait time distribution. This is useful in large
+    scale deployments to distribute load during an expensive operation such as
+    service restarts.
+
+    If you have 1000 nodes that need to restart 100 at a time 1 minute at a
+    time:
+
+      time.wait(modulo_distribution(modulo=100, wait=60))
+      restart()
+
+    If you need restarts to happen serially set modulo to the exact number of
+    nodes and set a high constant wait time:
+
+      time.wait(modulo_distribution(modulo=10, wait=120))
+      restart()
+
+    @param modulo: int The modulo number creates the group distribution
+    @param wait: int The constant time wait value
+    @return: int Calculated time to wait for unit operation
+    """
+    unit_number = int(local_unit().split('/')[1])
+    return (unit_number % modulo) * wait
