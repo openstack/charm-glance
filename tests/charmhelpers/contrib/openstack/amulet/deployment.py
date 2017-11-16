@@ -250,7 +250,14 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         self.log.debug('Waiting up to {}s for extended status on services: '
                        '{}'.format(timeout, services))
         service_messages = {service: message for service in services}
+
+        # Check for idleness
+        self.d.sentry.wait()
+        # Check for error states and bail early
+        self.d.sentry.wait_for_status(self.d.juju_env, services)
+        # Check for ready messages
         self.d.sentry.wait_for_messages(service_messages, timeout=timeout)
+
         self.log.info('OK')
 
     def _get_openstack_release(self):
