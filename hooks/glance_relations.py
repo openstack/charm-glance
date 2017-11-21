@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #
 # Copyright 2016 Canonical Ltd
 #
@@ -208,7 +208,7 @@ def db_changed():
             migrate_database()
         else:
             juju_log('allowed_units either not presented, or local unit '
-                     'not in acl list: %s' % allowed_units)
+                     'not in acl list: {}'.format(allowed_units))
 
     for rid in relation_ids('image-service'):
         image_service_joined(rid)

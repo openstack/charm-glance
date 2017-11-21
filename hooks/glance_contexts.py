@@ -110,7 +110,7 @@ class MultiStoreContext(OSContextGenerator):
             'ceph': 'glance.store.rbd.Store',
             'object-store': 'glance.store.swift.Store',
         }
-        for store_relation, store_type in store_mapping.iteritems():
+        for store_relation, store_type in store_mapping.items():
             if relation_ids(store_relation):
                 stores.append(store_type)
         _release = os_release('glance-common')
@@ -121,6 +121,7 @@ class MultiStoreContext(OSContextGenerator):
             # means that glance should not store images in cinder by default
             # but can read images from cinder.
             stores.append('glance.store.cinder.Store')
+        stores.sort()
         return {
             'known_stores': ','.join(stores)
         }

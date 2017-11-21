@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #
 # Copyright 2016 Canonical Ltd
 #
@@ -304,7 +304,7 @@ def restart_map():
                     that should be restarted when file changes.
     '''
     _map = []
-    for f, ctxt in CONFIG_FILES.iteritems():
+    for f, ctxt in CONFIG_FILES.items():
         svcs = []
         for svc in ctxt['services']:
             svcs.append(svc)

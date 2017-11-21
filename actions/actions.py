@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #
 # Copyright 2016 Canonical Ltd
 #
@@ -32,6 +32,8 @@ _add_path(_hooks)
 
 
 from charmhelpers.core.hookenv import action_fail
+
+sys.path.append('hooks/')
 
 from glance_utils import (
     pause_unit_helper,

@@ -106,11 +106,11 @@ class TestGlanceContexts(CharmTestCase):
         self.os_release.return_value = 'mitaka'
         self.relation_ids.return_value = ['random_rid']
         self.assertEqual(contexts.MultiStoreContext()(),
-                         {'known_stores': "glance.store.filesystem.Store,"
+                         {'known_stores': "glance.store.cinder.Store,"
+                                          "glance.store.filesystem.Store,"
                                           "glance.store.http.Store,"
                                           "glance.store.rbd.Store,"
-                                          "glance.store.swift.Store,"
-                                          "glance.store.cinder.Store"})
+                                          "glance.store.swift.Store"})
 
     def test_multistore_defaults(self):
         self.relation_ids.return_value = []

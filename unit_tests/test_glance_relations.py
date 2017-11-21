@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib
 import os
 import sys
 
@@ -26,25 +27,31 @@ mock_apt.apt_pkg = MagicMock()
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
 
+import glance_utils as utils  # noqa
 
-with patch('charmhelpers.contrib.openstack.utils.'
-           'pausable_restart_on_change') as mock_on_change, \
-    patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec, \
-    patch('charmhelpers.contrib.openstack.'
-          'utils.os_requires_version') as mock_os, \
-    patch('glance_utils.register_configs') as mock_register, \
-    patch('glance_utils.restart_map') as mock_map, \
-        patch('glance_utils.config'):
-            mock_on_change.side_effect = (lambda *dargs, **dkwargs: lambda f:
-                                          lambda *args, **kwargs: f(*args,
-                                                                    **kwargs))
-            mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
-                                    lambda *args, **kwargs: f(*args, **kwargs))
-            mock_os.side_effect = (lambda *dargs, **dkwargs: lambda f:
-                                   lambda *args, **kwargs: f(*args, **kwargs))
-            import glance_relations as relations
+_reg = utils.register_configs
+_map = utils.restart_map
+
+utils.register_configs = MagicMock()
+utils.restart_map = MagicMock()
+
+
+with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
+    mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                            lambda *args, **kwargs: f(*args, **kwargs))
+    with patch('charmhelpers.contrib.openstack.'
+               'utils.os_requires_version') as mock_os:
+        mock_os.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                               lambda *args, **kwargs: f(*args, **kwargs))
+        with patch('glance_utils.register_configs') as register_configs:
+            with patch('glance_utils.restart_map') as restart_map:
+                import glance_relations as relations
+                importlib.reload(relations)
 
 relations.hooks._config_save = False
+
+utils.register_configs = _reg
+utils.restart_map = _map
 
 TO_PATCH = [
     # charmhelpers.core.hookenv
@@ -343,8 +350,11 @@ class GlanceRelationTests(CharmTestCase):
         self.test_config.set('ceph-osd-replication-count', 3)
         self.test_config.set('ceph-pool-weight', 6)
         relations.get_ceph_request()
-        mock_create_pool.assert_called_with(name='glance', replica_count=3,
-                                            weight=6, group='images')
+        mock_create_pool.assert_called_once_with(
+            name='glance',
+            replica_count=3,
+            weight=6,
+            group='images')
         mock_request_access.assert_not_called()
 
         self.test_config.set('restrict-ceph-pools', True)

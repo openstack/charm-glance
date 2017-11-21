@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #
 # Copyright 2016 Canonical Ltd
 #
@@ -14,26 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import sys
-
-_path = os.path.dirname(os.path.realpath(__file__))
-_parent = os.path.abspath(os.path.join(_path, ".."))
-_hooks = os.path.abspath(os.path.join(_parent, "hooks"))
-
-
-def _add_path(path):
-    if path not in sys.path:
-        sys.path.insert(1, path)
-
-
-_add_path(_parent)
-_add_path(_hooks)
-
 
 from charmhelpers.contrib.openstack.utils import (
     do_action_openstack_upgrade,
 )
+
+sys.path.append('hooks/')
 
 from glance_relations import (
     config_changed,
