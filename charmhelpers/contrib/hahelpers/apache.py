@@ -90,6 +90,6 @@ def install_ca_cert(ca_cert):
             log("CA cert is the same as installed version", level=INFO)
         else:
             log("Installing new CA cert", level=INFO)
-            with open(cert_file, 'w') as crt:
+            with open(cert_file, 'wb') as crt:
                 crt.write(ca_cert)
             subprocess.check_call(['update-ca-certificates', '--fresh'])
