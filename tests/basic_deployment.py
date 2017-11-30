@@ -45,7 +45,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
     SERVICES = ('apache2', 'haproxy', 'glance-api', 'glance-registry')
 
     def __init__(self, series=None, openstack=None, source=None, git=False,
-                 stable=False):
+                 stable=True):
         """Deploy the entire test environment."""
         super(GlanceBasicDeployment, self).__init__(series, openstack,
                                                     source, stable)
