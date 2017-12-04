@@ -377,12 +377,12 @@ def get_mon_map(service):
         try:
             return json.loads(mon_status)
         except ValueError as v:
-            log("Unable to parse mon_status json: {}. Error: {}".format(
-                mon_status, v.message))
+            log("Unable to parse mon_status json: {}. Error: {}"
+                .format(mon_status, str(v)))
             raise
     except CalledProcessError as e:
-        log("mon_status command failed with message: {}".format(
-            e.message))
+        log("mon_status command failed with message: {}"
+            .format(str(e)))
         raise
 
 

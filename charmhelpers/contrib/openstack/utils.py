@@ -392,6 +392,8 @@ def get_swift_codename(version):
             releases = UBUNTU_OPENSTACK_RELEASE
             release = [k for k, v in six.iteritems(releases) if codename in v]
             ret = subprocess.check_output(['apt-cache', 'policy', 'swift'])
+            if six.PY3:
+                ret = ret.decode('UTF-8')
             if codename in ret or release[0] in ret:
                 return codename
     elif len(codenames) == 1:
