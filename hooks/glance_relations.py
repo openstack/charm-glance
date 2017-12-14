@@ -307,8 +307,10 @@ def get_ceph_request():
     rq.add_op_create_pool(name=service, replica_count=replicas,
                           weight=weight, group='images')
     if config('restrict-ceph-pools'):
-        rq.add_op_request_access_to_group(name="images",
-                                          permission='rwx')
+        rq.add_op_request_access_to_group(
+            name="images",
+            object_prefix_permissions={'class-read': ['rbd_children']},
+            permission='rwx')
     return rq
 
 

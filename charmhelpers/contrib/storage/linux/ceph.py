@@ -1064,14 +1064,24 @@ class CephBrokerRq(object):
         self.ops = []
 
     def add_op_request_access_to_group(self, name, namespace=None,
-                                       permission=None, key_name=None):
+                                       permission=None, key_name=None,
+                                       object_prefix_permissions=None):
         """
         Adds the requested permissions to the current service's Ceph key,
-        allowing the key to access only the specified pools
+        allowing the key to access only the specified pools or
+        object prefixes. object_prefix_permissions should be a dictionary
+        keyed on the permission with the corresponding value being a list
+        of prefixes to apply that permission to.
+            {
+                'rwx': ['prefix1', 'prefix2'],
+                'class-read': ['prefix3']}
         """
-        self.ops.append({'op': 'add-permissions-to-key', 'group': name,
-                         'namespace': namespace, 'name': key_name or service_name(),
-                         'group-permission': permission})
+        self.ops.append({
+            'op': 'add-permissions-to-key', 'group': name,
+            'namespace': namespace,
+            'name': key_name or service_name(),
+            'group-permission': permission,
+            'object-prefix-permissions': object_prefix_permissions})
 
     def add_op_create_pool(self, name, replica_count=3, pg_num=None,
                            weight=None, group=None, namespace=None):
@@ -1107,7 +1117,10 @@ class CephBrokerRq(object):
     def _ops_equal(self, other):
         if len(self.ops) == len(other.ops):
             for req_no in range(0, len(self.ops)):
-                for key in ['replicas', 'name', 'op', 'pg_num', 'weight']:
+                for key in [
+                        'replicas', 'name', 'op', 'pg_num', 'weight',
+                        'group', 'group-namespace', 'group-permission',
+                        'object-prefix-permissions']:
                     if self.ops[req_no].get(key) != other.ops[req_no].get(key):
                         return False
         else:

@@ -485,7 +485,10 @@ class GlanceRelationTests(CharmTestCase):
         mock_create_pool.assert_called_with(name='glance', replica_count=3,
                                             weight=6, group='images')
         mock_request_access.assert_has_calls([
-            call(name='images', permission='rwx'),
+            call(
+                name='images',
+                object_prefix_permissions={'class-read': ['rbd_children']},
+                permission='rwx'),
         ])
 
     @patch.object(relations, 'get_ceph_request')
