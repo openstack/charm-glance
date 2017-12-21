@@ -48,10 +48,8 @@ from charmhelpers.core.hookenv import (
     Hooks,
     log as juju_log,
     DEBUG,
-    ERROR,
     WARNING,
     open_port,
-    is_relation_made,
     local_unit,
     relation_get,
     relation_set,
@@ -148,13 +146,6 @@ def install_hook():
 
 @hooks.hook('shared-db-relation-joined')
 def db_joined():
-    if is_relation_made('pgsql-db'):
-        # error, postgresql is used
-        e = ('Attempting to associate a mysql database when there is already '
-             'associated a postgresql one')
-        juju_log(e, level=ERROR)
-        raise Exception(e)
-
     if config('prefer-ipv6'):
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
@@ -171,18 +162,6 @@ def db_joined():
         relation_set(database=config('database'),
                      username=config('database-user'),
                      hostname=host)
-
-
-@hooks.hook('pgsql-db-relation-joined')
-def pgsql_db_joined():
-    if is_relation_made('shared-db'):
-        # raise error
-        e = ('Attempting to associate a postgresql database when'
-             ' there is already associated a mysql one')
-        juju_log(e, level=ERROR)
-        raise Exception(e)
-
-    relation_set(database=config('database'))
 
 
 @hooks.hook('shared-db-relation-changed')
@@ -217,35 +196,6 @@ def db_changed():
         else:
             juju_log('allowed_units either not presented, or local unit '
                      'not in acl list: %s' % allowed_units)
-
-    for rid in relation_ids('image-service'):
-        image_service_joined(rid)
-
-
-@hooks.hook('pgsql-db-relation-changed')
-@restart_on_change(restart_map())
-def pgsql_db_changed():
-    rel = os_release('glance-common')
-
-    if 'pgsql-db' not in CONFIGS.complete_contexts():
-        juju_log('pgsql-db relation incomplete. Peer not ready?')
-        return
-
-    CONFIGS.write(GLANCE_REGISTRY_CONF)
-    # since folsom, a db connection setting in glance-api.conf is required.
-    if rel != "essex":
-        CONFIGS.write(GLANCE_API_CONF)
-
-    if is_elected_leader(CLUSTER_RES):
-        if rel == "essex":
-            status = call(['glance-manage', 'db_version'])
-            if status != 0:
-                juju_log('Setting version_control to 0')
-                cmd = ["glance-manage", "version_control", "0"]
-                check_call(cmd)
-
-        juju_log('Cluster leader, performing db sync')
-        migrate_database()
 
     for rid in relation_ids('image-service'):
         image_service_joined(rid)
@@ -553,7 +503,6 @@ def ha_relation_changed():
 @hooks.hook('identity-service-relation-broken',
             'object-store-relation-broken',
             'shared-db-relation-broken',
-            'pgsql-db-relation-broken',
             'cinder-volume-service-relation-broken',
             'storage-backend-relation-broken')
 def relation_broken():

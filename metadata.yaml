@@ -28,8 +28,6 @@ provides:
 requires:
   shared-db:
     interface: mysql-shared
-  pgsql-db:
-    interface: pgsql
   amqp:
     interface: rabbitmq
     optional: true

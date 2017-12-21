@@ -53,7 +53,6 @@ TO_PATCH = [
     'Hooks',
     'config',
     'juju_log',
-    'is_relation_made',
     'local_unit',
     'open_port',
     'relation_ids',
@@ -178,35 +177,11 @@ class GlanceRelationTests(CharmTestCase):
 
     def test_db_joined(self):
         self.get_relation_ip.return_value = '10.0.0.1'
-        self.is_relation_made.return_value = False
         relations.db_joined()
         self.relation_set.assert_called_with(database='glance',
                                              username='glance',
                                              hostname='10.0.0.1')
         self.get_relation_ip.assert_called_with('shared-db', cidr_network=None)
-
-    def test_postgresql_db_joined(self):
-        self.is_relation_made.return_value = False
-        relations.pgsql_db_joined()
-        self.relation_set.assert_called_with(database='glance'),
-
-    def test_db_joined_with_postgresql(self):
-        self.is_relation_made.return_value = True
-
-        with self.assertRaises(Exception) as context:
-            relations.db_joined()
-        self.assertEqual(context.exception.message,
-                         'Attempting to associate a mysql database when there '
-                         'is already associated a postgresql one')
-
-    def test_postgresql_joined_with_db(self):
-        self.is_relation_made.return_value = True
-
-        with self.assertRaises(Exception) as context:
-            relations.pgsql_db_joined()
-        self.assertEqual(context.exception.message,
-                         'Attempting to associate a postgresql database when'
-                         ' there is already associated a mysql one')
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_missing_relation_data(self, configs):
@@ -217,15 +192,6 @@ class GlanceRelationTests(CharmTestCase):
             'shared-db relation incomplete. Peer not ready?'
         )
 
-    @patch.object(relations, 'CONFIGS')
-    def test_postgresql_db_changed_missing_relation_data(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = []
-        relations.pgsql_db_changed()
-        self.juju_log.assert_called_with(
-            'pgsql-db relation incomplete. Peer not ready?'
-        )
-
     def _shared_db_test(self, configs, unit_name,
                         allowed_units='glance/0 glance/3'):
         self.relation_get.return_value = allowed_units
@@ -234,12 +200,6 @@ class GlanceRelationTests(CharmTestCase):
         configs.complete_contexts.return_value = ['shared-db']
         configs.write = MagicMock()
         relations.db_changed()
-
-    def _postgresql_db_test(self, configs):
-        configs.complete_contexts = MagicMock()
-        configs.complete_contexts.return_value = ['pgsql-db']
-        configs.write = MagicMock()
-        relations.pgsql_db_changed()
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_allowed(self, configs):
@@ -277,17 +237,6 @@ class GlanceRelationTests(CharmTestCase):
         [self.assertIn(call(r), imgsj.call_args_list) for r in rids]
 
     @patch.object(relations, 'CONFIGS')
-    def test_postgresql_db_changed_no_essex(self, configs):
-        self._postgresql_db_test(configs)
-        self.assertEqual([call('/etc/glance/glance-registry.conf'),
-                          call('/etc/glance/glance-api.conf')],
-                         configs.write.call_args_list)
-        self.juju_log.assert_called_with(
-            'Cluster leader, performing db sync'
-        )
-        self.migrate_database.assert_called_with()
-
-    @patch.object(relations, 'CONFIGS')
     def test_db_changed_with_essex_not_setting_version_control(self, configs):
         self.os_release.return_value = "essex"
         self.call.return_value = 0
@@ -300,47 +249,10 @@ class GlanceRelationTests(CharmTestCase):
         self.migrate_database.assert_called_with()
 
     @patch.object(relations, 'CONFIGS')
-    def test_postgresql_db_changed_with_essex_not_setting_version_control(
-            self, configs):
-        self.os_release.return_value = "essex"
-        self.call.return_value = 0
-        self._postgresql_db_test(configs)
-        self.assertEqual([call('/etc/glance/glance-registry.conf')],
-                         configs.write.call_args_list)
-        self.juju_log.assert_called_with(
-            'Cluster leader, performing db sync'
-        )
-        self.migrate_database.assert_called_with()
-
-    @patch.object(relations, 'image_service_joined')
-    @patch.object(relations, 'CONFIGS')
-    def test_postgresql_db_changed_image_service_joined(self, configs, imgsj):
-        rids = ['nova-cloud-controller:1', 'nova-compute:1']
-        self.relation_ids.return_value = rids
-        self._postgresql_db_test(configs)
-        [self.assertIn(call(r), imgsj.call_args_list) for r in rids]
-
-    @patch.object(relations, 'CONFIGS')
     def test_db_changed_with_essex_setting_version_control(self, configs):
         self.os_release.return_value = "essex"
         self.call.return_value = 1
         self._shared_db_test(configs, 'glance/0')
-        self.assertEqual([call('/etc/glance/glance-registry.conf')],
-                         configs.write.call_args_list)
-        self.check_call.assert_called_with(
-            ["glance-manage", "version_control", "0"]
-        )
-        self.juju_log.assert_called_with(
-            'Cluster leader, performing db sync'
-        )
-        self.migrate_database.assert_called_with()
-
-    @patch.object(relations, 'CONFIGS')
-    def test_postgresql_db_changed_with_essex_setting_version_control(
-            self, configs):
-        self.os_release.return_value = "essex"
-        self.call.return_value = 1
-        self._postgresql_db_test(configs)
         self.assertEqual([call('/etc/glance/glance-registry.conf')],
                          configs.write.call_args_list)
         self.check_call.assert_called_with(

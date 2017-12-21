@@ -160,7 +160,7 @@ TEMPLATES = 'templates/'
 # The interface is said to be satisfied if anyone of the interfaces in the
 # list has a complete context.
 REQUIRED_INTERFACES = {
-    'database': ['shared-db', 'pgsql-db'],
+    'database': ['shared-db'],
     'identity': ['identity-service'],
 }
 
@@ -171,7 +171,6 @@ def ceph_config_file():
 CONFIG_FILES = OrderedDict([
     (GLANCE_REGISTRY_CONF, {
         'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
-                          context.PostgresqlDBContext(),
                           context.IdentityServiceContext(
                               service='glance',
                               service_user='glance'),
@@ -188,7 +187,6 @@ CONFIG_FILES = OrderedDict([
     (GLANCE_API_CONF, {
         'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
                           context.AMQPContext(ssl_dir=GLANCE_CONF_DIR),
-                          context.PostgresqlDBContext(),
                           context.IdentityServiceContext(
                               service='glance',
                               service_user='glance'),
