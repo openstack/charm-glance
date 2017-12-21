@@ -23,7 +23,6 @@ from subprocess import (
 
 from glance_utils import (
     do_openstack_upgrade,
-    git_install,
     migrate_database,
     register_configs,
     restart_map,
@@ -82,9 +81,7 @@ from charmhelpers.contrib.openstack.ha.utils import (
     update_dns_ha_resource_params,
 )
 from charmhelpers.contrib.openstack.utils import (
-    config_value_changed,
     configure_installation_source,
-    git_install_requested,
     lsb_release,
     openstack_upgrade_available,
     os_release,
@@ -138,9 +135,6 @@ def install_hook():
     status_set('maintenance', 'Installing apt packages')
     apt_update(fatal=True)
     apt_install(determine_packages(), fatal=True)
-
-    status_set('maintenance', 'Git install')
-    git_install(config('openstack-origin-git'))
 
     for service in SERVICES:
         service_stop(service)
@@ -398,11 +392,7 @@ def config_changed():
         sync_db_with_multi_ipv6_addresses(config('database'),
                                           config('database-user'))
 
-    if git_install_requested():
-        if config_value_changed('openstack-origin-git'):
-            status_set('maintenance', 'Running Git install')
-            git_install(config('openstack-origin-git'))
-    elif not config('action-managed-upgrade'):
+    if not config('action-managed-upgrade'):
         if openstack_upgrade_available('glance-common'):
             status_set('maintenance', 'Upgrading OpenStack release')
             do_openstack_upgrade(CONFIGS)

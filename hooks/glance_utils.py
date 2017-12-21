@@ -16,7 +16,6 @@
 
 import json
 import os
-import shutil
 import subprocess
 from itertools import chain
 
@@ -30,12 +29,7 @@ from charmhelpers.fetch import (
     apt_install,
     add_source)
 
-from charmhelpers.contrib.python.packages import (
-    pip_install,
-)
-
 from charmhelpers.core.hookenv import (
-    charm_dir,
     config,
     log,
     INFO,
@@ -45,17 +39,12 @@ from charmhelpers.core.hookenv import (
 
 
 from charmhelpers.core.host import (
-    adduser,
-    add_group,
-    add_user_to_group,
     CompareHostReleases,
     lsb_release,
     mkdir,
     pwgen,
     service_stop,
     service_start,
-    service_restart,
-    write_file,
 )
 
 from charmhelpers.contrib.openstack import (
@@ -75,13 +64,6 @@ from charmhelpers.contrib.openstack.utils import (
     incomplete_relation_data,
     is_unit_paused_set,
     get_os_codename_install_source,
-    git_clone_and_install,
-    git_default_repos,
-    git_generate_systemd_init_files,
-    git_install_requested,
-    git_pip_venv_dir,
-    git_src_dir,
-    git_yaml_value,
     make_assess_status_func,
     os_application_version_set,
     os_release,
@@ -91,8 +73,6 @@ from charmhelpers.contrib.openstack.utils import (
     token_cache_pkgs,
     update_json_file,
 )
-
-from charmhelpers.core.templating import render
 
 from charmhelpers.core.decorators import (
     retry_on_exception,
@@ -109,32 +89,10 @@ PACKAGES = [
 
 VERSION_PACKAGE = 'glance-common'
 
-BASE_GIT_PACKAGES = [
-    'libffi-dev',
-    'libmysqlclient-dev',
-    'libxml2-dev',
-    'libxslt1-dev',
-    'libssl-dev',
-    'libyaml-dev',
-    'openstack-pkg-tools',
-    'python-dev',
-    'python-pip',
-    'python-setuptools',
-    'zlib1g-dev',
-]
-
 SERVICES = [
     "glance-api",
     "glance-registry",
 ]
-
-# ubuntu packages that should not be installed when deploying from git
-GIT_PACKAGE_BLACKLIST = [
-    'glance',
-    'python-swiftclient',
-    'python-keystone',
-]
-
 
 CHARM = "glance"
 
@@ -276,11 +234,6 @@ def register_configs():
 
 def determine_packages():
     packages = set(PACKAGES)
-
-    if git_install_requested():
-        packages |= set(BASE_GIT_PACKAGES)
-        packages -= set(GIT_PACKAGE_BLACKLIST)
-
     packages |= set(token_cache_pkgs(source=config('openstack-origin')))
     return sorted(packages)
 
@@ -373,128 +326,6 @@ def setup_ipv6():
                    'main')
         apt_update()
         apt_install('haproxy/trusty-backports', fatal=True)
-
-
-def git_install(projects_yaml):
-    """Perform setup, and install git repos specified in yaml parameter."""
-    if git_install_requested():
-        git_pre_install()
-        projects_yaml = git_default_repos(projects_yaml)
-        git_clone_and_install(projects_yaml, core_project='glance')
-        git_post_install(projects_yaml)
-
-
-def git_pre_install():
-    """Perform glance pre-install setup."""
-    dirs = [
-        '/var/lib/glance',
-        '/var/lib/glance/images',
-        '/var/lib/glance/image-cache',
-        '/var/lib/glance/image-cache/incomplete',
-        '/var/lib/glance/image-cache/invalid',
-        '/var/lib/glance/image-cache/queue',
-        '/var/log/glance',
-    ]
-
-    logs = [
-        '/var/log/glance/glance-api.log',
-        '/var/log/glance/glance-registry.log',
-    ]
-
-    adduser('glance', shell='/bin/bash', system_user=True)
-    add_group('glance', system_group=True)
-    add_user_to_group('glance', 'glance')
-
-    for d in dirs:
-        mkdir(d, owner='glance', group='glance', perms=0755, force=False)
-
-    for l in logs:
-        write_file(l, '', owner='glance', group='glance', perms=0600)
-
-
-def git_post_install(projects_yaml):
-    """Perform glance post-install setup."""
-    http_proxy = git_yaml_value(projects_yaml, 'http_proxy')
-    if http_proxy:
-        for pkg in ['mysql-python', 'python-cephlibs']:
-            pip_install(pkg, proxy=http_proxy,
-                        venv=git_pip_venv_dir(projects_yaml))
-    else:
-        for pkg in ['mysql-python', 'python-cephlibs']:
-            pip_install(pkg, venv=git_pip_venv_dir(projects_yaml))
-
-    src_etc = os.path.join(git_src_dir(projects_yaml, 'glance'), 'etc')
-    configs = {
-        'src': src_etc,
-        'dest': GLANCE_CONF_DIR,
-    }
-
-    if os.path.exists(configs['dest']):
-        shutil.rmtree(configs['dest'])
-    shutil.copytree(configs['src'], configs['dest'])
-
-    symlinks = [
-        # NOTE(coreycb): Need to find better solution than bin symlinks.
-        {'src': os.path.join(git_pip_venv_dir(projects_yaml),
-                             'bin/glance-manage'),
-         'link': '/usr/local/bin/glance-manage'},
-    ]
-
-    for s in symlinks:
-        if os.path.lexists(s['link']):
-            os.remove(s['link'])
-        os.symlink(s['src'], s['link'])
-
-    bin_dir = os.path.join(git_pip_venv_dir(projects_yaml), 'bin')
-    # Use systemd init units/scripts from ubuntu wily onward
-    if lsb_release()['DISTRIB_RELEASE'] >= '15.10':
-        templates_dir = os.path.join(charm_dir(), TEMPLATES, 'git')
-        daemons = ['glance-api', 'glance-glare', 'glance-registry']
-        for daemon in daemons:
-            glance_context = {
-                'daemon_path': os.path.join(bin_dir, daemon),
-            }
-            template_file = 'git/{}.init.in.template'.format(daemon)
-            init_in_file = '{}.init.in'.format(daemon)
-            render(template_file, os.path.join(templates_dir, init_in_file),
-                   glance_context, perms=0o644)
-        git_generate_systemd_init_files(templates_dir)
-    else:
-        glance_api_context = {
-            'service_description': 'Glance API server',
-            'service_name': 'Glance',
-            'user_name': 'glance',
-            'start_dir': '/var/lib/glance',
-            'process_name': 'glance-api',
-            'executable_name': os.path.join(bin_dir, 'glance-api'),
-            'config_files': [GLANCE_API_CONF],
-            'log_file': '/var/log/glance/api.log',
-        }
-
-        glance_registry_context = {
-            'service_description': 'Glance registry server',
-            'service_name': 'Glance',
-            'user_name': 'glance',
-            'start_dir': '/var/lib/glance',
-            'process_name': 'glance-registry',
-            'executable_name': os.path.join(bin_dir, 'glance-registry'),
-            'config_files': [GLANCE_REGISTRY_CONF],
-            'log_file': '/var/log/glance/registry.log',
-        }
-
-        templates_dir = 'hooks/charmhelpers/contrib/openstack/templates'
-        templates_dir = os.path.join(charm_dir(), templates_dir)
-        render('git.upstart', '/etc/init/glance-api.conf',
-               glance_api_context, perms=0o644,
-               templates_dir=templates_dir)
-        render('git.upstart', '/etc/init/glance-registry.conf',
-               glance_registry_context, perms=0o644,
-               templates_dir=templates_dir)
-
-    # Don't restart services if the unit is supposed to be paused.
-    if not is_unit_paused_set():
-        service_restart('glance-api')
-        service_restart('glance-registry')
 
 
 def get_optional_interfaces():

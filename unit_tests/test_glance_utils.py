@@ -36,13 +36,8 @@ TO_PATCH = [
     'apt_update',
     'apt_upgrade',
     'apt_install',
-    'git_pip_venv_dir',
-    'git_src_dir',
     'mkdir',
     'os_release',
-    'pip_install',
-    'render',
-    'service_restart',
     'service_start',
     'service_stop',
     'service_name',
@@ -57,15 +52,6 @@ DPKG_OPTS = [
     '--option', 'Dpkg::Options::=--force-confnew',
     '--option', 'Dpkg::Options::=--force-confdef',
 ]
-
-openstack_origin_git = \
-    """repositories:
-         - {name: requirements,
-            repository: 'git://git.openstack.org/openstack/requirements',
-            branch: stable/juno}
-         - {name: glance,
-            repository: 'git://git.openstack.org/openstack/glance',
-            branch: stable/juno}"""
 
 
 class TestGlanceUtils(CharmTestCase):
@@ -154,33 +140,17 @@ class TestGlanceUtils(CharmTestCase):
         self.assertEqual(ex_map, utils.restart_map())
 
     @patch.object(utils, 'token_cache_pkgs')
-    @patch.object(utils, 'git_install_requested')
-    def test_determine_packages(self, git_install_requested, token_cache_pkgs):
+    def test_determine_packages(self, token_cache_pkgs):
         self.config.side_effect = None
         token_cache_pkgs.return_value = []
-        git_install_requested.return_value = False
         ex = utils.PACKAGES
         self.assertEqual(set(ex), set(utils.determine_packages()))
         token_cache_pkgs.return_value = ['memcached']
         ex.append('memcached')
         self.assertEqual(set(ex), set(utils.determine_packages()))
 
-    @patch.object(utils, 'token_cache_pkgs')
-    @patch.object(utils, 'git_install_requested')
-    def test_determine_packages_git(self, git_install_requested,
-                                    token_cache_pkgs):
-        self.config.side_effect = None
-        git_install_requested.return_value = True
-        result = utils.determine_packages()
-        ex = utils.PACKAGES + utils.BASE_GIT_PACKAGES
-        for p in utils.GIT_PACKAGE_BLACKLIST:
-            ex.remove(p)
-        self.assertEqual(set(ex), set(result))
-
     @patch.object(utils, 'migrate_database')
-    @patch.object(utils, 'git_install_requested')
-    def test_openstack_upgrade_leader(self, git_requested, migrate):
-        git_requested.return_value = True
+    def test_openstack_upgrade_leader(self, migrate):
         self.config.side_effect = None
         self.config.return_value = 'cloud:precise-havana'
         self.is_elected_leader.return_value = True
@@ -196,9 +166,7 @@ class TestGlanceUtils(CharmTestCase):
         self.assertTrue(migrate.called)
 
     @patch.object(utils, 'migrate_database')
-    @patch.object(utils, 'git_install_requested')
-    def test_openstack_upgrade_not_leader(self, git_requested, migrate):
-        git_requested.return_value = True
+    def test_openstack_upgrade_not_leader(self, migrate):
         self.config.side_effect = None
         self.config.return_value = 'cloud:precise-havana'
         self.is_elected_leader.return_value = False
@@ -212,140 +180,6 @@ class TestGlanceUtils(CharmTestCase):
                                             fatal=True, dist=True)
         configs.set_release.assert_called_with(openstack_release='havana')
         self.assertFalse(migrate.called)
-
-    @patch.object(utils, 'git_install_requested')
-    @patch.object(utils, 'git_clone_and_install')
-    @patch.object(utils, 'git_post_install')
-    @patch.object(utils, 'git_pre_install')
-    def test_git_install(self, git_pre, git_post, git_clone_and_install,
-                         git_requested):
-        projects_yaml = openstack_origin_git
-        git_requested.return_value = True
-        utils.git_install(projects_yaml)
-        self.assertTrue(git_pre.called)
-        git_clone_and_install.assert_called_with(openstack_origin_git,
-                                                 core_project='glance')
-        self.assertTrue(git_post.called)
-
-    @patch.object(utils, 'mkdir')
-    @patch.object(utils, 'write_file')
-    @patch.object(utils, 'add_user_to_group')
-    @patch.object(utils, 'add_group')
-    @patch.object(utils, 'adduser')
-    def test_git_pre_install(self, adduser, add_group, add_user_to_group,
-                             write_file, mkdir):
-        utils.git_pre_install()
-        adduser.assert_called_with('glance', shell='/bin/bash',
-                                   system_user=True)
-        add_group.assert_called_with('glance', system_group=True)
-        add_user_to_group.assert_called_with('glance', 'glance')
-        expected = [
-            call('/var/lib/glance', owner='glance',
-                 group='glance', perms=0755, force=False),
-            call('/var/lib/glance/images', owner='glance',
-                 group='glance', perms=0755, force=False),
-            call('/var/lib/glance/image-cache', owner='glance',
-                 group='glance', perms=0755, force=False),
-            call('/var/lib/glance/image-cache/incomplete', owner='glance',
-                 group='glance', perms=0755, force=False),
-            call('/var/lib/glance/image-cache/invalid', owner='glance',
-                 group='glance', perms=0755, force=False),
-            call('/var/lib/glance/image-cache/queue', owner='glance',
-                 group='glance', perms=0755, force=False),
-            call('/var/log/glance', owner='glance',
-                 group='glance', perms=0755, force=False),
-        ]
-        self.assertEqual(mkdir.call_args_list, expected)
-        expected = [
-            call('/var/log/glance/glance-api.log', '', owner='glance',
-                 group='glance', perms=0600),
-            call('/var/log/glance/glance-registry.log', '', owner='glance',
-                 group='glance', perms=0600),
-        ]
-        self.assertEqual(write_file.call_args_list, expected)
-
-    @patch('os.path.join')
-    @patch('os.path.exists')
-    @patch('os.remove')
-    @patch('os.symlink')
-    @patch('shutil.copytree')
-    @patch('shutil.rmtree')
-    @patch('subprocess.check_call')
-    def test_git_post_install_upstart(self, check_call, rmtree, copytree,
-                                      symlink, remove, exists, join):
-        projects_yaml = openstack_origin_git
-        join.return_value = 'joined-string'
-        self.git_pip_venv_dir.return_value = '/mnt/openstack-git/venv'
-        self.lsb_release.return_value = {'DISTRIB_RELEASE': '15.04'}
-        utils.git_post_install(projects_yaml)
-        expected = [
-            call('joined-string', '/etc/glance'),
-        ]
-        copytree.assert_has_calls(expected)
-        expected = [
-            call('joined-string', '/usr/local/bin/glance-manage'),
-        ]
-        symlink.assert_has_calls(expected, any_order=True)
-        glance_api_context = {
-            'service_description': 'Glance API server',
-            'service_name': 'Glance',
-            'user_name': 'glance',
-            'start_dir': '/var/lib/glance',
-            'process_name': 'glance-api',
-            'executable_name': 'joined-string',
-            'config_files': ['/etc/glance/glance-api.conf'],
-            'log_file': '/var/log/glance/api.log',
-        }
-        glance_registry_context = {
-            'service_description': 'Glance registry server',
-            'service_name': 'Glance',
-            'user_name': 'glance',
-            'start_dir': '/var/lib/glance',
-            'process_name': 'glance-registry',
-            'executable_name': 'joined-string',
-            'config_files': ['/etc/glance/glance-registry.conf'],
-            'log_file': '/var/log/glance/registry.log',
-        }
-        expected = [
-            call('git.upstart', '/etc/init/glance-api.conf',
-                 glance_api_context, perms=0o644,
-                 templates_dir='joined-string'),
-            call('git.upstart', '/etc/init/glance-registry.conf',
-                 glance_registry_context, perms=0o644,
-                 templates_dir='joined-string'),
-        ]
-        self.assertEqual(self.render.call_args_list, expected)
-        expected = [
-            call('glance-api'),
-            call('glance-registry'),
-        ]
-        self.assertEqual(self.service_restart.call_args_list, expected)
-
-    @patch.object(utils, 'services')
-    @patch('os.listdir')
-    @patch('os.path.join')
-    @patch('os.path.exists')
-    @patch('os.symlink')
-    @patch('shutil.copytree')
-    @patch('shutil.rmtree')
-    @patch('subprocess.check_call')
-    def test_git_post_install_systemd(self, check_call, rmtree, copytree,
-                                      symlink, exists, join, listdir,
-                                      services):
-        projects_yaml = openstack_origin_git
-        join.return_value = 'joined-string'
-        self.lsb_release.return_value = {'DISTRIB_RELEASE': '15.10'}
-        utils.git_post_install(projects_yaml)
-
-        expected = [
-            call('git/glance-api.init.in.template', 'joined-string',
-                 {'daemon_path': 'joined-string'}, perms=420),
-            call('git/glance-glare.init.in.template', 'joined-string',
-                 {'daemon_path': 'joined-string'}, perms=420),
-            call('git/glance-registry.init.in.template', 'joined-string',
-                 {'daemon_path': 'joined-string'}, perms=420),
-        ]
-        self.assertEqual(self.render.call_args_list, expected)
 
     def test_assess_status(self):
         with patch.object(utils, 'assess_status_func') as asf:
