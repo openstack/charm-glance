@@ -19,9 +19,7 @@ Basic glance amulet functional tests.
 """
 
 import amulet
-import os
 import time
-import yaml
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
     OpenStackAmuletDeployment
@@ -44,12 +42,11 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 
     SERVICES = ('apache2', 'haproxy', 'glance-api', 'glance-registry')
 
-    def __init__(self, series=None, openstack=None, source=None, git=False,
+    def __init__(self, series=None, openstack=None, source=None,
                  stable=False):
         """Deploy the entire test environment."""
         super(GlanceBasicDeployment, self).__init__(series, openstack,
                                                     source, stable)
-        self.git = git
         self._add_services()
         self._add_relations()
         self._configure_services()
@@ -94,33 +91,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
     def _configure_services(self):
         """Configure all of the services."""
         glance_config = {}
-        if self.git:
-            amulet_http_proxy = os.environ.get('AMULET_HTTP_PROXY')
-
-            reqs_repo = 'git://github.com/openstack/requirements'
-            glance_repo = 'git://github.com/openstack/glance'
-            if self._get_openstack_release() == self.trusty_icehouse:
-                reqs_repo = 'git://github.com/coreycb/requirements'
-                glance_repo = 'git://github.com/coreycb/glance'
-
-            branch = 'stable/' + self._get_openstack_release_string()
-
-            openstack_origin_git = {
-                'repositories': [
-                    {'name': 'requirements',
-                     'repository': reqs_repo,
-                     'branch': branch},
-                    {'name': 'glance',
-                     'repository': glance_repo,
-                     'branch': branch},
-                ],
-                'directory': '/mnt/openstack-git',
-                'http_proxy': amulet_http_proxy,
-                'https_proxy': amulet_http_proxy,
-            }
-            glance_config['openstack-origin-git'] = \
-                yaml.dump(openstack_origin_git)
-
         keystone_config = {
             'admin-password': 'openstack',
             'admin-token': 'ubuntutesting',

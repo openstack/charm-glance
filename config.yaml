@@ -31,30 +31,6 @@ options:
       NOTE: updating this setting to a source that is known to provide
       a later version of OpenStack will trigger a software upgrade unless
       action-managed-upgrade is set to True.
-  openstack-origin-git:
-    type: string
-    default:
-    description: |
-      Specifies a default OpenStack release name, or a YAML dictionary
-      listing the git repositories to install from.
-      .
-      The default Openstack release name may be one of the following, where
-      the corresponding OpenStack github branch will be used:
-        * liberty
-        * mitaka
-        * newton
-        * master
-      .
-      The YAML must minimally include requirements and glance repositories,
-      and may also include repositories for other dependencies:
-        repositories:
-        - {name: requirements,
-           repository: 'git://github.com/openstack/requirements',
-           branch: master}
-        - {name: glance,
-           repository: 'git://github.com/openstack/glance',
-           branch: master}
-        release: master
   action-managed-upgrade:
     type: boolean
     default: False

@@ -113,7 +113,7 @@ def validator(value, valid_type, valid_range=None):
         assert isinstance(valid_range, list), \
             "valid_range must be a list, was given {}".format(valid_range)
         # If we're dealing with strings
-        if valid_type is six.string_types:
+        if isinstance(value, six.string_types):
             assert value in valid_range, \
                 "{} is not in the list {}".format(value, valid_range)
         # Integer, float should have a min and max
@@ -517,7 +517,8 @@ def pool_set(service, pool_name, key, value):
     :param value:
     :return: None.  Can raise CalledProcessError
     """
-    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set', pool_name, key, value]
+    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set', pool_name, key,
+           str(value).lower()]
     try:
         check_call(cmd)
     except CalledProcessError:
@@ -621,15 +622,23 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
     :param durability_estimator: int
     :return: None.  Can raise CalledProcessError
     """
+    version = ceph_version()
+
     # Ensure this failure_domain is allowed by Ceph
     validator(failure_domain, six.string_types,
               ['chassis', 'datacenter', 'host', 'osd', 'pdu', 'pod', 'rack', 'region', 'room', 'root', 'row'])
 
     cmd = ['ceph', '--id', service, 'osd', 'erasure-code-profile', 'set', profile_name,
-           'plugin=' + erasure_plugin_name, 'k=' + str(data_chunks), 'm=' + str(coding_chunks),
-           'ruleset_failure_domain=' + failure_domain]
+           'plugin=' + erasure_plugin_name, 'k=' + str(data_chunks), 'm=' + str(coding_chunks)
+           ]
     if locality is not None and durability_estimator is not None:
         raise ValueError("create_erasure_profile should be called with k, m and one of l or c but not both.")
+
+    # failure_domain changed in luminous
+    if version and version >= '12.0.0':
+        cmd.append('crush-failure-domain=' + failure_domain)
+    else:
+        cmd.append('ruleset-failure-domain=' + failure_domain)
 
     # Add plugin specific information
     if locality is not None:

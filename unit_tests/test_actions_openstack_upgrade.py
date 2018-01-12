@@ -27,6 +27,7 @@ mock_apt.apt_pkg = MagicMock()
 
 with patch('actions.hooks.glance_utils.register_configs'):
     with patch('hooks.glance_utils.register_configs'):
+        with patch('actions.hooks.glance_utils.restart_map'):
             from actions import openstack_upgrade
 
 from test_utils import CharmTestCase
@@ -45,14 +46,12 @@ class TestGlanceUpgradeActions(CharmTestCase):
 
     @patch('actions.charmhelpers.contrib.openstack.utils.config')
     @patch('actions.charmhelpers.contrib.openstack.utils.action_set')
-    @patch('actions.charmhelpers.contrib.openstack.utils.git_install_requested')  # noqa
     @patch('actions.charmhelpers.contrib.openstack.utils.openstack_upgrade_available')  # noqa
     @patch('actions.charmhelpers.contrib.openstack.utils.juju_log')
     @patch('subprocess.check_output')
     def test_openstack_upgrade_true(self, _check_output, log, upgrade_avail,
-                                    git_requested, action_set, config):
+                                    action_set, config):
         _check_output.return_value = 'null'
-        git_requested.return_value = False
         upgrade_avail.return_value = True
         config.return_value = True
 
@@ -63,14 +62,12 @@ class TestGlanceUpgradeActions(CharmTestCase):
 
     @patch('actions.charmhelpers.contrib.openstack.utils.config')
     @patch('actions.charmhelpers.contrib.openstack.utils.action_set')
-    @patch('actions.charmhelpers.contrib.openstack.utils.git_install_requested')  # noqa
     @patch('actions.charmhelpers.contrib.openstack.utils.openstack_upgrade_available')  # noqa
     @patch('actions.charmhelpers.contrib.openstack.utils.juju_log')
     @patch('subprocess.check_output')
     def test_openstack_upgrade_false(self, _check_output, log, upgrade_avail,
-                                     git_requested, action_set, config):
+                                     action_set, config):
         _check_output.return_value = 'null'
-        git_requested.return_value = False
         upgrade_avail.return_value = True
         config.return_value = False
 

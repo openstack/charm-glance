@@ -14,7 +14,6 @@
 
 import os
 import sys
-import yaml
 
 from mock import call, patch, MagicMock
 from test_utils import CharmTestCase
@@ -83,7 +82,6 @@ TO_PATCH = [
     'migrate_database',
     'ensure_ceph_keyring',
     'ceph_config_file',
-    'git_install',
     'update_nrpe_config',
     'reinstall_paste_ini',
     # other
@@ -109,10 +107,8 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(utils, 'config')
     @patch.object(utils, 'token_cache_pkgs')
-    @patch.object(utils, 'git_install_requested')
-    def test_install_hook(self, git_requested, token_cache_pkgs, util_config):
+    def test_install_hook(self, token_cache_pkgs, util_config):
         token_cache_pkgs.return_value = ['memcached']
-        git_requested.return_value = False
         repo = 'cloud:precise-grizzly'
         self.test_config.set('openstack-origin', repo)
         self.service_stop.return_value = True
@@ -124,15 +120,12 @@ class GlanceRelationTests(CharmTestCase):
              'python-mysqldb', 'python-psycopg2', 'python-six',
              'python-swiftclient', 'uuid'], fatal=True)
         self.assertTrue(self.execd_preinstall.called)
-        self.git_install.assert_called_with(None)
 
     @patch.object(utils, 'config')
     @patch.object(utils, 'token_cache_pkgs')
-    @patch.object(utils, 'git_install_requested')
-    def test_install_hook_precise_distro(self, git_requested, token_cache_pkgs,
+    def test_install_hook_precise_distro(self, token_cache_pkgs,
                                          util_config):
         token_cache_pkgs.return_value = []
-        git_requested.return_value = False
         self.test_config.set('openstack-origin', 'distro')
         self.lsb_release.return_value = {'DISTRIB_RELEASE': 12.04,
                                          'DISTRIB_CODENAME': 'precise'}
@@ -141,39 +134,6 @@ class GlanceRelationTests(CharmTestCase):
         self.configure_installation_source.assert_called_with(
             "cloud:precise-folsom"
         )
-
-    @patch.object(utils, 'config')
-    @patch.object(utils, 'token_cache_pkgs')
-    @patch.object(utils, 'git_install_requested')
-    def test_install_hook_git(self, git_requested, token_cache_pkgs,
-                              util_config):
-        git_requested.return_value = True
-        repo = 'cloud:trusty-juno'
-        openstack_origin_git = {
-            'repositories': [
-                {'name': 'requirements',
-                 'repository': 'git://git.openstack.org/openstack/requirements',  # noqa
-                 'branch': 'stable/juno'},
-                {'name': 'glance',
-                 'repository': 'git://git.openstack.org/openstack/glance',
-                 'branch': 'stable/juno'}
-            ],
-            'directory': '/mnt/openstack-git',
-        }
-        projects_yaml = yaml.dump(openstack_origin_git)
-        self.test_config.set('openstack-origin', repo)
-        self.test_config.set('openstack-origin-git', projects_yaml)
-        relations.install_hook()
-        self.assertTrue(self.execd_preinstall.called)
-        self.configure_installation_source.assert_called_with(repo)
-        self.apt_update.assert_called_with(fatal=True)
-        self.apt_install.assert_called_with(
-            ['apache2', 'haproxy', 'libffi-dev', 'libmysqlclient-dev',
-             'libssl-dev', 'libxml2-dev', 'libxslt1-dev', 'libyaml-dev',
-             'openstack-pkg-tools', 'python-dev', 'python-mysqldb',
-             'python-pip', 'python-psycopg2', 'python-setuptools',
-             'python-six', 'uuid', 'zlib1g-dev'], fatal=True)
-        self.git_install.assert_called_with(projects_yaml)
 
     def test_db_joined(self):
         self.get_relation_ip.return_value = '10.0.0.1'
@@ -508,13 +468,11 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'configure_https')
     @patch.object(relations, 'object_store_joined')
     @patch.object(relations, 'CONFIGS')
-    @patch.object(utils, 'git_install_requested')
-    def test_keystone_changed_with_object_store_relation(self, git_requested,
+    def test_keystone_changed_with_object_store_relation(self,
                                                          configs,
                                                          object_store_joined,
                                                          configure_https,
                                                          image_service_joined):
-        git_requested.return_value = False
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = ['identity-service']
         configs.write = MagicMock()
@@ -546,11 +504,9 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'update_image_location_policy')
     @patch.object(relations, 'configure_https')
-    @patch.object(relations, 'git_install_requested')
-    def test_config_changed_no_openstack_upgrade(self, git_requested,
+    def test_config_changed_no_openstack_upgrade(self,
                                                  configure_https,
                                                  mock_update_policy):
-        git_requested.return_value = False
         self.openstack_upgrade_available.return_value = False
         relations.config_changed()
         self.open_port.assert_called_with(9292)
@@ -560,12 +516,10 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'update_image_location_policy')
     @patch.object(relations, 'status_set')
     @patch.object(relations, 'configure_https')
-    @patch.object(relations, 'git_install_requested')
-    def test_config_changed_with_openstack_upgrade(self, git_requested,
+    def test_config_changed_with_openstack_upgrade(self,
                                                    configure_https,
                                                    status,
                                                    mock_update_policy):
-        git_requested.return_value = False
         self.openstack_upgrade_available.return_value = True
         relations.config_changed()
         status.assert_called_with(
@@ -577,45 +531,14 @@ class GlanceRelationTests(CharmTestCase):
         self.assertTrue(mock_update_policy.called)
 
     @patch.object(relations, 'update_image_location_policy')
-    @patch.object(relations, 'git_install_requested')
-    def test_config_changed_with_openstack_upgrade_action(self, git_requested,
+    def test_config_changed_with_openstack_upgrade_action(self,
                                                           mock_update_policy):
-        git_requested.return_value = False
         self.openstack_upgrade_available.return_value = True
         self.test_config.set('action-managed-upgrade', True)
 
         relations.config_changed()
         self.assertFalse(self.do_openstack_upgrade.called)
         self.assertTrue(mock_update_policy.called)
-
-    @patch.object(relations, 'update_image_location_policy')
-    @patch.object(relations, 'configure_https')
-    @patch.object(relations, 'git_install_requested')
-    @patch.object(relations, 'config_value_changed')
-    def test_config_changed_git_updated(self, config_val_changed,
-                                        git_requested, configure_https,
-                                        mock_update_image_location_policy):
-        git_requested.return_value = True
-        repo = 'cloud:trusty-juno'
-        openstack_origin_git = {
-            'repositories': [
-                {'name': 'requirements',
-                 'repository': 'git://git.openstack.org/openstack/requirements',  # noqa
-                 'branch': 'stable/juno'},
-                {'name': 'glance',
-                 'repository': 'git://git.openstack.org/openstack/glance',
-                 'branch': 'stable/juno'}
-            ],
-            'directory': '/mnt/openstack-git',
-        }
-        projects_yaml = yaml.dump(openstack_origin_git)
-        self.test_config.set('openstack-origin', repo)
-        self.test_config.set('openstack-origin-git', projects_yaml)
-        relations.config_changed()
-        self.git_install.assert_called_with(projects_yaml)
-        self.assertFalse(self.do_openstack_upgrade.called)
-        self.assertTrue(configure_https.called)
-        self.assertTrue(mock_update_image_location_policy.called)
 
     @patch.object(relations, 'CONFIGS')
     def test_cluster_changed(self, configs):
@@ -648,10 +571,8 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(utils, 'config')
     @patch.object(utils, 'token_cache_pkgs')
     @patch.object(relations, 'CONFIGS')
-    @patch.object(utils, 'git_install_requested')
-    def test_upgrade_charm(self, git_requested, configs, token_cache_pkgs,
+    def test_upgrade_charm(self, configs, token_cache_pkgs,
                            util_config, mock_update_image_location_policy):
-        git_requested.return_value = False
         self.filter_installed_packages.return_value = ['test']
         relations.upgrade_charm()
         self.apt_install.assert_called_with(['test'], fatal=True)

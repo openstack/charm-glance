@@ -97,8 +97,6 @@ from charmhelpers.contrib.network.ip import (
 from charmhelpers.contrib.openstack.utils import (
     config_flags_parser,
     get_host_ip,
-    git_determine_usr_bin,
-    git_determine_python_path,
     enable_memcache,
     snap_install_requested,
     CompareOpenStackReleases,
@@ -334,10 +332,7 @@ class IdentityServiceContext(OSContextGenerator):
         self.rel_name = rel_name
         self.interfaces = [self.rel_name]
 
-    def __call__(self):
-        log('Generating template context for ' + self.rel_name, level=DEBUG)
-        ctxt = {}
-
+    def _setup_pki_cache(self):
         if self.service and self.service_user:
             # This is required for pki token signing if we don't want /tmp to
             # be used.
@@ -347,6 +342,15 @@ class IdentityServiceContext(OSContextGenerator):
                 mkdir(path=cachedir, owner=self.service_user,
                       group=self.service_user, perms=0o700)
 
+            return cachedir
+        return None
+
+    def __call__(self):
+        log('Generating template context for ' + self.rel_name, level=DEBUG)
+        ctxt = {}
+
+        cachedir = self._setup_pki_cache()
+        if cachedir:
             ctxt['signing_dir'] = cachedir
 
         for rid in relation_ids(self.rel_name):
@@ -380,6 +384,62 @@ class IdentityServiceContext(OSContextGenerator):
                     # so a missing value just indicates keystone needs
                     # upgrading
                     ctxt['admin_tenant_id'] = rdata.get('service_tenant_id')
+                    return ctxt
+
+        return {}
+
+
+class IdentityCredentialsContext(IdentityServiceContext):
+    '''Context for identity-credentials interface type'''
+
+    def __init__(self,
+                 service=None,
+                 service_user=None,
+                 rel_name='identity-credentials'):
+        super(IdentityCredentialsContext, self).__init__(service,
+                                                         service_user,
+                                                         rel_name)
+
+    def __call__(self):
+        log('Generating template context for ' + self.rel_name, level=DEBUG)
+        ctxt = {}
+
+        cachedir = self._setup_pki_cache()
+        if cachedir:
+            ctxt['signing_dir'] = cachedir
+
+        for rid in relation_ids(self.rel_name):
+            self.related = True
+            for unit in related_units(rid):
+                rdata = relation_get(rid=rid, unit=unit)
+                credentials_host = rdata.get('credentials_host')
+                credentials_host = (
+                    format_ipv6_addr(credentials_host) or credentials_host
+                )
+                auth_host = rdata.get('auth_host')
+                auth_host = format_ipv6_addr(auth_host) or auth_host
+                svc_protocol = rdata.get('credentials_protocol') or 'http'
+                auth_protocol = rdata.get('auth_protocol') or 'http'
+                api_version = rdata.get('api_version') or '2.0'
+                ctxt.update({
+                    'service_port': rdata.get('credentials_port'),
+                    'service_host': credentials_host,
+                    'auth_host': auth_host,
+                    'auth_port': rdata.get('auth_port'),
+                    'admin_tenant_name': rdata.get('credentials_project'),
+                    'admin_tenant_id': rdata.get('credentials_project_id'),
+                    'admin_user': rdata.get('credentials_username'),
+                    'admin_password': rdata.get('credentials_password'),
+                    'service_protocol': svc_protocol,
+                    'auth_protocol': auth_protocol,
+                    'api_version': api_version
+                })
+
+                if float(api_version) > 2:
+                    ctxt.update({'admin_domain_name':
+                                 rdata.get('domain')})
+
+                if self.context_complete(ctxt):
                     return ctxt
 
         return {}
@@ -1323,8 +1383,6 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
             "public_processes": int(math.ceil(self.public_process_weight *
                                               total_processes)),
             "threads": 1,
-            "usr_bin": git_determine_usr_bin(),
-            "python_path": git_determine_python_path(),
         }
         return ctxt
 
