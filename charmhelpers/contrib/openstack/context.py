@@ -93,10 +93,10 @@ from charmhelpers.contrib.network.ip import (
     format_ipv6_addr,
     is_bridge_member,
     is_ipv6_disabled,
+    get_relation_ip,
 )
 from charmhelpers.contrib.openstack.utils import (
     config_flags_parser,
-    get_host_ip,
     enable_memcache,
     snap_install_requested,
     CompareOpenStackReleases,
@@ -626,11 +626,6 @@ class HAProxyContext(OSContextGenerator):
         if not relation_ids('cluster') and not self.singlenode_mode:
             return {}
 
-        if config('prefer-ipv6'):
-            addr = get_ipv6_addr(exc_list=[config('vip')])[0]
-        else:
-            addr = get_host_ip(unit_get('private-address'))
-
         l_unit = local_unit().replace('/', '-')
         cluster_hosts = {}
 
@@ -638,7 +633,15 @@ class HAProxyContext(OSContextGenerator):
         # and associated backends
         for addr_type in ADDRESS_TYPES:
             cfg_opt = 'os-{}-network'.format(addr_type)
-            laddr = get_address_in_network(config(cfg_opt))
+            # NOTE(thedac) For some reason the ADDRESS_MAP uses 'int' rather
+            # than 'internal'
+            if addr_type == 'internal':
+                _addr_map_type = INTERNAL
+            else:
+                _addr_map_type = addr_type
+            # Network spaces aware
+            laddr = get_relation_ip(ADDRESS_MAP[_addr_map_type]['binding'],
+                                    config(cfg_opt))
             if laddr:
                 netmask = get_netmask_for_address(laddr)
                 cluster_hosts[laddr] = {
@@ -649,15 +652,19 @@ class HAProxyContext(OSContextGenerator):
                 }
                 for rid in relation_ids('cluster'):
                     for unit in sorted(related_units(rid)):
+                        # API Charms will need to set {addr_type}-address with
+                        # get_relation_ip(addr_type)
                         _laddr = relation_get('{}-address'.format(addr_type),
                                               rid=rid, unit=unit)
                         if _laddr:
                             _unit = unit.replace('/', '-')
                             cluster_hosts[laddr]['backends'][_unit] = _laddr
 
-        # NOTE(jamespage) add backend based on private address - this
-        # with either be the only backend or the fallback if no acls
+        # NOTE(jamespage) add backend based on get_relation_ip - this
+        # will either be the only backend or the fallback if no acls
         # match in the frontend
+        # Network spaces aware
+        addr = get_relation_ip('cluster')
         cluster_hosts[addr] = {}
         netmask = get_netmask_for_address(addr)
         cluster_hosts[addr] = {
@@ -667,6 +674,8 @@ class HAProxyContext(OSContextGenerator):
         }
         for rid in relation_ids('cluster'):
             for unit in sorted(related_units(rid)):
+                # API Charms will need to set their private-address with
+                # get_relation_ip('cluster')
                 _laddr = relation_get('private-address',
                                       rid=rid, unit=unit)
                 if _laddr:
