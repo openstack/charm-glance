@@ -13,7 +13,6 @@ tags:
 series:
   - xenial
   - artful
-  - zesty
   - trusty
 extra-bindings:
   public:

@@ -654,11 +654,6 @@ def openstack_upgrade_available(package):
     else:
         avail_vers = get_os_version_install_source(src)
     apt.init()
-    if "swift" in package:
-        major_cur_vers = cur_vers.split('.', 1)[0]
-        major_avail_vers = avail_vers.split('.', 1)[0]
-        major_diff = apt.version_compare(major_avail_vers, major_cur_vers)
-        return avail_vers > cur_vers and (major_diff == 1 or major_diff == 0)
     return apt.version_compare(avail_vers, cur_vers) == 1
 
 
