@@ -161,7 +161,8 @@ CONFIG_FILES = OrderedDict([
                           context.OSConfigFlagContext(
                               charm_flag='api-config-flags',
                               template_flag='api_config_flags'),
-                          context.InternalEndpointContext('glance-common'),
+                          context.InternalEndpointContext(),
+                          context.VolumeAPIContext('glance-common'),
                           context.SubordinateConfigContext(
                               interface=['storage-backend'],
                               service=['glance-api'],
