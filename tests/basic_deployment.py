@@ -591,17 +591,24 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         conf_file = '/etc/glance/glance-api.conf'
 
         # Services which are expected to restart upon config change
-        services = ['glance-api', 'glance-registry']
+        services = {
+            'glance-api': conf_file,
+            'glance-registry': conf_file,
+        }
 
         # Make config change, check for service restarts
         u.log.debug('Making config change on {}...'.format(juju_service))
+        mtime = u.get_sentry_time(sentry)
         self.d.configure(juju_service, set_alternate)
 
         sleep_time = 30
-        for s in services:
+        for s, conf_file in services.iteritems():
             u.log.debug("Checking that service restarted: {}".format(s))
-            if not u.service_restarted(sentry, s,
-                                       conf_file, sleep_time=sleep_time):
+            if not u.validate_service_config_changed(sentry, mtime, s,
+                                                     conf_file,
+                                                     retry_count=4,
+                                                     retry_sleep_time=20,
+                                                     sleep_time=sleep_time):
                 self.d.configure(juju_service, set_default)
                 msg = "service {} didn't restart after config change".format(s)
                 amulet.raise_status(amulet.FAIL, msg=msg)
