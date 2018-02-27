@@ -317,8 +317,7 @@ def keystone_changed():
         juju_log('identity-service relation incomplete. Peer not ready?')
         return
 
-    CONFIGS.write(GLANCE_API_CONF)
-    CONFIGS.write(GLANCE_REGISTRY_CONF)
+    CONFIGS.write_all()
 
     # Configure any object-store / swift relations now that we have an
     # identity-service
