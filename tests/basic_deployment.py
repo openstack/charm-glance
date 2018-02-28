@@ -121,10 +121,10 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             self._get_openstack_release_string()))
 
         # Authenticate admin with keystone
-        self.keystone = u.authenticate_keystone_admin(self.keystone_sentry,
-                                                      user='admin',
-                                                      password='openstack',
-                                                      tenant='admin')
+        self.keystone_session, self.keystone = u.get_default_keystone_session(
+            self.keystone_sentry,
+            openstack_release=self._get_openstack_release())
+
         # Authenticate admin with glance endpoint
         self.glance = u.authenticate_glance_admin(self.keystone)
 
@@ -158,7 +158,10 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         }
         actual = self.keystone.service_catalog.get_endpoints()
 
-        ret = u.validate_svc_catalog_endpoint_data(expected, actual)
+        ret = u.validate_svc_catalog_endpoint_data(
+            expected,
+            actual,
+            openstack_release=self._get_openstack_release())
         if ret:
             amulet.raise_status(amulet.FAIL, msg=ret)
 
@@ -175,9 +178,13 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             'publicurl': u.valid_url,
             'service_id': u.not_null
         }
-        ret = u.validate_endpoint_data(endpoints, admin_port, internal_port,
-                                       public_port, expected)
-
+        ret = u.validate_endpoint_data(
+            endpoints,
+            admin_port,
+            internal_port,
+            public_port,
+            expected,
+            openstack_release=self._get_openstack_release())
         if ret:
             amulet.raise_status(amulet.FAIL,
                                 msg='glance endpoint: {}'.format(ret))
@@ -196,8 +203,13 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             'publicurl': u.valid_url,
             'service_id': u.not_null
         }
-        ret = u.validate_endpoint_data(endpoints, admin_port, internal_port,
-                                       public_port, expected)
+        ret = u.validate_endpoint_data(
+            endpoints,
+            admin_port,
+            internal_port,
+            public_port,
+            expected,
+            openstack_release=self._get_openstack_release())
         if ret:
             amulet.raise_status(amulet.FAIL,
                                 msg='keystone endpoint: {}'.format(ret))
@@ -205,20 +217,33 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
     def test_110_users(self):
         """Verify expected users."""
         u.log.debug('Checking keystone users...')
-        expected = [
-            {'name': 'glance',
-             'enabled': True,
-             'tenantId': u.not_null,
-             'id': u.not_null,
-             'email': 'juju@localhost'},
-            {'name': 'admin',
-             'enabled': True,
-             'tenantId': u.not_null,
-             'id': u.not_null,
-             'email': 'juju@localhost'}
-        ]
-        actual = self.keystone.users.list()
-        ret = u.validate_user_data(expected, actual)
+        if self._get_openstack_release() >= self.xenial_queens:
+            expected = [
+                {'name': 'glance',
+                 'enabled': True,
+                 'default_project_id': u.not_null,
+                 'id': u.not_null,
+                 'email': 'juju@localhost'}
+            ]
+            domain = self.keystone.domains.find(name='service_domain')
+            actual = self.keystone.users.list(domain=domain)
+            api_version = 3
+        else:
+            expected = [
+                {'name': 'glance',
+                 'enabled': True,
+                 'tenantId': u.not_null,
+                 'id': u.not_null,
+                 'email': 'juju@localhost'},
+                {'name': 'admin',
+                 'enabled': True,
+                 'tenantId': u.not_null,
+                 'id': u.not_null,
+                 'email': 'juju@localhost'}
+            ]
+            actual = self.keystone.users.list()
+            api_version = 2
+        ret = u.validate_user_data(expected, actual, api_version)
         if ret:
             amulet.raise_status(amulet.FAIL, msg=ret)
 
@@ -342,7 +367,21 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                     (rel_ks_gl['auth_host'], rel_ks_gl['service_port']))
         auth_url = ('http://%s:%s/' %
                     (rel_ks_gl['auth_host'], rel_ks_gl['auth_port']))
-        if self._get_openstack_release() >= self.trusty_mitaka:
+        if self._get_openstack_release() >= self.xenial_queens:
+            expected = {
+                'keystone_authtoken': {
+                    'auth_uri': auth_uri.rstrip('/'),
+                    'auth_url': auth_url.rstrip('/'),
+                    'auth_type': 'password',
+                    'project_domain_name': 'service_domain',
+                    'user_domain_name': 'service_domain',
+                    'project_name': 'services',
+                    'username': rel_ks_gl['service_username'],
+                    'password': rel_ks_gl['service_password'],
+                    'signing_dir': '/var/cache/glance'
+                }
+            }
+        elif self._get_openstack_release() >= self.trusty_mitaka:
             expected = {
                 'keystone_authtoken': {
                     'auth_uri': auth_uri.rstrip('/'),
