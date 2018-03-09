@@ -99,6 +99,7 @@ CHARM = "glance"
 GLANCE_CONF_DIR = "/etc/glance"
 GLANCE_REGISTRY_CONF = "%s/glance-registry.conf" % GLANCE_CONF_DIR
 GLANCE_API_CONF = "%s/glance-api.conf" % GLANCE_CONF_DIR
+GLANCE_SWIFT_CONF = "%s/glance-swift.conf" % GLANCE_CONF_DIR
 GLANCE_REGISTRY_PASTE = os.path.join(GLANCE_CONF_DIR,
                                      'glance-registry-paste.ini')
 GLANCE_API_PASTE = os.path.join(GLANCE_CONF_DIR,
@@ -170,6 +171,13 @@ CONFIG_FILES = OrderedDict([
                           context.MemcacheContext()],
         'services': ['glance-api']
     }),
+    (GLANCE_SWIFT_CONF, {
+        'hook_contexts': [glance_contexts.ObjectStoreContext(),
+                          context.IdentityServiceContext(
+                              service='glance',
+                              service_user='glance')],
+        'services': ['glance-api']
+    }),
     (ceph_config_file(), {
         'hook_contexts': [context.CephContext()],
         'services': ['glance-api', 'glance-registry']
@@ -195,6 +203,7 @@ def register_configs():
     # Regstration of some configs may not be required depending on
     # existing of certain relations.
     release = os_release('glance-common')
+    cmp_release = CompareOpenStackReleases(release)
     configs = templating.OSConfigRenderer(templates_dir=TEMPLATES,
                                           openstack_release=release)
 
@@ -228,6 +237,10 @@ def register_configs():
 
     if enable_memcache(release=release):
         configs.register(MEMCACHED_CONF, [context.MemcacheContext()])
+
+    if cmp_release >= 'mitaka':
+        configs.register(GLANCE_SWIFT_CONF,
+                         CONFIG_FILES[GLANCE_SWIFT_CONF]['hook_contexts'])
     return configs
 
 

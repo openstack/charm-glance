@@ -459,9 +459,7 @@ class GlanceRelationTests(CharmTestCase):
         configs.write = MagicMock()
         self.relation_ids.return_value = []
         relations.keystone_changed()
-        self.assertEqual([call('/etc/glance/glance-api.conf'),
-                          call('/etc/glance/glance-registry.conf')],
-                         configs.write.call_args_list)
+        configs.write_all.assert_called_once()
         self.assertTrue(configure_https.called)
 
     @patch.object(relations, 'image_service_joined')
@@ -481,9 +479,7 @@ class GlanceRelationTests(CharmTestCase):
             ['image-service:0'],
         ]
         relations.keystone_changed()
-        self.assertEqual([call('/etc/glance/glance-api.conf'),
-                          call('/etc/glance/glance-registry.conf')],
-                         configs.write.call_args_list)
+        configs.write_all.assert_called_once()
         object_store_joined.assert_called_with()
         self.assertTrue(configure_https.called)
         image_service_joined.assert_called_with('image-service:0')
