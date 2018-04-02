@@ -2,8 +2,7 @@ Overview
 --------
 
 This charm provides the Glance image service for OpenStack.  It is intended to
-be used alongside the other OpenStack components, starting with the Essex
-release in Ubuntu 12.04.
+be used alongside the other OpenStack components.
 
 Usage
 -----
