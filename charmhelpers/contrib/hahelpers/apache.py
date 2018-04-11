@@ -65,7 +65,8 @@ def get_ca_cert():
     if ca_cert is None:
         log("Inspecting identity-service relations for CA SSL certificate.",
             level=INFO)
-        for r_id in relation_ids('identity-service'):
+        for r_id in (relation_ids('identity-service') +
+                     relation_ids('identity-credentials')):
             for unit in relation_list(r_id):
                 if ca_cert is None:
                     ca_cert = relation_get('ca_cert',
@@ -76,7 +77,7 @@ def get_ca_cert():
 def retrieve_ca_cert(cert_file):
     cert = None
     if os.path.isfile(cert_file):
-        with open(cert_file, 'r') as crt:
+        with open(cert_file, 'rb') as crt:
             cert = crt.read()
     return cert
 
