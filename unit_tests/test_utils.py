@@ -20,9 +20,9 @@ import yaml
 from contextlib import contextmanager
 from mock import patch, MagicMock
 
-patch('hooks.charmhelpers.contrib.openstack.utils.'
+patch('charmhelpers.contrib.openstack.utils.'
       'set_os_workload_status').start()
-patch('hooks.charmhelpers.core.hookenv.status_set').start()
+patch('charmhelpers.core.hookenv.status_set').start()
 
 
 def load_config():

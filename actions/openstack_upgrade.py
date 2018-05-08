@@ -14,16 +14,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import sys
+
+_path = os.path.dirname(os.path.realpath(__file__))
+_parent = os.path.abspath(os.path.join(_path, ".."))
+_hooks = os.path.abspath(os.path.join(_parent, "hooks"))
+
+
+def _add_path(path):
+    if path not in sys.path:
+        sys.path.insert(1, path)
+
+
+_add_path(_parent)
+_add_path(_hooks)
+
+
 from charmhelpers.contrib.openstack.utils import (
     do_action_openstack_upgrade,
 )
 
-from hooks.glance_relations import (
+from glance_relations import (
     config_changed,
     CONFIGS
 )
 
-from hooks.glance_utils import do_openstack_upgrade
+from glance_utils import do_openstack_upgrade
 
 
 def openstack_upgrade():

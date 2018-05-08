@@ -18,7 +18,7 @@ from collections import OrderedDict
 from mock import patch, call, MagicMock, mock_open
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
-import hooks.glance_utils as utils
+import glance_utils as utils
 
 from test_utils import (
     CharmTestCase,

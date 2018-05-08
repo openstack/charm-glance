@@ -14,7 +14,7 @@
 
 from mock import patch, MagicMock
 
-from hooks import glance_contexts as contexts
+import glance_contexts as contexts
 from test_utils import (
     CharmTestCase
 )

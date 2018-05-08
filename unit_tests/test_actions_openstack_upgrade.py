@@ -25,10 +25,17 @@ mock_apt = MagicMock()
 sys.modules['apt'] = mock_apt
 mock_apt.apt_pkg = MagicMock()
 
-with patch('actions.hooks.glance_utils.register_configs'):
-    with patch('hooks.glance_utils.register_configs'):
-        with patch('actions.hooks.glance_utils.restart_map'):
-            from actions import openstack_upgrade
+with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec, \
+    patch('charmhelpers.contrib.openstack.utils.'
+          'os_requires_version') as mock_os, \
+    patch('glance_utils.register_configs'), \
+        patch('glance_utils.restart_map'):
+            mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                                    lambda *args, **kwargs: f(*args, **kwargs))
+
+            mock_os.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                                   lambda *args, **kwargs: f(*args, **kwargs))
+            import openstack_upgrade
 
 from test_utils import CharmTestCase
 
@@ -44,10 +51,10 @@ class TestGlanceUpgradeActions(CharmTestCase):
         super(TestGlanceUpgradeActions, self).setUp(openstack_upgrade,
                                                     TO_PATCH)
 
-    @patch('actions.charmhelpers.contrib.openstack.utils.config')
-    @patch('actions.charmhelpers.contrib.openstack.utils.action_set')
-    @patch('actions.charmhelpers.contrib.openstack.utils.openstack_upgrade_available')  # noqa
-    @patch('actions.charmhelpers.contrib.openstack.utils.juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    @patch('charmhelpers.contrib.openstack.utils.action_set')
+    @patch('charmhelpers.contrib.openstack.utils.openstack_upgrade_available')  # noqa
+    @patch('charmhelpers.contrib.openstack.utils.juju_log')
     @patch('subprocess.check_output')
     def test_openstack_upgrade_true(self, _check_output, log, upgrade_avail,
                                     action_set, config):
@@ -60,10 +67,10 @@ class TestGlanceUpgradeActions(CharmTestCase):
         self.assertTrue(self.do_openstack_upgrade.called)
         self.assertTrue(self.config_changed.called)
 
-    @patch('actions.charmhelpers.contrib.openstack.utils.config')
-    @patch('actions.charmhelpers.contrib.openstack.utils.action_set')
-    @patch('actions.charmhelpers.contrib.openstack.utils.openstack_upgrade_available')  # noqa
-    @patch('actions.charmhelpers.contrib.openstack.utils.juju_log')
+    @patch('charmhelpers.contrib.openstack.utils.config')
+    @patch('charmhelpers.contrib.openstack.utils.action_set')
+    @patch('charmhelpers.contrib.openstack.utils.openstack_upgrade_available')  # noqa
+    @patch('charmhelpers.contrib.openstack.utils.juju_log')
     @patch('subprocess.check_output')
     def test_openstack_upgrade_false(self, _check_output, log, upgrade_avail,
                                      action_set, config):

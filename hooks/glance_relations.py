@@ -14,7 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import sys
+
+_path = os.path.dirname(os.path.realpath(__file__))
+_parent = os.path.abspath(os.path.join(_path, ".."))
+
+
+def _add_path(path):
+    if path not in sys.path:
+        sys.path.insert(1, path)
+
+
+_add_path(_parent)
+
 
 from subprocess import (
     call,

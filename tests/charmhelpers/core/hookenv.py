@@ -290,7 +290,7 @@ class Config(dict):
         self.implicit_save = True
         self._prev_dict = None
         self.path = os.path.join(charm_dir(), Config.CONFIG_FILE_NAME)
-        if os.path.exists(self.path):
+        if os.path.exists(self.path) and os.stat(self.path).st_size:
             self.load_previous()
         atexit(self._implicit_save)
 
@@ -310,7 +310,11 @@ class Config(dict):
         """
         self.path = path or self.path
         with open(self.path) as f:
-            self._prev_dict = json.load(f)
+            try:
+                self._prev_dict = json.load(f)
+            except ValueError as e:
+                log('Unable to parse previous config data - {}'.format(str(e)),
+                    level=ERROR)
         for k, v in copy.deepcopy(self._prev_dict).items():
             if k not in self:
                 self[k] = v
@@ -354,22 +358,40 @@ class Config(dict):
             self.save()
 
 
-@cached
+_cache_config = None
+
+
 def config(scope=None):
-    """Juju charm configuration"""
-    config_cmd_line = ['config-get']
-    if scope is not None:
-        config_cmd_line.append(scope)
-    else:
-        config_cmd_line.append('--all')
-    config_cmd_line.append('--format=json')
+    """
+    Get the juju charm configuration (scope==None) or individual key,
+    (scope=str).  The returned value is a Python data structure loaded as
+    JSON from the Juju config command.
+
+    :param scope: If set, return the value for the specified key.
+    :type scope: Optional[str]
+    :returns: Either the whole config as a Config, or a key from it.
+    :rtype: Any
+    """
+    global _cache_config
+    config_cmd_line = ['config-get', '--all', '--format=json']
     try:
-        config_data = json.loads(
-            subprocess.check_output(config_cmd_line).decode('UTF-8'))
+        # JSON Decode Exception for Python3.5+
+        exc_json = json.decoder.JSONDecodeError
+    except AttributeError:
+        # JSON Decode Exception for Python2.7 through Python3.4
+        exc_json = ValueError
+    try:
+        if _cache_config is None:
+            config_data = json.loads(
+                subprocess.check_output(config_cmd_line).decode('UTF-8'))
+            _cache_config = Config(config_data)
         if scope is not None:
-            return config_data
-        return Config(config_data)
-    except ValueError:
+            return _cache_config.get(scope)
+        return _cache_config
+    except (exc_json, UnicodeDecodeError) as e:
+        log('Unable to parse output from config-get: config_cmd_line="{}" '
+            'message="{}"'
+            .format(config_cmd_line, str(e)), level=ERROR)
         return None
 
 

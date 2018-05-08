@@ -25,27 +25,26 @@ sys.modules['apt'] = mock_apt
 mock_apt.apt_pkg = MagicMock()
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
-import hooks.glance_utils as utils  # noqa
 
-_reg = utils.register_configs
-_map = utils.restart_map
 
-utils.register_configs = MagicMock()
-utils.restart_map = MagicMock()
-
-with patch('hooks.charmhelpers.contrib.hardening.harden.harden') as mock_dec:
-    with patch('hooks.charmhelpers.contrib.openstack.'
-               'utils.os_requires_version') as mock_os:
-        mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
-                                lambda *args, **kwargs: f(*args, **kwargs))
-        mock_os.side_effect = (lambda *dargs, **dkwargs: lambda f:
-                               lambda *args, **kwargs: f(*args, **kwargs))
-        import hooks.glance_relations as relations
+with patch('charmhelpers.contrib.openstack.utils.'
+           'pausable_restart_on_change') as mock_on_change, \
+    patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec, \
+    patch('charmhelpers.contrib.openstack.'
+          'utils.os_requires_version') as mock_os, \
+    patch('glance_utils.register_configs') as mock_register, \
+    patch('glance_utils.restart_map') as mock_map, \
+        patch('glance_utils.config'):
+            mock_on_change.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                                          lambda *args, **kwargs: f(*args,
+                                                                    **kwargs))
+            mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                                    lambda *args, **kwargs: f(*args, **kwargs))
+            mock_os.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                                   lambda *args, **kwargs: f(*args, **kwargs))
+            import glance_relations as relations
 
 relations.hooks._config_save = False
-
-utils.register_configs = _reg
-utils.restart_map = _map
 
 TO_PATCH = [
     # charmhelpers.core.hookenv
@@ -75,7 +74,7 @@ TO_PATCH = [
     'is_clustered',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'is_elected_leader',
-    # hooks.glance_utils
+    # glance_utils
     'restart_map',
     'register_configs',
     'do_openstack_upgrade',
@@ -84,6 +83,7 @@ TO_PATCH = [
     'ceph_config_file',
     'update_nrpe_config',
     'reinstall_paste_ini',
+    'determine_packages',
     # other
     'call',
     'check_call',
@@ -104,28 +104,23 @@ class GlanceRelationTests(CharmTestCase):
     def setUp(self):
         super(GlanceRelationTests, self).setUp(relations, TO_PATCH)
         self.config.side_effect = self.test_config.get
+        self.restart_on_change.return_value = None
 
-    @patch.object(utils, 'config')
-    @patch.object(utils, 'token_cache_pkgs')
-    def test_install_hook(self, token_cache_pkgs, util_config):
-        token_cache_pkgs.return_value = ['memcached']
+    def test_install_hook(self):
         repo = 'cloud:precise-grizzly'
+        _packages = ['apache2', 'glance', 'haproxy', 'memcached',
+                     'python-keystone', 'python-mysqldb', 'python-psycopg2',
+                     'python-six', 'python-swiftclient', 'uuid']
         self.test_config.set('openstack-origin', repo)
         self.service_stop.return_value = True
+        self.determine_packages.return_value = _packages
         relations.install_hook()
         self.configure_installation_source.assert_called_with(repo)
         self.apt_update.assert_called_with(fatal=True)
-        self.apt_install.assert_called_with(
-            ['apache2', 'glance', 'haproxy', 'memcached', 'python-keystone',
-             'python-mysqldb', 'python-psycopg2', 'python-six',
-             'python-swiftclient', 'uuid'], fatal=True)
+        self.apt_install.assert_called_with(_packages, fatal=True)
         self.assertTrue(self.execd_preinstall.called)
 
-    @patch.object(utils, 'config')
-    @patch.object(utils, 'token_cache_pkgs')
-    def test_install_hook_precise_distro(self, token_cache_pkgs,
-                                         util_config):
-        token_cache_pkgs.return_value = []
+    def test_install_hook_precise_distro(self):
         self.test_config.set('openstack-origin', 'distro')
         self.lsb_release.return_value = {'DISTRIB_RELEASE': 12.04,
                                          'DISTRIB_CODENAME': 'precise'}
@@ -338,9 +333,9 @@ class GlanceRelationTests(CharmTestCase):
         for c in [call('/etc/glance/glance.conf')]:
             self.assertNotIn(c, configs.write.call_args_list)
 
-    @patch('hooks.charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
            '.add_op_request_access_to_group')
-    @patch('hooks.charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
            '.add_op_create_pool')
     def test_create_pool_op(self, mock_create_pool,
                             mock_request_access):
@@ -564,11 +559,8 @@ class GlanceRelationTests(CharmTestCase):
                          configs.write.call_args_list)
 
     @patch.object(relations, 'update_image_location_policy')
-    @patch.object(utils, 'config')
-    @patch.object(utils, 'token_cache_pkgs')
     @patch.object(relations, 'CONFIGS')
-    def test_upgrade_charm(self, configs, token_cache_pkgs,
-                           util_config, mock_update_image_location_policy):
+    def test_upgrade_charm(self, configs, mock_update_image_location_policy):
         self.filter_installed_packages.return_value = ['test']
         relations.upgrade_charm()
         self.apt_install.assert_called_with(['test'], fatal=True)

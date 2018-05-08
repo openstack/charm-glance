@@ -17,9 +17,23 @@
 import sys
 import os
 
+_path = os.path.dirname(os.path.realpath(__file__))
+_parent = os.path.abspath(os.path.join(_path, ".."))
+_hooks = os.path.abspath(os.path.join(_parent, "hooks"))
+
+
+def _add_path(path):
+    if path not in sys.path:
+        sys.path.insert(1, path)
+
+
+_add_path(_parent)
+_add_path(_hooks)
+
+
 from charmhelpers.core.hookenv import action_fail
 
-from hooks.glance_utils import (
+from glance_utils import (
     pause_unit_helper,
     resume_unit_helper,
     register_configs,

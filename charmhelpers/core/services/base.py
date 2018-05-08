@@ -307,7 +307,9 @@ class PortManagerCallback(ManagerCallback):
     """
     def __call__(self, manager, service_name, event_name):
         service = manager.get_service(service_name)
-        new_ports = service.get('ports', [])
+        # turn this generator into a list,
+        # as we'll be going over it multiple times
+        new_ports = list(service.get('ports', []))
         port_file = os.path.join(hookenv.charm_dir(), '.{}.ports'.format(service_name))
         if os.path.exists(port_file):
             with open(port_file) as fp:
