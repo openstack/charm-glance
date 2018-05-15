@@ -789,17 +789,18 @@ class ApacheSSLContext(OSContextGenerator):
         ssl_dir = os.path.join('/etc/apache2/ssl/', self.service_namespace)
         mkdir(path=ssl_dir)
         cert, key = get_cert(cn)
-        if cn:
-            cert_filename = 'cert_{}'.format(cn)
-            key_filename = 'key_{}'.format(cn)
-        else:
-            cert_filename = 'cert'
-            key_filename = 'key'
+        if cert and key:
+            if cn:
+                cert_filename = 'cert_{}'.format(cn)
+                key_filename = 'key_{}'.format(cn)
+            else:
+                cert_filename = 'cert'
+                key_filename = 'key'
 
-        write_file(path=os.path.join(ssl_dir, cert_filename),
-                   content=b64decode(cert), perms=0o640)
-        write_file(path=os.path.join(ssl_dir, key_filename),
-                   content=b64decode(key), perms=0o640)
+            write_file(path=os.path.join(ssl_dir, cert_filename),
+                       content=b64decode(cert), perms=0o640)
+            write_file(path=os.path.join(ssl_dir, key_filename),
+                       content=b64decode(key), perms=0o640)
 
     def configure_ca(self):
         ca_cert = get_ca_cert()
@@ -871,23 +872,31 @@ class ApacheSSLContext(OSContextGenerator):
         if not self.external_ports or not https():
             return {}
 
-        self.configure_ca()
+        use_keystone_ca = True
+        for rid in relation_ids('certificates'):
+            if related_units(rid):
+                use_keystone_ca = False
+
+        if use_keystone_ca:
+            self.configure_ca()
+
         self.enable_modules()
 
         ctxt = {'namespace': self.service_namespace,
                 'endpoints': [],
                 'ext_ports': []}
 
-        cns = self.canonical_names()
-        if cns:
-            for cn in cns:
-                self.configure_cert(cn)
-        else:
-            # Expect cert/key provided in config (currently assumed that ca
-            # uses ip for cn)
-            for net_type in (INTERNAL, ADMIN, PUBLIC):
-                cn = resolve_address(endpoint_type=net_type)
-                self.configure_cert(cn)
+        if use_keystone_ca:
+            cns = self.canonical_names()
+            if cns:
+                for cn in cns:
+                    self.configure_cert(cn)
+            else:
+                # Expect cert/key provided in config (currently assumed that ca
+                # uses ip for cn)
+                for net_type in (INTERNAL, ADMIN, PUBLIC):
+                    cn = resolve_address(endpoint_type=net_type)
+                    self.configure_cert(cn)
 
         addresses = self.get_network_addresses()
         for address, endpoint in addresses:

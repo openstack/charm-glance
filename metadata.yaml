@@ -45,6 +45,8 @@ requires:
   storage-backend:
     interface: glance-backend
     scope: container
+  certificates:
+    interface: tls-certificates
 peers:
   cluster:
     interface: glance-ha

@@ -118,10 +118,13 @@ class TestGlanceContexts(CharmTestCase):
                          {'known_stores': "glance.store.filesystem.Store,"
                                           "glance.store.http.Store"})
 
+    @patch('charmhelpers.contrib.openstack.context.relation_ids')
     @patch('charmhelpers.contrib.hahelpers.cluster.config_get')
     @patch('charmhelpers.contrib.openstack.context.https')
     def test_apache_ssl_context_service_enabled(self, mock_https,
-                                                mock_config):
+                                                mock_config,
+                                                mock_relation_ids):
+        mock_relation_ids.return_value = []
         mock_config.return_value = 'true'
         mock_https.return_value = True
 
