@@ -190,8 +190,8 @@ class OSContextGenerator(object):
 class SharedDBContext(OSContextGenerator):
     interfaces = ['shared-db']
 
-    def __init__(self,
-                 database=None, user=None, relation_prefix=None, ssl_dir=None):
+    def __init__(self, database=None, user=None, relation_prefix=None,
+                 ssl_dir=None, relation_id=None):
         """Allows inspecting relation for settings prefixed with
         relation_prefix. This is useful for parsing access for multiple
         databases returned via the shared-db interface (eg, nova_password,
@@ -202,6 +202,7 @@ class SharedDBContext(OSContextGenerator):
         self.user = user
         self.ssl_dir = ssl_dir
         self.rel_name = self.interfaces[0]
+        self.relation_id = relation_id
 
     def __call__(self):
         self.database = self.database or config('database')
@@ -235,7 +236,12 @@ class SharedDBContext(OSContextGenerator):
         if self.relation_prefix:
             password_setting = self.relation_prefix + '_password'
 
-        for rid in relation_ids(self.interfaces[0]):
+        if self.relation_id:
+            rids = [self.relation_id]
+        else:
+            rids = relation_ids(self.interfaces[0])
+
+        for rid in rids:
             self.related = True
             for unit in related_units(rid):
                 rdata = relation_get(rid=rid, unit=unit)
@@ -448,11 +454,13 @@ class IdentityCredentialsContext(IdentityServiceContext):
 
 class AMQPContext(OSContextGenerator):
 
-    def __init__(self, ssl_dir=None, rel_name='amqp', relation_prefix=None):
+    def __init__(self, ssl_dir=None, rel_name='amqp', relation_prefix=None,
+                 relation_id=None):
         self.ssl_dir = ssl_dir
         self.rel_name = rel_name
         self.relation_prefix = relation_prefix
         self.interfaces = [rel_name]
+        self.relation_id = relation_id
 
     def __call__(self):
         log('Generating template context for amqp', level=DEBUG)
@@ -473,7 +481,11 @@ class AMQPContext(OSContextGenerator):
             raise OSContextError
 
         ctxt = {}
-        for rid in relation_ids(self.rel_name):
+        if self.relation_id:
+            rids = [self.relation_id]
+        else:
+            rids = relation_ids(self.rel_name)
+        for rid in rids:
             ha_vip_only = False
             self.related = True
             transport_hosts = None
