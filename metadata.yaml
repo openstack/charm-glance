@@ -13,7 +13,7 @@ tags:
 series:
   - xenial
   - bionic
-  - artful
+  - cosmic
   - trusty
 extra-bindings:
   public:
