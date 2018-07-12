@@ -57,6 +57,10 @@ have already deployed Ceph using the ceph charm:
 This configuration can also be used to support Glance in HA/Scale-out
 deployments.
 
+NOTE: Glance acts as a Ceph client in this case which requires IP (L3)
+connectivity to ceph monitors and OSDs. For MAAS-based deployments this
+can be addressed with network spaces (see the relevant section below).
+
 HA/Clustering
 ===================
 
@@ -115,13 +119,15 @@ This charm supports the use of Juju Network Spaces, allowing the charm to be bou
 
 API endpoints can be bound to distinct network spaces supporting the network separation of public, internal and admin endpoints.
 
+Glance acts as a Ceph client and needs IP connectivity to Ceph monitors and OSDs. Binding the ceph endpoint to a space can solve this problem in case monitors and OSDs are located on a single L2 broadcast domain (if they are not, static or dynamic routes need to be used in addition to spaces).
+
 Access to the underlying MySQL instance can also be bound to a specific space using the shared-db relation.
 
 To use this feature, use the --bind option when deploying the charm:
 
-    juju deploy glance --bind "public=public-space internal=internal-space admin=admin-space shared-db=internal-space"
+    juju deploy glance --bind "public=public-space internal=internal-space admin=admin-space shared-db=internal-spacec ceph=ceph-access-space"
 
-alternatively these can also be provided as part of a juju native bundle configuration:
+Alternatively, these can also be provided as part of a juju native bundle configuration:
 
     glance:
       charm: cs:xenial/glance
@@ -131,6 +137,7 @@ alternatively these can also be provided as part of a juju native bundle configu
         admin: admin-space
         internal: internal-space
         shared-db: internal-space
+        ceph: ceph-access-space
 
 NOTE: Spaces must be configured in the underlying provider prior to attempting to use them.
 
