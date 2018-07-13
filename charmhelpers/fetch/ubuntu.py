@@ -315,7 +315,7 @@ def import_key(key):
         cmd = ['apt-key', 'adv', '--keyserver',
                'hkp://keyserver.ubuntu.com:80', '--recv-keys', key]
         try:
-            subprocess.check_call(cmd)
+            _run_with_retries(cmd)
         except subprocess.CalledProcessError:
             error = "Error importing PGP key '{}'".format(key)
             log(error)
