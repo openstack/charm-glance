@@ -297,13 +297,19 @@ class TestGlanceUtils(CharmTestCase):
     def test_is_api_ready_false(self):
         self._test_is_api_ready(False)
 
+    @patch.object(utils, 'config')
     @patch.object(utils, 'json')
     @patch.object(utils, 'update_json_file')
     @patch.object(utils, 'kv')
     @patch.object(utils, 'os_release')
     def test_update_image_location_policy(self, mock_os_release, mock_kv,
-                                          mock_update_json_file, mock_json):
+                                          mock_update_json_file, mock_json,
+                                          mock_config):
         db_vals = {}
+        config = {'restrict-image-location-operations': False}
+
+        def fake_config(key):
+            return config.get(key)
 
         def fake_db_get(key):
             return db_vals.get(key)
@@ -312,6 +318,8 @@ class TestGlanceUtils(CharmTestCase):
         db_obj.get = MagicMock()
         db_obj.get.side_effect = fake_db_get
         db_obj.set = MagicMock()
+
+        mock_config.side_effect = fake_config
 
         fake_open = mock_open()
         with patch.object(utils, 'open', fake_open, create=True):
@@ -326,6 +334,25 @@ class TestGlanceUtils(CharmTestCase):
             mock_os_release.return_value = 'kilo'
             utils.update_image_location_policy()
             self.assertTrue(mock_kv.called)
+            mock_update_json_file.assert_has_calls([
+                call('/etc/glance/policy.json',
+                     {'get_image_location': ''}),
+                call('/etc/glance/policy.json',
+                     {'set_image_location': ''}),
+                call('/etc/glance/policy.json',
+                     {'delete_image_location': ''})])
+
+            mock_update_json_file.reset_mock()
+            config['restrict-image-location-operations'] = True
+            utils.update_image_location_policy()
+            mock_update_json_file.assert_has_calls([
+                call('/etc/glance/policy.json',
+                     {'get_image_location': 'role:admin'}),
+                call('/etc/glance/policy.json',
+                     {'set_image_location': 'role:admin'}),
+                call('/etc/glance/policy.json',
+                     {'delete_image_location': 'role:admin'})])
+
             db_obj.get.assert_has_calls([call('policy_get_image_location'),
                                          call('policy_set_image_location'),
                                          call('policy_delete_image_location')])

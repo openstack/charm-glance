@@ -562,7 +562,11 @@ def update_image_location_policy():
                 log("key '{}' not found in policy file".format(policy_key),
                     level=INFO)
 
-        policy_value = 'role:admin'
+        if config('restrict-image-location-operations'):
+            policy_value = 'role:admin'
+        else:
+            policy_value = ''
+
         log("Updating Glance policy file setting policy "
             "'{}':'{}'".format(policy_key, policy_value), level=INFO)
         update_json_file(GLANCE_POLICY_FILE, {policy_key: policy_value})

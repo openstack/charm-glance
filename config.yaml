@@ -126,6 +126,18 @@ options:
       Expose underlying image locations via the API when using Ceph for image
       storage. Only disable this option if you do not wish to use
       copy-on-write clones of RAW format images with Ceph in Cinder and Nova.
+  restrict-image-location-operations:
+    type: boolean
+    default: False
+    description: |
+      If this is set to True, all *_image_location operations in the Glance api
+      will be restricted to role:admin which will result in non-admin users no
+      longer being able to view the "locations" information for an image.
+      This only affects environments that have expose-image-locations set to
+      True.
+      WARNING: enabling this restriction will cause Nova to no longer be able
+      to create COW clones or snapshots for non-admin users when using the
+      RBDImageBackend in the nova-compute charm. 
   rabbit-user:
     type: string
     default: glance
