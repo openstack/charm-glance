@@ -54,6 +54,8 @@ from glance_utils import (
     reinstall_paste_ini,
     is_api_ready,
     update_image_location_policy,
+    pause_unit_helper,
+    resume_unit_helper,
 )
 from charmhelpers.core.hookenv import (
     charm_dir,
@@ -101,6 +103,8 @@ from charmhelpers.contrib.openstack.utils import (
     pausable_restart_on_change as restart_on_change,
     is_unit_paused_set,
     os_requires_version,
+    series_upgrade_prepare,
+    series_upgrade_complete,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
@@ -616,6 +620,20 @@ def certs_joined(relation_id=None):
 def certs_changed(relation_id=None, unit=None):
     process_certificates('glance', relation_id, unit)
     configure_https()
+
+
+@hooks.hook('pre-series-upgrade')
+def pre_series_upgrade():
+    juju_log("Running prepare series upgrade hook", "INFO")
+    series_upgrade_prepare(
+        pause_unit_helper, CONFIGS)
+
+
+@hooks.hook('post-series-upgrade')
+def post_series_upgrade():
+    juju_log("Running complete series upgrade hook", "INFO")
+    series_upgrade_complete(
+        resume_unit_helper, CONFIGS)
 
 
 if __name__ == '__main__':

@@ -186,7 +186,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('queens',
         ['2.16.0', '2.17.0']),
     ('rocky',
-        ['2.18.0']),
+        ['2.18.0', '2.19.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -1733,3 +1733,21 @@ def is_unit_upgrading_set():
             return not(not(kv.get('unit-upgrading')))
     except Exception:
         return False
+
+
+def series_upgrade_prepare(pause_unit_helper=None, configs=None):
+    """ Run common series upgrade prepare tasks."""
+    set_unit_upgrading()
+    if pause_unit_helper and configs:
+        if not is_unit_paused_set():
+            pause_unit_helper(configs)
+
+
+def series_upgrade_complete(resume_unit_helper=None, configs=None):
+    """ Run common series upgrade complete tasks."""
+    clear_unit_paused()
+    clear_unit_upgrading()
+    if configs:
+        configs.write_all()
+        if resume_unit_helper:
+            resume_unit_helper(configs)
