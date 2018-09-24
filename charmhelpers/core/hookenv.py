@@ -48,6 +48,7 @@ INFO = "INFO"
 DEBUG = "DEBUG"
 TRACE = "TRACE"
 MARKER = object()
+SH_MAX_ARG = 131071
 
 cache = {}
 
@@ -98,7 +99,7 @@ def log(message, level=None):
         command += ['-l', level]
     if not isinstance(message, six.string_types):
         message = repr(message)
-    command += [message]
+    command += [message[:SH_MAX_ARG]]
     # Missing juju-log should not cause failures in unit tests
     # Send log output to stderr
     try:

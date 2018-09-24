@@ -36,6 +36,9 @@ TO_PATCH = [
     'apt_update',
     'apt_upgrade',
     'apt_install',
+    'apt_purge',
+    'apt_autoremove',
+    'filter_missing_packages',
     'mkdir',
     'os_release',
     'service_start',
@@ -161,6 +164,7 @@ class TestGlanceUtils(CharmTestCase):
     @patch.object(utils, 'token_cache_pkgs')
     def test_determine_packages(self, token_cache_pkgs):
         self.config.side_effect = None
+        self.os_release.return_value = 'queens'
         token_cache_pkgs.return_value = []
         ex = utils.PACKAGES
         self.assertEqual(set(ex), set(utils.determine_packages()))
@@ -172,6 +176,7 @@ class TestGlanceUtils(CharmTestCase):
     def test_openstack_upgrade_leader(self, migrate):
         self.config.side_effect = None
         self.config.return_value = 'cloud:precise-havana'
+        self.os_release.return_value = 'havana'
         self.is_elected_leader.return_value = True
         self.get_os_codename_install_source.return_value = 'havana'
         configs = MagicMock()
@@ -185,9 +190,30 @@ class TestGlanceUtils(CharmTestCase):
         self.assertTrue(migrate.called)
 
     @patch.object(utils, 'migrate_database')
+    def test_openstack_upgrade_rocky(self, migrate):
+        self.config.side_effect = None
+        self.config.return_value = 'cloud:bionic-rocky'
+        self.os_release.return_value = 'rocky'
+        self.is_elected_leader.return_value = True
+        self.get_os_codename_install_source.return_value = 'rocky'
+        self.filter_missing_packages.return_value = ['python-glance']
+        configs = MagicMock()
+        utils.do_openstack_upgrade(configs)
+        self.assertTrue(configs.write_all.called)
+        self.apt_install.assert_called_with(utils.determine_packages(),
+                                            fatal=True)
+        self.apt_upgrade.assert_called_with(options=DPKG_OPTS,
+                                            fatal=True, dist=True)
+        self.apt_purge.assert_called_with(['python-glance'], fatal=True)
+        self.apt_autoremove.assert_called_with(purge=True, fatal=True)
+        configs.set_release.assert_called_with(openstack_release='rocky')
+        self.assertTrue(migrate.called)
+
+    @patch.object(utils, 'migrate_database')
     def test_openstack_upgrade_not_leader(self, migrate):
         self.config.side_effect = None
         self.config.return_value = 'cloud:precise-havana'
+        self.os_release.return_value = 'havana'
         self.is_elected_leader.return_value = False
         self.get_os_codename_install_source.return_value = 'havana'
         configs = MagicMock()

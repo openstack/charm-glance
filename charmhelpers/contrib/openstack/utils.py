@@ -1736,7 +1736,12 @@ def is_unit_upgrading_set():
 
 
 def series_upgrade_prepare(pause_unit_helper=None, configs=None):
-    """ Run common series upgrade prepare tasks."""
+    """ Run common series upgrade prepare tasks.
+
+    :param pause_unit_helper: function: Function to pause unit
+    :param configs: OSConfigRenderer object: Configurations
+    :returns None:
+    """
     set_unit_upgrading()
     if pause_unit_helper and configs:
         if not is_unit_paused_set():
@@ -1744,7 +1749,12 @@ def series_upgrade_prepare(pause_unit_helper=None, configs=None):
 
 
 def series_upgrade_complete(resume_unit_helper=None, configs=None):
-    """ Run common series upgrade complete tasks."""
+    """ Run common series upgrade complete tasks.
+
+    :param resume_unit_helper: function: Function to resume unit
+    :param configs: OSConfigRenderer object: Configurations
+    :returns None:
+    """
     clear_unit_paused()
     clear_unit_upgrading()
     if configs:

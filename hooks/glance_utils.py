@@ -27,7 +27,10 @@ from charmhelpers.fetch import (
     apt_upgrade,
     apt_update,
     apt_install,
-    add_source)
+    add_source,
+    apt_autoremove,
+    apt_purge,
+    filter_missing_packages)
 
 from charmhelpers.core.hookenv import (
     config,
@@ -86,6 +89,16 @@ CLUSTER_RES = "grp_glance_vips"
 PACKAGES = [
     "apache2", "glance", "python-mysqldb", "python-swiftclient",
     "python-psycopg2", "python-keystone", "python-six", "uuid", "haproxy", ]
+
+PY3_PACKAGES = [
+    "python3-glance",
+    "python3-rados",
+    "python3-rbd",
+    "python3-swiftclient",
+    "python3-cinderclient",
+    "python3-os-brick",
+    "python3-oslo.rootwrap",
+]
 
 VERSION_PACKAGE = 'glance-common'
 
@@ -247,7 +260,27 @@ def register_configs():
 def determine_packages():
     packages = set(PACKAGES)
     packages |= set(token_cache_pkgs(source=config('openstack-origin')))
+    if CompareOpenStackReleases(os_release(VERSION_PACKAGE)) >= 'rocky':
+        packages = [p for p in packages if not p.startswith('python-')]
+        packages.extend(PY3_PACKAGES)
     return sorted(packages)
+
+
+def determine_purge_packages():
+    '''
+    Determine list of packages that where previously installed which are no
+    longer needed.
+
+    :returns: list of package names
+    '''
+    if CompareOpenStackReleases(os_release('cinder')) >= 'rocky':
+        pkgs = [p for p in PACKAGES if p.startswith('python-')]
+        pkgs.append('python-glance')
+        pkgs.append('python-memcache')
+        pkgs.extend(["python-cinderclient",
+                     "python-os-brick",
+                     "python-oslo.rootwrap"])
+    return []
 
 
 # NOTE(jamespage): Retry deals with sync issues during one-shot HA deploys.
@@ -283,6 +316,11 @@ def do_openstack_upgrade(configs):
     apt_upgrade(options=dpkg_opts, fatal=True, dist=True)
     reset_os_release()
     apt_install(determine_packages(), fatal=True)
+
+    installed_packages = filter_missing_packages(determine_purge_packages())
+    if installed_packages:
+        apt_purge(installed_packages, fatal=True)
+        apt_autoremove(purge=True, fatal=True)
 
     # set CONFIGS to load templates from new release and regenerate config
     configs.set_release(openstack_release=new_os_rel)

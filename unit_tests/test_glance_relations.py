@@ -112,6 +112,7 @@ class GlanceRelationTests(CharmTestCase):
         super(GlanceRelationTests, self).setUp(relations, TO_PATCH)
         self.config.side_effect = self.test_config.get
         self.restart_on_change.return_value = None
+        self.os_release.return_value = 'icehouse'
 
     def test_install_hook(self):
         repo = 'cloud:precise-grizzly'
@@ -297,7 +298,7 @@ class GlanceRelationTests(CharmTestCase):
 
     def test_ceph_joined(self):
         relations.ceph_joined()
-        self.apt_install.assert_called_with(['ceph-common', 'python-ceph'])
+        self.apt_install.assert_called_with(['ceph-common'])
 
     @patch.object(relations, 'CONFIGS')
     def test_ceph_changed_missing_relation_data(self, configs):
@@ -814,6 +815,14 @@ class GlanceRelationTests(CharmTestCase):
              "python-os-brick",
              "python-oslo.rootwrap"], fatal=True
         )
+
+    @patch.object(relations, 'CONFIGS')
+    def test_cinder_volume_joined_rocky(self, configs):
+        self.filter_installed_packages.side_effect = lambda pkgs: pkgs
+        self.os_release.return_value = 'rocky'
+        relations.cinder_volume_service_relation_joined()
+        self.assertTrue(configs.write_all.called)
+        self.apt_install.assert_not_called()
 
     @patch.object(relations, 'CONFIGS')
     def test_storage_backend_changed(self, configs):

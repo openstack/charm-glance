@@ -105,6 +105,7 @@ from charmhelpers.contrib.openstack.utils import (
     os_requires_version,
     series_upgrade_prepare,
     series_upgrade_complete,
+    CompareOpenStackReleases,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
@@ -263,7 +264,7 @@ def object_store_joined():
 
 @hooks.hook('ceph-relation-joined')
 def ceph_joined():
-    apt_install(['ceph-common', 'python-ceph'])
+    apt_install(['ceph-common'])
 
 
 def get_ceph_request():
@@ -586,7 +587,10 @@ def install_packages_for_cinder_store():
     optional_packages = ["python-cinderclient",
                          "python-os-brick",
                          "python-oslo.rootwrap"]
-    apt_install(filter_installed_packages(optional_packages), fatal=True)
+    release = os_release('glance-common')
+    cmp_release = CompareOpenStackReleases(release)
+    if cmp_release < 'rocky':
+        apt_install(filter_installed_packages(optional_packages), fatal=True)
 
 
 @hooks.hook('cinder-volume-service-relation-joined')

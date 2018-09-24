@@ -1013,6 +1013,9 @@ class OpenStackAmuletUtils(AmuletUtils):
                                cmd, code, output))
             amulet.raise_status(amulet.FAIL, msg=msg)
 
+        # For mimic ceph osd lspools output
+        output = output.replace("\n", ",")
+
         # Example output: 0 data,1 metadata,2 rbd,3 cinder,4 glance,
         for pool in str(output).split(','):
             pool_id_name = pool.split(' ')
