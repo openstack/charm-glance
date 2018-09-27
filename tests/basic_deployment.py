@@ -125,8 +125,18 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             self.keystone_sentry,
             openstack_release=self._get_openstack_release())
 
+        force_v1_client = False
+        if self._get_openstack_release() == self.trusty_icehouse:
+            # Updating image properties (such as arch or hypervisor) using the
+            # v2 api in icehouse results in:
+            # https://bugs.launchpad.net/python-glanceclient/+bug/1371559
+            u.log.debug('Forcing glance to use v1 api')
+            force_v1_client = True
+
         # Authenticate admin with glance endpoint
-        self.glance = u.authenticate_glance_admin(self.keystone)
+        self.glance = u.authenticate_glance_admin(
+            self.keystone,
+            force_v1_client=force_v1_client)
 
     def test_100_services(self):
         """Verify that the expected services are running on the
@@ -361,90 +371,12 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
             message = u.relation_error('glance amqp', ret)
             amulet.raise_status(amulet.FAIL, msg=message)
 
-    def _get_keystone_authtoken_expected_dict(self, rel_ks_gl):
-        """Return expected authtoken dict for OS release"""
-        auth_uri = ('http://%s:%s/' %
-                    (rel_ks_gl['auth_host'], rel_ks_gl['service_port']))
-        auth_url = ('http://%s:%s/' %
-                    (rel_ks_gl['auth_host'], rel_ks_gl['auth_port']))
-        if self._get_openstack_release() >= self.xenial_queens:
-            expected = {
-                'keystone_authtoken': {
-                    'auth_uri': auth_uri.rstrip('/'),
-                    'auth_url': auth_url.rstrip('/'),
-                    'auth_type': 'password',
-                    'project_domain_name': 'service_domain',
-                    'user_domain_name': 'service_domain',
-                    'project_name': 'services',
-                    'username': rel_ks_gl['service_username'],
-                    'password': rel_ks_gl['service_password'],
-                    'signing_dir': '/var/cache/glance'
-                }
-            }
-        elif self._get_openstack_release() >= self.trusty_mitaka:
-            expected = {
-                'keystone_authtoken': {
-                    'auth_uri': auth_uri.rstrip('/'),
-                    'auth_url': auth_url.rstrip('/'),
-                    'auth_type': 'password',
-                    'project_domain_name': 'default',
-                    'user_domain_name': 'default',
-                    'project_name': 'services',
-                    'username': rel_ks_gl['service_username'],
-                    'password': rel_ks_gl['service_password'],
-                    'signing_dir': '/var/cache/glance'
-                }
-            }
-        elif self._get_openstack_release() >= self.trusty_liberty:
-            expected = {
-                'keystone_authtoken': {
-                    'auth_uri': auth_uri.rstrip('/'),
-                    'auth_url': auth_url.rstrip('/'),
-                    'auth_plugin': 'password',
-                    'project_domain_id': 'default',
-                    'user_domain_id': 'default',
-                    'project_name': 'services',
-                    'username': rel_ks_gl['service_username'],
-                    'password': rel_ks_gl['service_password'],
-                    'signing_dir': '/var/cache/glance'
-                }
-            }
-        elif self._get_openstack_release() >= self.trusty_kilo:
-            expected = {
-                'keystone_authtoken': {
-                    'project_name': 'services',
-                    'username': 'glance',
-                    'password': rel_ks_gl['service_password'],
-                    'auth_uri': u.valid_url,
-                    'auth_url': u.valid_url,
-                    'signing_dir': '/var/cache/glance',
-                }
-            }
-        else:
-            expected = {
-                'keystone_authtoken': {
-                    'auth_uri': u.valid_url,
-                    'auth_host': rel_ks_gl['auth_host'],
-                    'auth_port': rel_ks_gl['auth_port'],
-                    'auth_protocol': rel_ks_gl['auth_protocol'],
-                    'admin_tenant_name': 'services',
-                    'admin_user': 'glance',
-                    'admin_password': rel_ks_gl['service_password'],
-                    'signing_dir': '/var/cache/glance',
-                }
-            }
-
-        return expected
-
     def test_300_glance_api_default_config(self):
         """Verify default section configs in glance-api.conf and
            compare some of the parameters to relation data."""
         u.log.debug('Checking glance api config file...')
         unit = self.glance_sentry
-        unit_ks = self.keystone_sentry
         rel_mq_gl = self.rabbitmq_sentry.relation('amqp', 'glance:amqp')
-        rel_ks_gl = unit_ks.relation('identity-service',
-                                     'glance:identity-service')
         rel_my_gl = self.pxc_sentry.relation('shared-db', 'glance:shared-db')
         db_uri = "mysql://{}:{}@{}/{}".format('glance', rel_my_gl['password'],
                                               rel_my_gl['db_host'], 'glance')
@@ -468,8 +400,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                 'db_enforce_mysql_charset': 'False'
             },
         }
-
-        expected.update(self._get_keystone_authtoken_expected_dict(rel_ks_gl))
 
         if self._get_openstack_release() >= self.trusty_kilo:
             # Kilo or later
@@ -529,9 +459,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         """Verify configs in glance-registry.conf"""
         u.log.debug('Checking glance registry config file...')
         unit = self.glance_sentry
-        unit_ks = self.keystone_sentry
-        rel_ks_gl = unit_ks.relation('identity-service',
-                                     'glance:identity-service')
         rel_my_gl = self.pxc_sentry.relation('shared-db', 'glance:shared-db')
         db_uri = "mysql://{}:{}@{}/{}".format('glance', rel_my_gl['password'],
                                               rel_my_gl['db_host'], 'glance')
@@ -560,8 +487,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                 'idle_timeout': '3600',
                 'connection': db_uri
             }
-
-        expected.update(self._get_keystone_authtoken_expected_dict(rel_ks_gl))
 
         for section, pairs in expected.iteritems():
             ret = u.validate_config_data(unit, conf, section, pairs)

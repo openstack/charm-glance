@@ -1523,10 +1523,6 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'enable-nsg-logging',
                 'default': False,
             },
-            'nsg_log_output_base': {
-                'rel_key': 'nsg-log-output-base',
-                'default': None,
-            },
         }
         ctxt = self.get_neutron_options({})
         for rid in relation_ids('neutron-plugin-api'):
@@ -1901,7 +1897,7 @@ class EnsureDirContext(OSContextGenerator):
     Some software requires a user to create a target directory to be
     scanned for drop-in files with a specific format. This is why this
     context is needed to do that before rendering a template.
-   '''
+    '''
 
     def __init__(self, dirname, **kwargs):
         '''Used merely to ensure that a given directory exists.'''
@@ -1911,3 +1907,23 @@ class EnsureDirContext(OSContextGenerator):
     def __call__(self):
         mkdir(self.dirname, **self.kwargs)
         return {}
+
+
+class VersionsContext(OSContextGenerator):
+    """Context to return the openstack and operating system versions.
+
+    """
+    def __init__(self, pkg='python-keystone'):
+        """Initialise context.
+
+        :param pkg: Package to extrapolate openstack version from.
+        :type pkg: str
+        """
+        self.pkg = pkg
+
+    def __call__(self):
+        ostack = os_release(self.pkg, base='icehouse')
+        osystem = lsb_release()['DISTRIB_CODENAME'].lower()
+        return {
+            'openstack_release': ostack,
+            'operating_system_release': osystem}

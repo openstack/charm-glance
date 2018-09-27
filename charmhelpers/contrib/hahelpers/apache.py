@@ -23,8 +23,8 @@
 #
 
 import os
-import subprocess
 
+from charmhelpers.core import host
 from charmhelpers.core.hookenv import (
     config as config_get,
     relation_get,
@@ -83,14 +83,4 @@ def retrieve_ca_cert(cert_file):
 
 
 def install_ca_cert(ca_cert):
-    if ca_cert:
-        cert_file = ('/usr/local/share/ca-certificates/'
-                     'keystone_juju_ca_cert.crt')
-        old_cert = retrieve_ca_cert(cert_file)
-        if old_cert and old_cert == ca_cert:
-            log("CA cert is the same as installed version", level=INFO)
-        else:
-            log("Installing new CA cert", level=INFO)
-            with open(cert_file, 'wb') as crt:
-                crt.write(ca_cert)
-            subprocess.check_call(['update-ca-certificates', '--fresh'])
+    host.install_ca_cert(ca_cert, 'keystone_juju_ca_cert')
