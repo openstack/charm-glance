@@ -1,7 +1,0 @@
-repo: https://github.com/juju/charm-helpers
-destination: tests/charmhelpers
-include:
-    - core
-    - contrib.amulet
-    - contrib.openstack.amulet
-    - osplatform
