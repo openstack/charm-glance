@@ -88,7 +88,7 @@ CLUSTER_RES = "grp_glance_vips"
 
 PACKAGES = [
     "apache2", "glance", "python-mysqldb", "python-swiftclient",
-    "python-psycopg2", "python-keystone", "python-six", "uuid", "haproxy", ]
+    "python-psycopg2", "python-keystone", "uuid", "haproxy", ]
 
 PY3_PACKAGES = [
     "python3-glance",
@@ -280,6 +280,7 @@ def determine_purge_packages():
         pkgs.extend(["python-cinderclient",
                      "python-os-brick",
                      "python-oslo.rootwrap"])
+        return pkgs
     return []
 
 
