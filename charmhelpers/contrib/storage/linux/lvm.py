@@ -12,7 +12,7 @@ from subprocess import (
 ##################################################
 def deactivate_lvm_volume_group(block_device):
     '''
-    Deactivate any volume gruop associated with an LVM physical volume.
+    Deactivate any volume group associated with an LVM physical volume.
 
     :param block_device: str: Full path to LVM physical volume
     '''
