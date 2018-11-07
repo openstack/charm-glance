@@ -510,6 +510,67 @@ def related_units(relid=None):
         subprocess.check_output(units_cmd_line).decode('UTF-8')) or []
 
 
+def expected_peer_units():
+    """Get a generator for units we expect to join peer relation based on
+    goal-state.
+
+    The local unit is excluded from the result to make it easy to gauge
+    completion of all peers joining the relation with existing hook tools.
+
+    Example usage:
+    log('peer {} of {} joined peer relation'
+        .format(len(related_units()),
+                len(list(expected_peer_units()))))
+
+    This function will raise NotImplementedError if used with juju versions
+    without goal-state support.
+
+    :returns: iterator
+    :rtype: types.GeneratorType
+    :raises: NotImplementedError
+    """
+    if not has_juju_version("2.4.0"):
+        # goal-state first appeared in 2.4.0.
+        raise NotImplementedError("goal-state")
+    _goal_state = goal_state()
+    return (key for key in _goal_state['units']
+            if '/' in key and key != local_unit())
+
+
+def expected_related_units(reltype=None):
+    """Get a generator for units we expect to join relation based on
+    goal-state.
+
+    Note that you can not use this function for the peer relation, take a look
+    at expected_peer_units() for that.
+
+    This function will raise KeyError if you request information for a
+    relation type for which juju goal-state does not have information.  It will
+    raise NotImplementedError if used with juju versions without goal-state
+    support.
+
+    Example usage:
+    log('participant {} of {} joined relation {}'
+        .format(len(related_units()),
+                len(list(expected_related_units())),
+                relation_type()))
+
+    :param reltype: Relation type to list data for, default is to list data for
+                    the realtion type we are currently executing a hook for.
+    :type reltype: str
+    :returns: iterator
+    :rtype: types.GeneratorType
+    :raises: KeyError, NotImplementedError
+    """
+    if not has_juju_version("2.4.4"):
+        # goal-state existed in 2.4.0, but did not list individual units to
+        # join a relation in 2.4.1 through 2.4.3. (LP: #1794739)
+        raise NotImplementedError("goal-state relation unit count")
+    reltype = reltype or relation_type()
+    _goal_state = goal_state()
+    return (key for key in _goal_state['relations'][reltype] if '/' in key)
+
+
 @cached
 def relation_for_unit(unit=None, rid=None):
     """Get the json represenation of a unit's relation"""
@@ -998,6 +1059,7 @@ def application_version_set(version):
 
 
 @translate_exc(from_exc=OSError, to_exc=NotImplementedError)
+@cached
 def goal_state():
     """Juju goal state values"""
     cmd = ['goal-state', '--format=json']

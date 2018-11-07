@@ -294,7 +294,7 @@ def apt_unhold(packages, fatal=False):
 def import_key(key):
     """Import an ASCII Armor key.
 
-    /!\ A Radix64 format keyid is also supported for backwards
+    A Radix64 format keyid is also supported for backwards
     compatibility, but should never be used; the key retrieval
     mechanism is insecure and subject to man-in-the-middle attacks
     voiding all signature checks using that key.
@@ -454,6 +454,9 @@ def _add_apt_repository(spec):
 
     :param spec: the parameter to pass to add_apt_repository
     """
+    if '{series}' in spec:
+        series = lsb_release()['DISTRIB_CODENAME']
+        spec = spec.replace('{series}', series)
     _run_with_retries(['add-apt-repository', '--yes', spec])
 
 
