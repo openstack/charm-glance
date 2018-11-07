@@ -31,6 +31,18 @@ _add_path(_parent)
 _add_path(_hooks)
 
 
+_path = os.path.dirname(os.path.realpath(__file__))
+_parent = os.path.abspath(os.path.join(_path, ".."))
+
+
+def _add_path(path):
+    if path not in sys.path:
+        sys.path.insert(1, path)
+
+
+_add_path(_parent)
+
+
 from charmhelpers.contrib.openstack.utils import (
     do_action_openstack_upgrade,
 )
