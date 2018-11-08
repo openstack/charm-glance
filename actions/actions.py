@@ -33,8 +33,6 @@ _add_path(_hooks)
 
 from charmhelpers.core.hookenv import action_fail
 
-sys.path.append('hooks/')
-
 from glance_utils import (
     pause_unit_helper,
     resume_unit_helper,
