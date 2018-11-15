@@ -273,7 +273,7 @@ def determine_purge_packages():
 
     :returns: list of package names
     '''
-    if CompareOpenStackReleases(os_release('cinder')) >= 'rocky':
+    if CompareOpenStackReleases(os_release('glance')) >= 'rocky':
         pkgs = [p for p in PACKAGES if p.startswith('python-')]
         pkgs.append('python-glance')
         pkgs.append('python-memcache')
@@ -293,6 +293,18 @@ def migrate_database():
     '''
     cmd = ['glance-manage', 'db_sync']
     subprocess.check_call(cmd)
+
+
+def remove_old_packages():
+    '''Purge any packages that need ot be removed.
+
+    :returns: bool Whether packages were removed.
+    '''
+    installed_packages = filter_missing_packages(determine_purge_packages())
+    if installed_packages:
+        apt_purge(installed_packages, fatal=True)
+        apt_autoremove(purge=True, fatal=True)
+    return bool(installed_packages)
 
 
 def do_openstack_upgrade(configs):
@@ -318,10 +330,7 @@ def do_openstack_upgrade(configs):
     reset_os_release()
     apt_install(determine_packages(), fatal=True)
 
-    installed_packages = filter_missing_packages(determine_purge_packages())
-    if installed_packages:
-        apt_purge(installed_packages, fatal=True)
-        apt_autoremove(purge=True, fatal=True)
+    remove_old_packages()
 
     # set CONFIGS to load templates from new release and regenerate config
     configs.set_release(openstack_release=new_os_rel)
@@ -547,7 +556,7 @@ REINSTALL_OPTIONS = [
 ]
 
 
-def reinstall_paste_ini():
+def reinstall_paste_ini(force_reinstall=False):
     '''
     Re-install glance-{api,registry}-paste.ini file from packages
 
@@ -555,15 +564,25 @@ def reinstall_paste_ini():
     and the original files provided by the packages will be
     re-installed.
 
-    This will only ever be performed once per unit.
+    This will only be performed once per unit unless force_reinstall
+    is set to True.
     '''
     db = kv()
-    if not db.get(PASTE_INI_MARKER):
+    if not db.get(PASTE_INI_MARKER) or force_reinstall:
         for paste_file in [GLANCE_REGISTRY_PASTE,
                            GLANCE_API_PASTE]:
             if os.path.exists(paste_file):
                 os.remove(paste_file)
-        apt_install(packages=['glance-api', 'glance-registry'],
+        cmp_release = CompareOpenStackReleases(os_release('glance-common'))
+        if cmp_release < 'queens':
+            pkg_list = ['glance-api', 'glance-registry']
+        # glance-registry is deprecated in Queens
+        elif cmp_release < 'rocky':
+            pkg_list = ['glance-api']
+        # File is in glance-common for py3 packages.
+        else:
+            pkg_list = ['glance-common']
+        apt_install(packages=pkg_list,
                     options=REINSTALL_OPTIONS,
                     fatal=True)
         db.set(PASTE_INI_MARKER, True)

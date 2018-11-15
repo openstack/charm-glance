@@ -91,6 +91,8 @@ TO_PATCH = [
     'update_nrpe_config',
     'reinstall_paste_ini',
     'determine_packages',
+    'remove_old_packages',
+    'services',
     # other
     'call',
     'check_call',
@@ -572,12 +574,29 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'update_image_location_policy')
     @patch.object(relations, 'CONFIGS')
     def test_upgrade_charm(self, configs, mock_update_image_location_policy):
+        self.remove_old_packages.return_value = False
         self.filter_installed_packages.return_value = ['test']
         relations.upgrade_charm()
         self.apt_install.assert_called_with(['test'], fatal=True)
         self.assertTrue(configs.write_all.called)
         self.assertTrue(self.reinstall_paste_ini.called)
         self.assertTrue(mock_update_image_location_policy.called)
+        self.assertTrue(self.remove_old_packages.called)
+
+    @patch.object(relations, 'update_image_location_policy')
+    @patch.object(relations, 'CONFIGS')
+    def test_upgrade_charm_purge(self, configs,
+                                 mock_update_image_location_policy):
+        self.services.return_value = ['glance-api']
+        self.remove_old_packages.return_value = True
+        self.filter_installed_packages.return_value = ['test']
+        relations.upgrade_charm()
+        self.apt_install.assert_called_with(['test'], fatal=True)
+        self.assertTrue(configs.write_all.called)
+        self.reinstall_paste_ini.assert_called_once_with(force_reinstall=True)
+        self.assertTrue(mock_update_image_location_policy.called)
+        self.assertTrue(self.remove_old_packages.called)
+        self.service_restart.assert_called_once_with('glance-api')
 
     def test_ha_relation_joined(self):
         self.get_hacluster_config.return_value = {

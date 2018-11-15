@@ -56,6 +56,7 @@ from glance_utils import (
     update_image_location_policy,
     pause_unit_helper,
     resume_unit_helper,
+    remove_old_packages,
 )
 from charmhelpers.core.hookenv import (
     charm_dir,
@@ -419,11 +420,16 @@ def cluster_changed():
 @harden()
 def upgrade_charm():
     apt_install(filter_installed_packages(determine_packages()), fatal=True)
-    reinstall_paste_ini()
+    packages_removed = remove_old_packages()
+    reinstall_paste_ini(force_reinstall=packages_removed)
     configure_https()
     update_nrpe_config()
     update_image_location_policy()
     CONFIGS.write_all()
+    if packages_removed:
+        juju_log("Package purge detected, restarting services", "INFO")
+        for s in services():
+            service_restart(s)
 
 
 @hooks.hook('ha-relation-joined')

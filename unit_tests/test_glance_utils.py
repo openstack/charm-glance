@@ -276,10 +276,12 @@ class TestGlanceUtils(CharmTestCase):
             # ports=None whilst port checks are disabled.
             f.assert_called_once_with('assessor', services='s1', ports=None)
 
+    @patch.object(utils, 'os_release')
     @patch.object(utils, 'os')
     @patch.object(utils, 'kv')
-    def test_reinstall_paste_ini(self, kv, _os):
+    def test_reinstall_paste_ini(self, kv, _os, mock_os_release):
         """Ensure that paste.ini files are re-installed"""
+        mock_os_release.return_value = 'pike'
         _os.path.exists.return_value = True
         test_kv = SimpleKV()
         kv.return_value = test_kv
@@ -299,6 +301,42 @@ class TestGlanceUtils(CharmTestCase):
         ])
         self.assertTrue(test_kv.get(utils.PASTE_INI_MARKER))
         self.assertTrue(test_kv.flushed)
+
+    @patch.object(utils, 'os_release')
+    @patch.object(utils, 'os')
+    @patch.object(utils, 'kv')
+    def test_reinstall_paste_ini_queens(self, kv, _os, mock_os_release):
+        """Ensure that paste.ini files are re-installed"""
+        mock_os_release.return_value = 'queens'
+        _os.path.exists.return_value = True
+        test_kv = SimpleKV()
+        kv.return_value = test_kv
+
+        utils.reinstall_paste_ini()
+        self.apt_install.assert_called_with(
+            packages=['glance-api'],
+            options=utils.REINSTALL_OPTIONS,
+            fatal=True
+        )
+
+    @patch.object(utils, 'os_release')
+    @patch.object(utils, 'os')
+    @patch.object(utils, 'kv')
+    def test_reinstall_paste_ini_rocky(self, kv, _os, mock_os_release):
+        """Ensure that paste.ini files are re-installed"""
+        mock_os_release.return_value = 'queens'
+        _os.path.exists.return_value = True
+        test_kv = SimpleKV()
+        kv.return_value = test_kv
+
+        self.apt_install.reset_mock()
+        mock_os_release.return_value = 'rocky'
+        utils.reinstall_paste_ini()
+        self.apt_install.assert_called_with(
+            packages=['glance-common'],
+            options=utils.REINSTALL_OPTIONS,
+            fatal=True
+        )
 
     @patch.object(utils, 'kv')
     def test_reinstall_paste_ini_idempotent(self, kv):
