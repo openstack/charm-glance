@@ -45,7 +45,6 @@ from charmhelpers.core.host import (
     CompareHostReleases,
     lsb_release,
     mkdir,
-    pwgen,
     service_stop,
     service_start,
 )
@@ -431,48 +430,6 @@ def check_optional_relations(configs):
     # return 'unknown' as the lowest priority to not clobber an existing
     # status.
     return "unknown", ""
-
-
-def swift_temp_url_key():
-    """Generate a temp URL key, post it to Swift and return its value.
-       If it is already posted, the current value of the key will be returned.
-    """
-    import requests
-    keystone_ctxt = context.IdentityServiceContext(service='glance',
-                                                   service_user='glance')()
-    if not keystone_ctxt:
-        log('Missing identity-service relation. Skipping generation of '
-            'swift temporary url key.')
-        return
-
-    auth_url = '%s://%s:%s/v2.0/' % (keystone_ctxt['service_protocol'],
-                                     keystone_ctxt['service_host'],
-                                     keystone_ctxt['service_port'])
-    from swiftclient import client
-    from swiftclient import exceptions
-
-    @retry_on_exception(15, base_delay=10,
-                        exc_type=(exceptions.ClientException,
-                                  requests.exceptions.ConnectionError))
-    def connect_and_post():
-        log('Connecting swift client...')
-        swift_connection = client.Connection(
-            authurl=auth_url, user='glance',
-            key=keystone_ctxt['admin_password'],
-            tenant_name=keystone_ctxt['admin_tenant_name'],
-            auth_version='2.0')
-
-        account_stats = swift_connection.head_account()
-        if 'x-account-meta-temp-url-key' in account_stats:
-            log("Temp URL key was already posted.")
-            return account_stats['x-account-meta-temp-url-key']
-
-        temp_url_key = pwgen(length=64)
-        swift_connection.post_account(headers={'x-account-meta-temp-url-key':
-                                               temp_url_key})
-        return temp_url_key
-
-    return connect_and_post()
 
 
 def assess_status(configs):
