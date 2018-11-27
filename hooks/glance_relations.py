@@ -49,7 +49,6 @@ from glance_utils import (
     HAPROXY_CONF,
     ceph_config_file,
     setup_ipv6,
-    swift_temp_url_key,
     assess_status,
     reinstall_paste_ini,
     is_api_ready,
@@ -234,13 +233,6 @@ def image_service_joined(relation_id=None):
 
     juju_log("%s: image-service_joined: To peer glance-api-server=%s" %
              (CHARM, relation_data['glance-api-server']))
-
-    if ('object-store' in CONFIGS.complete_contexts() and
-       'identity-service' in CONFIGS.complete_contexts()):
-        relation_data.update({
-            'swift-temp-url-key': swift_temp_url_key(),
-            'swift-container': 'glance'
-        })
 
     relation_set(relation_id=relation_id, **relation_data)
 
