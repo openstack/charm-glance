@@ -77,7 +77,7 @@ TO_PATCH = [
     'os_release',
     'openstack_upgrade_available',
     # charmhelpers.contrib.openstack.ha.utils
-    'update_dns_ha_resource_params',
+    'generate_ha_relation_data',
     'is_clustered',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'is_elected_leader',
@@ -99,9 +99,6 @@ TO_PATCH = [
     'execd_preinstall',
     'lsb_release',
     'filter_installed_packages',
-    'get_hacluster_config',
-    'get_netmask_for_address',
-    'get_iface_for_address',
     'sync_db_with_multi_ipv6_addresses',
     'delete_keyring',
     'get_relation_ip',
@@ -599,122 +596,10 @@ class GlanceRelationTests(CharmTestCase):
         self.service_restart.assert_called_once_with('glance-api')
 
     def test_ha_relation_joined(self):
-        self.get_hacluster_config.return_value = {
-            'ha-bindiface': 'em0',
-            'ha-mcastport': '8080',
-            'vip': '10.10.10.10',
-        }
-        self.get_iface_for_address.return_value = 'eth1'
-        self.get_netmask_for_address.return_value = '255.255.0.0'
-        relations.ha_relation_joined()
-        args = {
-            'relation_id': None,
-            'corosync_bindiface': 'em0',
-            'corosync_mcastport': '8080',
-            'init_services': {'res_glance_haproxy': 'haproxy'},
-            'resources': {'res_glance_eth1_vip': 'ocf:heartbeat:IPaddr2',
-                          'res_glance_haproxy': 'lsb:haproxy'},
-            'resource_params': {
-                'res_glance_eth1_vip': 'params ip="10.10.10.10"'
-                ' cidr_netmask="255.255.0.0" nic="eth1"',
-                'res_glance_haproxy': 'op monitor interval="5s"'},
-            'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
-        }
-        self.relation_set.assert_has_calls([
-            call(relation_id=None,
-                 groups={'grp_glance_vips': 'res_glance_eth1_vip'}),
-            call(**args),
-        ])
-
-    def test_ha_relation_joined_no_bound_ip(self):
-        self.get_hacluster_config.return_value = {
-            'ha-bindiface': 'em0',
-            'ha-mcastport': '8080',
-            'vip': '10.10.10.10',
-        }
-        self.test_config.set('vip_iface', 'eth120')
-        self.test_config.set('vip_cidr', '21')
-        self.get_iface_for_address.return_value = None
-        self.get_netmask_for_address.return_value = None
-        relations.ha_relation_joined()
-        args = {
-            'relation_id': None,
-            'corosync_bindiface': 'em0',
-            'corosync_mcastport': '8080',
-            'init_services': {'res_glance_haproxy': 'haproxy'},
-            'resources': {'res_glance_eth120_vip': 'ocf:heartbeat:IPaddr2',
-                          'res_glance_haproxy': 'lsb:haproxy'},
-            'resource_params': {
-                'res_glance_eth120_vip': 'params ip="10.10.10.10"'
-                ' cidr_netmask="21" nic="eth120"',
-                'res_glance_haproxy': 'op monitor interval="5s"'},
-            'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
-        }
-        self.relation_set.assert_has_calls([
-            call(relation_id=None,
-                 groups={'grp_glance_vips': 'res_glance_eth120_vip'}),
-            call(**args),
-        ])
-
-    def test_ha_relation_joined_with_ipv6(self):
-        self.test_config.set('prefer-ipv6', True)
-        self.get_hacluster_config.return_value = {
-            'ha-bindiface': 'em0',
-            'ha-mcastport': '8080',
-            'vip': '2001:db8:1::1',
-        }
-        self.get_iface_for_address.return_value = 'eth1'
-        self.get_netmask_for_address.return_value = '64'
-        relations.ha_relation_joined()
-        args = {
-            'relation_id': None,
-            'corosync_bindiface': 'em0',
-            'corosync_mcastport': '8080',
-            'init_services': {'res_glance_haproxy': 'haproxy'},
-            'resources': {'res_glance_eth1_vip': 'ocf:heartbeat:IPv6addr',
-                          'res_glance_haproxy': 'lsb:haproxy'},
-            'resource_params': {
-                'res_glance_eth1_vip': 'params ipv6addr="2001:db8:1::1"'
-                ' cidr_netmask="64" nic="eth1"',
-                'res_glance_haproxy': 'op monitor interval="5s"'},
-            'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
-        }
-        self.relation_set.assert_called_with(**args)
-
-    def test_ha_joined_dns_ha(self):
-        def _fake_update(resources, resource_params, relation_id=None):
-            resources.update({'res_glance_public_hostname': 'ocf:maas:dns'})
-            resource_params.update({'res_glance_public_hostname':
-                                    'params fqdn="keystone.maas" '
-                                    'ip_address="10.0.0.1"'})
-
-        self.test_config.set('dns-ha', True)
-        self.get_hacluster_config.return_value = {
-            'vip': None,
-            'ha-bindiface': 'em0',
-            'ha-mcastport': '8080',
-            'os-admin-hostname': None,
-            'os-internal-hostname': None,
-            'os-public-hostname': 'keystone.maas',
-        }
-        args = {
-            'relation_id': None,
-            'corosync_bindiface': 'em0',
-            'corosync_mcastport': '8080',
-            'init_services': {'res_glance_haproxy': 'haproxy'},
-            'resources': {'res_glance_public_hostname': 'ocf:maas:dns',
-                          'res_glance_haproxy': 'lsb:haproxy'},
-            'resource_params': {
-                'res_glance_public_hostname': 'params fqdn="keystone.maas" '
-                                              'ip_address="10.0.0.1"',
-                'res_glance_haproxy': 'op monitor interval="5s"'},
-            'clones': {'cl_glance_haproxy': 'res_glance_haproxy'}
-        }
-        self.update_dns_ha_resource_params.side_effect = _fake_update
-
-        relations.ha_relation_joined()
-        self.assertTrue(self.update_dns_ha_resource_params.called)
-        self.relation_set.assert_called_with(**args)
+        self.generate_ha_relation_data.return_value = {'rel_data': 'data'}
+        relations.ha_relation_joined(relation_id='rid:23')
+        self.relation_set.assert_called_once_with(
+            relation_id='rid:23', rel_data='data')
 
     def test_ha_relation_changed_not_clustered(self):
         self.relation_get.return_value = False

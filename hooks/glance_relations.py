@@ -63,7 +63,6 @@ from charmhelpers.core.hookenv import (
     Hooks,
     log as juju_log,
     DEBUG,
-    WARNING,
     open_port,
     local_unit,
     relation_get,
@@ -89,10 +88,9 @@ from charmhelpers.fetch import (
 from charmhelpers.contrib.hahelpers.cluster import (
     is_clustered,
     is_elected_leader,
-    get_hacluster_config
 )
 from charmhelpers.contrib.openstack.ha.utils import (
-    update_dns_ha_resource_params,
+    generate_ha_relation_data,
 )
 from charmhelpers.contrib.openstack.utils import (
     configure_installation_source,
@@ -118,9 +116,6 @@ from charmhelpers.payload.execd import (
     execd_preinstall
 )
 from charmhelpers.contrib.network.ip import (
-    get_netmask_for_address,
-    get_iface_for_address,
-    is_ipv6,
     get_relation_ip,
 )
 from charmhelpers.contrib.openstack.ip import (
@@ -426,75 +421,8 @@ def upgrade_charm():
 
 @hooks.hook('ha-relation-joined')
 def ha_relation_joined(relation_id=None):
-    cluster_config = get_hacluster_config()
-
-    resources = {
-        'res_glance_haproxy': 'lsb:haproxy'
-    }
-
-    resource_params = {
-        'res_glance_haproxy': 'op monitor interval="5s"'
-    }
-
-    if config('dns-ha'):
-        update_dns_ha_resource_params(relation_id=relation_id,
-                                      resources=resources,
-                                      resource_params=resource_params)
-    else:
-        vip_group = []
-        for vip in cluster_config['vip'].split():
-            if is_ipv6(vip):
-                res_ks_vip = 'ocf:heartbeat:IPv6addr'
-                vip_params = 'ipv6addr'
-            else:
-                res_ks_vip = 'ocf:heartbeat:IPaddr2'
-                vip_params = 'ip'
-
-            iface = (get_iface_for_address(vip) or
-                     config('vip_iface'))
-            netmask = (get_netmask_for_address(vip) or
-                       config('vip_cidr'))
-
-            if iface is not None:
-                vip_key = 'res_glance_{}_vip'.format(iface)
-                if vip_key in vip_group:
-                    if vip not in resource_params[vip_key]:
-                        vip_key = '{}_{}'.format(vip_key, vip_params)
-                    else:
-                        juju_log("Resource '{}' (vip='{}') already exists in "
-                                 "vip group - skipping".format(vip_key, vip),
-                                 WARNING)
-                        continue
-
-                resources[vip_key] = res_ks_vip
-                resource_params[vip_key] = (
-                    'params {ip}="{vip}" cidr_netmask="{netmask}"'
-                    ' nic="{iface}"'.format(ip=vip_params,
-                                            vip=vip,
-                                            iface=iface,
-                                            netmask=netmask)
-                )
-                vip_group.append(vip_key)
-
-        if len(vip_group) >= 1:
-            relation_set(relation_id=relation_id,
-                         groups={'grp_glance_vips': ' '.join(vip_group)})
-
-    init_services = {
-        'res_glance_haproxy': 'haproxy',
-    }
-
-    clones = {
-        'cl_glance_haproxy': 'res_glance_haproxy',
-    }
-
-    relation_set(relation_id=relation_id,
-                 init_services=init_services,
-                 corosync_bindiface=cluster_config['ha-bindiface'],
-                 corosync_mcastport=cluster_config['ha-mcastport'],
-                 resources=resources,
-                 resource_params=resource_params,
-                 clones=clones)
+    settings = generate_ha_relation_data('glance')
+    relation_set(relation_id=relation_id, **settings)
 
 
 @hooks.hook('ha-relation-changed')

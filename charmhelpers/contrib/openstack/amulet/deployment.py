@@ -168,7 +168,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
                          'nrpe', 'openvswitch-odl', 'neutron-api-odl',
                          'odl-controller', 'cinder-backup', 'nexentaedge-data',
                          'nexentaedge-iscsi-gw', 'nexentaedge-swift-gw',
-                         'cinder-nexentaedge', 'nexentaedge-mgmt']))
+                         'cinder-nexentaedge', 'nexentaedge-mgmt',
+                         'ceilometer-agent']))
 
         if self.openstack:
             for svc in services:

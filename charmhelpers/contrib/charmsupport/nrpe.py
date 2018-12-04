@@ -416,15 +416,20 @@ def copy_nrpe_checks(nrpe_files_dir=None):
 
     """
     NAGIOS_PLUGINS = '/usr/local/lib/nagios/plugins'
-    default_nrpe_files_dir = os.path.join(
-        os.getenv('CHARM_DIR'),
-        'hooks',
-        'charmhelpers',
-        'contrib',
-        'openstack',
-        'files')
-    if not nrpe_files_dir:
-        nrpe_files_dir = default_nrpe_files_dir
+    if nrpe_files_dir is None:
+        # determine if "charmhelpers" is in CHARMDIR or CHARMDIR/hooks
+        for segment in ['.', 'hooks']:
+            nrpe_files_dir = os.path.abspath(os.path.join(
+                os.getenv('CHARM_DIR'),
+                segment,
+                'charmhelpers',
+                'contrib',
+                'openstack',
+                'files'))
+            if os.path.isdir(nrpe_files_dir):
+                break
+        else:
+            raise RuntimeError("Couldn't find charmhelpers directory")
     if not os.path.exists(NAGIOS_PLUGINS):
         os.makedirs(NAGIOS_PLUGINS)
     for fname in glob.glob(os.path.join(nrpe_files_dir, "check_*")):

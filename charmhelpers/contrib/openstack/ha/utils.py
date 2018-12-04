@@ -23,6 +23,7 @@
 Helpers for high availability.
 """
 
+import hashlib
 import json
 
 import re
@@ -35,7 +36,6 @@ from charmhelpers.core.hookenv import (
     config,
     status_set,
     DEBUG,
-    WARNING,
 )
 
 from charmhelpers.core.host import (
@@ -124,13 +124,29 @@ def expect_ha():
     return len(ha_related_units) > 0 or config('vip') or config('dns-ha')
 
 
-def generate_ha_relation_data(service):
+def generate_ha_relation_data(service, extra_settings=None):
     """ Generate relation data for ha relation
 
     Based on configuration options and unit interfaces, generate a json
     encoded dict of relation data items for the hacluster relation,
     providing configuration for DNS HA or VIP's + haproxy clone sets.
 
+    Example of supplying additional settings::
+
+        COLO_CONSOLEAUTH = 'inf: res_nova_consoleauth grp_nova_vips'
+        AGENT_CONSOLEAUTH = 'ocf:openstack:nova-consoleauth'
+        AGENT_CA_PARAMS = 'op monitor interval="5s"'
+
+        ha_console_settings = {
+            'colocations': {'vip_consoleauth': COLO_CONSOLEAUTH},
+            'init_services': {'res_nova_consoleauth': 'nova-consoleauth'},
+            'resources': {'res_nova_consoleauth': AGENT_CONSOLEAUTH},
+            'resource_params': {'res_nova_consoleauth': AGENT_CA_PARAMS})
+        generate_ha_relation_data('nova', extra_settings=ha_console_settings)
+
+
+    @param service: Name of the service being configured
+    @param extra_settings: Dict of additional resource data
     @returns dict: json encoded data for use with relation_set
     """
     _haproxy_res = 'res_{}_haproxy'.format(service)
@@ -148,6 +164,13 @@ def generate_ha_relation_data(service):
             'cl_{}_haproxy'.format(service): _haproxy_res
         },
     }
+
+    if extra_settings:
+        for k, v in extra_settings.items():
+            if _relation_data.get(k):
+                _relation_data[k].update(v)
+            else:
+                _relation_data[k] = v
 
     if config('dns-ha'):
         update_hacluster_dns_ha(service, _relation_data)
@@ -232,38 +255,66 @@ def update_hacluster_vip(service, relation_data):
     """
     cluster_config = get_hacluster_config()
     vip_group = []
+    vips_to_delete = []
     for vip in cluster_config['vip'].split():
         if is_ipv6(vip):
-            res_neutron_vip = 'ocf:heartbeat:IPv6addr'
+            res_vip = 'ocf:heartbeat:IPv6addr'
             vip_params = 'ipv6addr'
         else:
-            res_neutron_vip = 'ocf:heartbeat:IPaddr2'
+            res_vip = 'ocf:heartbeat:IPaddr2'
             vip_params = 'ip'
 
-        iface = (get_iface_for_address(vip) or
-                 config('vip_iface'))
-        netmask = (get_netmask_for_address(vip) or
-                   config('vip_cidr'))
+        iface = get_iface_for_address(vip)
+        netmask = get_netmask_for_address(vip)
+
+        fallback_params = False
+        if iface is None:
+            iface = config('vip_iface')
+            fallback_params = True
+        if netmask is None:
+            netmask = config('vip_cidr')
+            fallback_params = True
 
         if iface is not None:
+            # NOTE(jamespage): Delete old VIP resources
+            # Old style naming encoding iface in name
+            # does not work well in environments where
+            # interface/subnet wiring is not consistent
             vip_key = 'res_{}_{}_vip'.format(service, iface)
-            if vip_key in vip_group:
-                if vip not in relation_data['resource_params'][vip_key]:
-                    vip_key = '{}_{}'.format(vip_key, vip_params)
-                else:
-                    log("Resource '%s' (vip='%s') already exists in "
-                        "vip group - skipping" % (vip_key, vip), WARNING)
-                    continue
+            if vip_key in vips_to_delete:
+                vip_key = '{}_{}'.format(vip_key, vip_params)
+            vips_to_delete.append(vip_key)
 
-            relation_data['resources'][vip_key] = res_neutron_vip
-            relation_data['resource_params'][vip_key] = (
-                'params {ip}="{vip}" cidr_netmask="{netmask}" '
-                'nic="{iface}"'.format(ip=vip_params,
-                                       vip=vip,
-                                       iface=iface,
-                                       netmask=netmask)
-            )
+            vip_key = 'res_{}_{}_vip'.format(
+                service,
+                hashlib.sha1(vip.encode('UTF-8')).hexdigest()[:7])
+
+            relation_data['resources'][vip_key] = res_vip
+            # NOTE(jamespage):
+            # Use option provided vip params if these where used
+            # instead of auto-detected values
+            if fallback_params:
+                relation_data['resource_params'][vip_key] = (
+                    'params {ip}="{vip}" cidr_netmask="{netmask}" '
+                    'nic="{iface}"'.format(ip=vip_params,
+                                           vip=vip,
+                                           iface=iface,
+                                           netmask=netmask)
+                )
+            else:
+                # NOTE(jamespage):
+                # let heartbeat figure out which interface and
+                # netmask to configure, which works nicely
+                # when network interface naming is not
+                # consistent across units.
+                relation_data['resource_params'][vip_key] = (
+                    'params {ip}="{vip}"'.format(ip=vip_params,
+                                                 vip=vip))
+
             vip_group.append(vip_key)
+
+    if vips_to_delete:
+        relation_data['delete_resources'] = vips_to_delete
 
     if len(vip_group) >= 1:
         relation_data['groups'] = {
