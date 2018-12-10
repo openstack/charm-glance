@@ -156,6 +156,17 @@ options:
     default: ami,ari,aki,vhd,vmdk,raw,qcow2,vdi,iso,root-tar
     description: |
       Comma separated list of disk formats that Glance will support.
+  image-size-cap:
+    type: string
+    default: 1TB
+    description: |
+      Maximum size of image a user can upload. Defaults to 1TB
+      (1099511627776 bytes). Example values: 500M, 500MB, 5G, 5TB.
+      Valid units: K, KB, M, MB, G, GB, T, TB, P, PB. If no units provided,
+      bytes are assumed.
+      .
+      WARNING: this value should only be increased after careful consideration
+      and must be set to a value under 8EB (9223372036854775808 bytes).
   # HA configuration settings
   dns-ha:
     type: boolean

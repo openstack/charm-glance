@@ -12,13 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from charmhelpers.core.strutils import (
+    bytes_from_string
+)
+
 from charmhelpers.core.hookenv import (
     is_relation_made,
     relation_ids,
     relation_get,
     related_units,
     service_name,
-    config
+    config,
+    log as juju_log,
+    ERROR
 )
 
 from charmhelpers.contrib.openstack.context import (
@@ -46,6 +52,18 @@ class GlanceContext(OSContextGenerator):
         }
         if config('container-formats'):
             ctxt['container_formats'] = config('container-formats')
+
+        image_size_cap = config('image-size-cap')
+        if image_size_cap:
+            try:
+                ctxt['image_size_cap'] = bytes_from_string(
+                    image_size_cap.replace(' ', '').upper())
+            except (ValueError, KeyError):
+                juju_log('Unable to parse value for image-size-cap ({}), '
+                         'see config.yaml for information about valid '
+                         'formatting'.format(config('image-size-cap')),
+                         level=ERROR)
+                raise
         return ctxt
 
 
