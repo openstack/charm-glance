@@ -89,7 +89,7 @@ class ArchiveUrlFetchHandler(BaseFetchHandler):
         :param str source: URL pointing to an archive file.
         :param str dest: Local path location to download archive file to.
         """
-        # propogate all exceptions
+        # propagate all exceptions
         # URLError, OSError, etc
         proto, netloc, path, params, query, fragment = urlparse(source)
         if proto in ('http', 'https'):

@@ -1207,7 +1207,7 @@ class SubordinateConfigContext(OSContextGenerator):
 
     The subordinate interface allows subordinates to export their
     configuration requirements to the principle for multiple config
-    files and multiple serivces.  Ie, a subordinate that has interfaces
+    files and multiple services.  Ie, a subordinate that has interfaces
     to both glance and nova may export to following yaml blob as json::
 
         glance:
