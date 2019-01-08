@@ -305,7 +305,7 @@ class NRPE(object):
 
         # update-status hooks are configured to firing every 5 minutes by
         # default. When nagios-nrpe-server is restarted, the nagios server
-        # reports checks failing causing unneccessary alerts. Let's not restart
+        # reports checks failing causing unnecessary alerts. Let's not restart
         # on update-status hooks.
         if not hook_name() == 'update-status':
             service('restart', 'nagios-nrpe-server')

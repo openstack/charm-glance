@@ -378,8 +378,10 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         unit = self.glance_sentry
         rel_mq_gl = self.rabbitmq_sentry.relation('amqp', 'glance:amqp')
         rel_my_gl = self.pxc_sentry.relation('shared-db', 'glance:shared-db')
-        db_uri = "mysql://{}:{}@{}/{}".format('glance', rel_my_gl['password'],
-                                              rel_my_gl['db_host'], 'glance')
+        db_uri = "mysql+pymysql://{}:{}@{}/{}".format('glance',
+                                                      rel_my_gl['password'],
+                                                      rel_my_gl['db_host'],
+                                                      'glance')
         conf = '/etc/glance/glance-api.conf'
         expected = {
             'DEFAULT': {
@@ -460,8 +462,10 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         u.log.debug('Checking glance registry config file...')
         unit = self.glance_sentry
         rel_my_gl = self.pxc_sentry.relation('shared-db', 'glance:shared-db')
-        db_uri = "mysql://{}:{}@{}/{}".format('glance', rel_my_gl['password'],
-                                              rel_my_gl['db_host'], 'glance')
+        db_uri = "mysql+pymysql://{}:{}@{}/{}".format('glance',
+                                                      rel_my_gl['password'],
+                                                      rel_my_gl['db_host'],
+                                                      'glance')
         conf = '/etc/glance/glance-registry.conf'
 
         expected = {

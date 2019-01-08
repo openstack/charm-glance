@@ -57,7 +57,8 @@ OPENSTACK_RELEASES_PAIRS = [
     'trusty_mitaka', 'xenial_mitaka', 'xenial_newton',
     'yakkety_newton', 'xenial_ocata', 'zesty_ocata',
     'xenial_pike', 'artful_pike', 'xenial_queens',
-    'bionic_queens', 'bionic_rocky', 'cosmic_rocky']
+    'bionic_queens', 'bionic_rocky', 'cosmic_rocky',
+    'bionic_stein', 'disco_stein']
 
 
 class OpenStackAmuletUtils(AmuletUtils):

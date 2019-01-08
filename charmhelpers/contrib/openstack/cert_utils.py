@@ -195,7 +195,7 @@ def install_certs(ssl_dir, certs, chain=None):
         if chain:
             # Append chain file so that clients that trust the root CA will
             # trust certs signed by an intermediate in the chain
-            cert_data = cert_data + chain
+            cert_data = cert_data + os.linesep + chain
         write_file(
             path=os.path.join(ssl_dir, cert_filename),
             content=cert_data, perms=0o640)
