@@ -531,11 +531,10 @@ def reinstall_paste_ini(force_reinstall=False):
             if os.path.exists(paste_file):
                 os.remove(paste_file)
         cmp_release = CompareOpenStackReleases(os_release('glance-common'))
-        if cmp_release < 'queens':
+        # glance-registry is deprecated at queens but still
+        # installed.
+        if cmp_release < 'rocky':
             pkg_list = ['glance-api', 'glance-registry']
-        # glance-registry is deprecated in Queens
-        elif cmp_release < 'rocky':
-            pkg_list = ['glance-api']
         # File is in glance-common for py3 packages.
         else:
             pkg_list = ['glance-common']

@@ -314,7 +314,7 @@ class TestGlanceUtils(CharmTestCase):
 
         utils.reinstall_paste_ini()
         self.apt_install.assert_called_with(
-            packages=['glance-api'],
+            packages=['glance-api', 'glance-registry'],
             options=utils.REINSTALL_OPTIONS,
             fatal=True
         )
