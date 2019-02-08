@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 # Wrapper to deal with newer Ubuntu versions that don't have py2 installed
 # by default.
 
