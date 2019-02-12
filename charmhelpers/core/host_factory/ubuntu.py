@@ -72,6 +72,14 @@ def lsb_release():
     return d
 
 
+def get_distrib_codename():
+    """Return the codename of the distribution
+    :returns: The codename
+    :rtype: str
+    """
+    return lsb_release()['DISTRIB_CODENAME'].lower()
+
+
 def cmp_pkgrevno(package, revno, pkgcache=None):
     """Compare supplied revno with the revno of the installed package.
 

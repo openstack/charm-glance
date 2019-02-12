@@ -7,10 +7,10 @@ include:
     - fetch
     - contrib.openstack|inc=*
     - contrib.hahelpers
-    - contrib.storage.linux.ceph
+    - contrib.storage.linux
     - payload
     - contrib.network.ip
-    - contrib.python.packages
+    - contrib.python
     - contrib.charmsupport
     - core.kernel
     - contrib.hardening|inc=*

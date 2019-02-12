@@ -183,7 +183,7 @@ class OSConfigRenderer(object):
         /tmp/templates/grizzly/api-paste.ini
         /tmp/templates/havana/api-paste.ini
 
-    Since it was registered with the grizzly release, it first seraches
+    Since it was registered with the grizzly release, it first searches
     the grizzly directory for nova.conf, then the templates dir.
 
     When writing api-paste.ini, it will find the template in the grizzly
