@@ -42,29 +42,38 @@ class TestGlanceContexts(CharmTestCase):
         config = {
             'disk-formats': 'dfmt1',
             'container-formats': '',
+            'filesystem-store-datadir': "/var/lib/glance/images/",
             'image-size-cap': ''}
         self.config.side_effect = lambda x: config[x]
-        self.assertEqual(contexts.GlanceContext()(), {'disk_formats': 'dfmt1'})
+        self.assertEqual(contexts.GlanceContext()(), {
+            'disk_formats': 'dfmt1',
+            'filesystem_store_datadir': "/var/lib/glance/images/"})
 
     def test_glance_context_container_fmt(self):
         config = {
             'disk-formats': 'dfmt1',
             'container-formats': 'cmft1',
+            'filesystem-store-datadir': "/var/lib/glance/images/",
             'image-size-cap': ''}
         self.config.side_effect = lambda x: config[x]
         self.assertEqual(contexts.GlanceContext()(),
                          {'disk_formats': 'dfmt1',
+                          'filesystem_store_datadir':
+                             "/var/lib/glance/images/",
                           'container_formats': 'cmft1'})
 
     def test_glance_context_image_size_cap(self):
         config = {
             'disk-formats': 'dfmt1',
             'container-formats': 'cmft1',
+            'filesystem-store-datadir': "/var/lib/glance/images/",
             'image-size-cap': '1TB'}
         self.config.side_effect = lambda x: config[x]
         self.assertEqual(contexts.GlanceContext()(),
                          {'disk_formats': 'dfmt1',
                           'container_formats': 'cmft1',
+                          'filesystem_store_datadir':
+                             "/var/lib/glance/images/",
                           'image_size_cap': 1099511627776})
 
     def test_swift_not_related(self):

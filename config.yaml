@@ -337,3 +337,14 @@ options:
     description: |
       A comma-separated list of nagios service groups.
       If left empty, the nagios_context will be used as the servicegroup
+  filesystem-store-datadir:
+    type: string
+    default: "/var/lib/glance/images/"
+    description: |
+      Directory to which the filesystem backend store writes images.
+      Upon start up, Glance creates the directory if it doesn’t already exist
+      and verifies write access to the user under which glance-api runs. If
+      the write access isn’t available, a BadStoreConfiguration exception is
+      raised and the filesystem store may not be available for adding new
+      images. NOTE: This directory is used only when filesystem store is used
+      as a storage backend.

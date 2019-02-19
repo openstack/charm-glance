@@ -53,6 +53,10 @@ class GlanceContext(OSContextGenerator):
         if config('container-formats'):
             ctxt['container_formats'] = config('container-formats')
 
+        if config('filesystem-store-datadir'):
+            ctxt['filesystem_store_datadir'] = (
+                config('filesystem-store-datadir'))
+
         image_size_cap = config('image-size-cap')
         if image_size_cap:
             try:
