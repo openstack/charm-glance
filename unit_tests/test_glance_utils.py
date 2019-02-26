@@ -140,10 +140,11 @@ class TestGlanceUtils(CharmTestCase):
             )
         configs.register.assert_has_calls(calls, any_order=True)
 
-    def test_restart_map(self):
+    def test_restart_map_rocky(self):
         self.enable_memcache.return_value = True
         self.config.side_effect = None
         self.service_name.return_value = 'glance'
+        self.os_release.return_value = 'rocky'
 
         ex_map = OrderedDict([
             (utils.GLANCE_REGISTRY_CONF, ['glance-registry']),
@@ -155,6 +156,27 @@ class TestGlanceUtils(CharmTestCase):
             (utils.HTTPS_APACHE_24_CONF, ['apache2']),
             (utils.MEMCACHED_CONF, ['memcached']),
             (utils.GLANCE_POLICY_FILE, ['glance-api', 'glance-registry']),
+        ])
+        self.assertEqual(ex_map, utils.restart_map())
+        self.enable_memcache.return_value = False
+        del ex_map[utils.MEMCACHED_CONF]
+        self.assertEqual(ex_map, utils.restart_map())
+
+    def test_restart_map_stein(self):
+        self.enable_memcache.return_value = True
+        self.config.side_effect = None
+        self.service_name.return_value = 'glance'
+        self.os_release.return_value = 'stein'
+
+        ex_map = OrderedDict([
+            (utils.GLANCE_API_CONF, ['glance-api']),
+            (utils.GLANCE_SWIFT_CONF, ['glance-api']),
+            (utils.ceph_config_file(), ['glance-api']),
+            (utils.HAPROXY_CONF, ['haproxy']),
+            (utils.HTTPS_APACHE_CONF, ['apache2']),
+            (utils.HTTPS_APACHE_24_CONF, ['apache2']),
+            (utils.MEMCACHED_CONF, ['memcached']),
+            (utils.GLANCE_POLICY_FILE, ['glance-api']),
         ])
         self.assertEqual(ex_map, utils.restart_map())
         self.enable_memcache.return_value = False

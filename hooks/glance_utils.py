@@ -351,9 +351,13 @@ def restart_map():
                     that should be restarted when file changes.
     '''
     _map = []
+    cmp_release = CompareOpenStackReleases(os_release('glance-common'))
+
     for f, ctxt in CONFIG_FILES.items():
         svcs = []
         for svc in ctxt['services']:
+            if cmp_release >= 'stein' and svc == 'glance-registry':
+                continue
             svcs.append(svc)
         if svcs:
             _map.append((f, svcs))
@@ -361,7 +365,10 @@ def restart_map():
     if enable_memcache(source=config('openstack-origin')):
         _map.append((MEMCACHED_CONF, ['memcached']))
 
-    _map.append((GLANCE_POLICY_FILE, ['glance-api', 'glance-registry']))
+    if cmp_release >= 'stein':
+        _map.append((GLANCE_POLICY_FILE, ['glance-api']))
+    else:
+        _map.append((GLANCE_POLICY_FILE, ['glance-api', 'glance-registry']))
 
     return OrderedDict(_map)
 
