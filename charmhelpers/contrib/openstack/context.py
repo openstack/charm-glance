@@ -29,6 +29,7 @@ from charmhelpers.fetch import (
     filter_installed_packages,
 )
 from charmhelpers.core.hookenv import (
+    NoNetworkBinding,
     config,
     is_relation_made,
     local_unit,
@@ -868,7 +869,7 @@ class ApacheSSLContext(OSContextGenerator):
                     addr = network_get_primary_address(
                         ADDRESS_MAP[net_type]['binding']
                     )
-                except NotImplementedError:
+                except (NotImplementedError, NoNetworkBinding):
                     addr = fallback
 
             endpoint = resolve_address(net_type)
