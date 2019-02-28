@@ -50,6 +50,11 @@ TRACE = "TRACE"
 MARKER = object()
 SH_MAX_ARG = 131071
 
+
+RANGE_WARNING = ('Passing NO_PROXY string that includes a cidr. '
+                 'This may not be compatible with software you are '
+                 'running in your shell.')
+
 cache = {}
 
 
@@ -1414,3 +1419,72 @@ def unit_doomed(unit=None):
     # I don't think 'dead' units ever show up in the goal-state, but
     # check anyway in addition to 'dying'.
     return units[unit]['status'] in ('dying', 'dead')
+
+
+def env_proxy_settings(selected_settings=None):
+    """Get proxy settings from process environment variables.
+
+    Get charm proxy settings from environment variables that correspond to
+    juju-http-proxy, juju-https-proxy and juju-no-proxy (available as of 2.4.2,
+    see lp:1782236) in a format suitable for passing to an application that
+    reacts to proxy settings passed as environment variables. Some applications
+    support lowercase or uppercase notation (e.g. curl), some support only
+    lowercase (e.g. wget), there are also subjectively rare cases of only
+    uppercase notation support. no_proxy CIDR and wildcard support also varies
+    between runtimes and applications as there is no enforced standard.
+
+    Some applications may connect to multiple destinations and expose config
+    options that would affect only proxy settings for a specific destination
+    these should be handled in charms in an application-specific manner.
+
+    :param selected_settings: format only a subset of possible settings
+    :type selected_settings: list
+    :rtype: Option(None, dict[str, str])
+    """
+    SUPPORTED_SETTINGS = {
+        'http': 'HTTP_PROXY',
+        'https': 'HTTPS_PROXY',
+        'no_proxy': 'NO_PROXY',
+        'ftp': 'FTP_PROXY'
+    }
+    if selected_settings is None:
+        selected_settings = SUPPORTED_SETTINGS
+
+    selected_vars = [v for k, v in SUPPORTED_SETTINGS.items()
+                     if k in selected_settings]
+    proxy_settings = {}
+    for var in selected_vars:
+        var_val = os.getenv(var)
+        if var_val:
+            proxy_settings[var] = var_val
+            proxy_settings[var.lower()] = var_val
+        # Now handle juju-prefixed environment variables. The legacy vs new
+        # environment variable usage is mutually exclusive
+        charm_var_val = os.getenv('JUJU_CHARM_{}'.format(var))
+        if charm_var_val:
+            proxy_settings[var] = charm_var_val
+            proxy_settings[var.lower()] = charm_var_val
+    if 'no_proxy' in proxy_settings:
+        if _contains_range(proxy_settings['no_proxy']):
+            log(RANGE_WARNING, level=WARNING)
+    return proxy_settings if proxy_settings else None
+
+
+def _contains_range(addresses):
+    """Check for cidr or wildcard domain in a string.
+
+    Given a string comprising a comma seperated list of ip addresses
+    and domain names, determine whether the string contains IP ranges
+    or wildcard domains.
+
+    :param addresses: comma seperated list of domains and ip addresses.
+    :type addresses: str
+    """
+    return (
+        # Test for cidr (e.g. 10.20.20.0/24)
+        "/" in addresses or
+        # Test for wildcard domains (*.foo.com or .foo.com)
+        "*" in addresses or
+        addresses.startswith(".") or
+        ",." in addresses or
+        " ." in addresses)

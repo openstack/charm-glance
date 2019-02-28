@@ -19,7 +19,7 @@ from enum import Enum
 import traceback
 
 from charmhelpers.core.host import cmp_pkgrevno
-
+import charmhelpers.contrib.openstack.utils as openstack_utils
 import charmhelpers.core.hookenv as hookenv
 
 
@@ -39,7 +39,7 @@ def audit(*args):
     deployed system that matches the given configuration
 
     :param args: List of functions to filter tests against
-    :type args: List[Callable(Config)]
+    :type args: List[Callable[Dict]]
     """
     def wrapper(f):
         test_name = f.__name__
@@ -58,28 +58,92 @@ def audit(*args):
 
 
 def is_audit_type(*args):
-    """This audit is included in the specified kinds of audits."""
-    def should_run(audit_options):
+    """This audit is included in the specified kinds of audits.
+
+    :param *args: List of AuditTypes to include this audit in
+    :type args: List[AuditType]
+    :rtype: Callable[Dict]
+    """
+    def _is_audit_type(audit_options):
         if audit_options.get('audit_type') in args:
             return True
         else:
             return False
-    return should_run
+    return _is_audit_type
 
 
 def since_package(pkg, pkg_version):
-    """This audit should be run after the specified package version (incl)."""
-    return lambda audit_options=None: cmp_pkgrevno(pkg, pkg_version) >= 0
+    """This audit should be run after the specified package version (incl).
+
+    :param pkg: Package name to compare
+    :type pkg: str
+    :param release: The package version
+    :type release: str
+    :rtype: Callable[Dict]
+    """
+    def _since_package(audit_options=None):
+        return cmp_pkgrevno(pkg, pkg_version) >= 0
+
+    return _since_package
 
 
 def before_package(pkg, pkg_version):
-    """This audit should be run before the specified package version (excl)."""
-    return lambda audit_options=None: not since_package(pkg, pkg_version)()
+    """This audit should be run before the specified package version (excl).
+
+    :param pkg: Package name to compare
+    :type pkg: str
+    :param release: The package version
+    :type release: str
+    :rtype: Callable[Dict]
+    """
+    def _before_package(audit_options=None):
+        return not since_package(pkg, pkg_version)()
+
+    return _before_package
+
+
+def since_openstack_release(pkg, release):
+    """This audit should run after the specified OpenStack version (incl).
+
+    :param pkg: Package name to compare
+    :type pkg: str
+    :param release: The OpenStack release codename
+    :type release: str
+    :rtype: Callable[Dict]
+    """
+    def _since_openstack_release(audit_options=None):
+        _release = openstack_utils.get_os_codename_package(pkg)
+        return openstack_utils.CompareOpenStackReleases(_release) >= release
+
+    return _since_openstack_release
+
+
+def before_openstack_release(pkg, release):
+    """This audit should run before the specified OpenStack version (excl).
+
+    :param pkg: Package name to compare
+    :type pkg: str
+    :param release: The OpenStack release codename
+    :type release: str
+    :rtype: Callable[Dict]
+    """
+    def _before_openstack_release(audit_options=None):
+        return not since_openstack_release(pkg, release)()
+
+    return _before_openstack_release
 
 
 def it_has_config(config_key):
-    """This audit should be run based on specified config keys."""
-    return lambda audit_options: audit_options.get(config_key) is not None
+    """This audit should be run based on specified config keys.
+
+    :param config_key: Config key to look for
+    :type config_key: str
+    :rtype: Callable[Dict]
+    """
+    def _it_has_config(audit_options):
+        return audit_options.get(config_key) is not None
+
+    return _it_has_config
 
 
 def run(audit_options):
@@ -87,11 +151,19 @@ def run(audit_options):
 
     :param audit_options: Configuration for the audit
     :type audit_options: Config
+
+    :rtype: Dict[str, str]
     """
     errors = {}
     results = {}
     for name, audit in sorted(_audits.items()):
         result_name = name.replace('_', '-')
+        if result_name in audit_options.get('excludes', []):
+            print(
+                "Skipping {} because it is"
+                "excluded in audit config"
+                .format(result_name))
+            continue
         if all(p(audit_options) for p in audit.filters):
             try:
                 audit.func(audit_options)
@@ -121,7 +193,13 @@ def run(audit_options):
 
 
 def action_parse_results(result):
-    """Parse the result of `run` in the context of an action."""
+    """Parse the result of `run` in the context of an action.
+
+    :param result: The result of running the security-checklist
+        action on a unit
+    :type result: Dict[str, Dict[str, str]]
+    :rtype: int
+    """
     passed = True
     for test, result in result.items():
         if result['success']:

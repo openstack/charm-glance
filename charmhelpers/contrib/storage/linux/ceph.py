@@ -582,21 +582,24 @@ def remove_pool_snapshot(service, pool_name, snapshot_name):
         raise
 
 
-# max_bytes should be an int or long
-def set_pool_quota(service, pool_name, max_bytes):
+def set_pool_quota(service, pool_name, max_bytes=None, max_objects=None):
     """
-    :param service: six.string_types. The Ceph user name to run the command under
-    :param pool_name: six.string_types
-    :param max_bytes: int or long
-    :return: None.  Can raise CalledProcessError
+    :param service: The Ceph user name to run the command under
+    :type service: str
+    :param pool_name: Name of pool
+    :type pool_name: str
+    :param max_bytes: Maximum bytes quota to apply
+    :type max_bytes: int
+    :param max_objects: Maximum objects quota to apply
+    :type max_objects: int
+    :raises: subprocess.CalledProcessError
     """
-    # Set a byte quota on a RADOS pool in ceph.
-    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set-quota', pool_name,
-           'max_bytes', str(max_bytes)]
-    try:
-        check_call(cmd)
-    except CalledProcessError:
-        raise
+    cmd = ['ceph', '--id', service, 'osd', 'pool', 'set-quota', pool_name]
+    if max_bytes:
+        cmd = cmd + ['max_bytes', str(max_bytes)]
+    if max_objects:
+        cmd = cmd + ['max_objects', str(max_objects)]
+    check_call(cmd)
 
 
 def remove_pool_quota(service, pool_name):
@@ -1153,19 +1156,46 @@ class CephBrokerRq(object):
 
     def add_op_create_pool(self, name, replica_count=3, pg_num=None,
                            weight=None, group=None, namespace=None,
-                           app_name=None):
-        """Adds an operation to create a pool.
+                           app_name=None, max_bytes=None, max_objects=None):
+        """DEPRECATED: Use ``add_op_create_replicated_pool()`` or
+                       ``add_op_create_erasure_pool()`` instead.
+        """
+        return self.add_op_create_replicated_pool(
+            name, replica_count=replica_count, pg_num=pg_num, weight=weight,
+            group=group, namespace=namespace, app_name=app_name,
+            max_bytes=max_bytes, max_objects=max_objects)
 
-        @param pg_num setting:  optional setting. If not provided, this value
-        will be calculated by the broker based on how many OSDs are in the
-        cluster at the time of creation. Note that, if provided, this value
-        will be capped at the current available maximum.
-        @param weight: the percentage of data the pool makes up
+    def add_op_create_replicated_pool(self, name, replica_count=3, pg_num=None,
+                                      weight=None, group=None, namespace=None,
+                                      app_name=None, max_bytes=None,
+                                      max_objects=None):
+        """Adds an operation to create a replicated pool.
+
+        :param name: Name of pool to create
+        :type name: str
+        :param replica_count: Number of copies Ceph should keep of your data.
+        :type replica_count: int
+        :param pg_num: Request specific number of Placement Groups to create
+                       for pool.
+        :type pg_num: int
+        :param weight: The percentage of data that is expected to be contained
+                       in the pool from the total available space on the OSDs.
+                       Used to calculate number of Placement Groups to create
+                       for pool.
+        :type weight: float
+        :param group: Group to add pool to
+        :type group: str
+        :param namespace: Group namespace
+        :type namespace: str
         :param app_name: (Optional) Tag pool with application name.  Note that
                          there is certain protocols emerging upstream with
                          regard to meaningful application names to use.
                          Examples are ``rbd`` and ``rgw``.
         :type app_name: str
+        :param max_bytes: Maximum bytes quota to apply
+        :type max_bytes: int
+        :param max_objects: Maximum objects quota to apply
+        :type max_objects: int
         """
         if pg_num and weight:
             raise ValueError('pg_num and weight are mutually exclusive')
@@ -1173,7 +1203,41 @@ class CephBrokerRq(object):
         self.ops.append({'op': 'create-pool', 'name': name,
                          'replicas': replica_count, 'pg_num': pg_num,
                          'weight': weight, 'group': group,
-                         'group-namespace': namespace, 'app-name': app_name})
+                         'group-namespace': namespace, 'app-name': app_name,
+                         'max-bytes': max_bytes, 'max-objects': max_objects})
+
+    def add_op_create_erasure_pool(self, name, erasure_profile=None,
+                                   weight=None, group=None, app_name=None,
+                                   max_bytes=None, max_objects=None):
+        """Adds an operation to create a erasure coded pool.
+
+        :param name: Name of pool to create
+        :type name: str
+        :param erasure_profile: Name of erasure code profile to use.  If not
+                                set the ceph-mon unit handling the broker
+                                request will set its default value.
+        :type erasure_profile: str
+        :param weight: The percentage of data that is expected to be contained
+                       in the pool from the total available space on the OSDs.
+        :type weight: float
+        :param group: Group to add pool to
+        :type group: str
+        :param app_name: (Optional) Tag pool with application name.  Note that
+                         there is certain protocols emerging upstream with
+                         regard to meaningful application names to use.
+                         Examples are ``rbd`` and ``rgw``.
+        :type app_name: str
+        :param max_bytes: Maximum bytes quota to apply
+        :type max_bytes: int
+        :param max_objects: Maximum objects quota to apply
+        :type max_objects: int
+        """
+        self.ops.append({'op': 'create-pool', 'name': name,
+                         'pool-type': 'erasure',
+                         'erasure-profile': erasure_profile,
+                         'weight': weight,
+                         'group': group, 'app-name': app_name,
+                         'max-bytes': max_bytes, 'max-objects': max_objects})
 
     def set_ops(self, ops):
         """Set request ops to provided value.

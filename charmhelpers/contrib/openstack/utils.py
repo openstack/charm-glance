@@ -194,7 +194,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('rocky',
         ['2.18.0', '2.19.0']),
     ('stein',
-        ['2.19.0']),
+        ['2.20.0']),
 ])
 
 # >= Liberty version->codename mapping
