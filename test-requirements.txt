@@ -5,7 +5,7 @@ charm-tools>=2.4.4
 coverage>=3.6
 mock>=1.2
 flake8>=2.2.4,<=2.4.1
-os-testr>=0.4.1
+stestr>=2.2.0
 requests>=2.18.4
 # BEGIN: Amulet OpenStack Charm Helper Requirements
 # Liberty client lower constraints
