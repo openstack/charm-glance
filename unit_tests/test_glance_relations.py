@@ -354,13 +354,15 @@ class GlanceRelationTests(CharmTestCase):
             name='glance',
             replica_count=3,
             weight=6,
-            group='images')
+            group='images',
+            app_name='rbd')
         mock_request_access.assert_not_called()
 
         self.test_config.set('restrict-ceph-pools', True)
         relations.get_ceph_request()
         mock_create_pool.assert_called_with(name='glance', replica_count=3,
-                                            weight=6, group='images')
+                                            weight=6, group='images',
+                                            app_name='rbd')
         mock_request_access.assert_has_calls([
             call(
                 name='images',
