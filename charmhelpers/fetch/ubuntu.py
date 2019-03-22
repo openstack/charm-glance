@@ -20,10 +20,8 @@ import six
 import time
 import subprocess
 
-from charmhelpers.core.host import (
-    get_distrib_codename,
-    CompareHostReleases,
-)
+from charmhelpers.core.host import get_distrib_codename
+
 from charmhelpers.core.hookenv import (
     log,
     DEBUG,
@@ -362,14 +360,8 @@ def _get_keyid_by_gpg_key(key_material):
     :returns: A GPG key fingerprint
     :rtype: str
     """
-    # trusty, xenial and bionic handling differs due to gpg 1.x to 2.x change
-    release = get_distrib_codename()
-    is_gpgv2_distro = CompareHostReleases(release) >= "bionic"
-    if is_gpgv2_distro:
-        # --import is mandatory, otherwise fingerprint is not printed
-        cmd = 'gpg --with-colons --import-options show-only --import --dry-run'
-    else:
-        cmd = 'gpg --with-colons --with-fingerprint'
+    # Use the same gpg command for both Xenial and Bionic
+    cmd = 'gpg --with-colons --with-fingerprint'
     ps = subprocess.Popen(cmd.split(),
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE,

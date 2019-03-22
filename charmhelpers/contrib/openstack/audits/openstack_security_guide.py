@@ -30,14 +30,20 @@ from charmhelpers.core.hookenv import (
     cached,
 )
 
+"""
+The Security Guide suggests a specific list of files inside the
+config directory for the service having 640 specifically, but
+by ensuring the containing directory is 750, only the owner can
+write, and only the group can read files within the directory.
 
+By  restricting access to the containing directory, we can more
+effectively ensure that there is no accidental leakage if a new
+file is added to the service without being added to the security
+guide, and to this check.
+"""
 FILE_ASSERTIONS = {
     'barbican': {
-        # From security guide
-        '/etc/barbican/barbican.conf': {'group': 'barbican', 'mode': '640'},
-        '/etc/barbican/barbican-api-paste.ini':
-            {'group': 'barbican', 'mode': '640'},
-        '/etc/barbican/policy.json': {'group': 'barbican', 'mode': '640'},
+        '/etc/barbican': {'group': 'barbican', 'mode': '750'},
     },
     'ceph-mon': {
         '/var/lib/charm/ceph-mon/ceph.conf':
@@ -60,82 +66,29 @@ FILE_ASSERTIONS = {
             {'owner': 'ceph', 'group': 'ceph', 'mode': '755'},
     },
     'cinder': {
-        # From security guide
-        '/etc/cinder/cinder.conf': {'group': 'cinder', 'mode': '640'},
-        '/etc/cinder/api-paste.conf': {'group': 'cinder', 'mode': '640'},
-        '/etc/cinder/rootwrap.conf': {'group': 'cinder', 'mode': '640'},
+        '/etc/cinder': {'group': 'cinder', 'mode': '750'},
     },
     'glance': {
-        # From security guide
-        '/etc/glance/glance-api-paste.ini': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-api.conf': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-cache.conf': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-manage.conf': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-registry-paste.ini':
-            {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-registry.conf': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-scrubber.conf': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/glance-swift-store.conf':
-            {'group': 'glance', 'mode': '640'},
-        '/etc/glance/policy.json': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/schema-image.json': {'group': 'glance', 'mode': '640'},
-        '/etc/glance/schema.json': {'group': 'glance', 'mode': '640'},
+        '/etc/glance': {'group': 'glance', 'mode': '750'},
     },
     'keystone': {
-        # From security guide
-        '/etc/keystone/keystone.conf': {'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/keystone-paste.ini':
-            {'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/policy.json': {'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/logging.conf': {'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/ssl/certs/signing_cert.pem':
-            {'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/ssl/private/signing_key.pem':
-            {'group': 'keystone', 'mode': '640'},
-        '/etc/keystone/ssl/certs/ca.pem': {'group': 'keystone', 'mode': '640'},
+        '/etc/keystone':
+            {'owner': 'keystone', 'group': 'keystone', 'mode': '750'},
     },
     'manilla': {
-        # From security guide
-        '/etc/manila/manila.conf': {'group': 'manilla', 'mode': '640'},
-        '/etc/manila/api-paste.ini': {'group': 'manilla', 'mode': '640'},
-        '/etc/manila/policy.json': {'group': 'manilla', 'mode': '640'},
-        '/etc/manila/rootwrap.conf': {'group': 'manilla', 'mode': '640'},
+        '/etc/manila': {'group': 'manilla', 'mode': '750'},
     },
     'neutron-gateway': {
-        '/etc/neutron/neutron.conf': {'group': 'neutron', 'mode': '640'},
-        '/etc/neutron/rootwrap.conf': {'mode': '640'},
-        '/etc/neutron/rootwrap.d': {'mode': '755'},
-        '/etc/neutron/*': {'group': 'neutron', 'mode': '644'},
+        '/etc/neutron': {'group': 'neutron', 'mode': '750'},
     },
     'neutron-api': {
-        # From security guide
-        '/etc/neutron/neutron.conf': {'group': 'neutron', 'mode': '640'},
-        '/etc/nova/api-paste.ini': {'group': 'neutron', 'mode': '640'},
-        '/etc/neutron/rootwrap.conf': {'group': 'neutron', 'mode': '640'},
-        # Additional validations
-        '/etc/neutron/rootwrap.d': {'mode': '755'},
-        '/etc/neutron/neutron_lbaas.conf': {'mode': '644'},
-        '/etc/neutron/neutron_vpnaas.conf': {'mode': '644'},
-        '/etc/neutron/*': {'group': 'neutron', 'mode': '644'},
+        '/etc/neutron/': {'group': 'neutron', 'mode': '750'},
     },
     'nova-cloud-controller': {
-        # From security guide
-        '/etc/nova/api-paste.ini': {'group': 'nova', 'mode': '640'},
-        '/etc/nova/nova.conf': {'group': 'nova', 'mode': '750'},
-        '/etc/nova/*': {'group': 'nova', 'mode': '640'},
-        # Additional validations
-        '/etc/nova/logging.conf': {'group': 'nova', 'mode': '640'},
+        '/etc/nova': {'group': 'nova', 'mode': '750'},
     },
     'nova-compute': {
-        # From security guide
-        '/etc/nova/nova.conf': {'group': 'nova', 'mode': '640'},
-        '/etc/nova/api-paste.ini': {'group': 'nova', 'mode': '640'},
-        '/etc/nova/rootwrap.conf': {'group': 'nova', 'mode': '640'},
-        # Additional Validations
-        '/etc/nova/nova-compute.conf': {'group': 'nova', 'mode': '640'},
-        '/etc/nova/logging.conf': {'group': 'nova', 'mode': '640'},
-        '/etc/nova/nm.conf': {'mode': '644'},
-        '/etc/nova/*': {'group': 'nova', 'mode': '640'},
+        '/etc/nova/': {'group': 'nova', 'mode': '750'},
     },
     'openstack-dashboard': {
         # From security guide
@@ -178,7 +131,7 @@ def _config_ini(path):
     return dict(conf)
 
 
-def _validate_file_ownership(owner, group, file_name):
+def _validate_file_ownership(owner, group, file_name, optional=False):
     """
     Validate that a specified file is owned by `owner:group`.
 
@@ -188,12 +141,16 @@ def _validate_file_ownership(owner, group, file_name):
     :type group: str
     :param file_name: Path to the file to verify
     :type file_name: str
+    :param optional: Is this file optional,
+                     ie: Should this test fail when it's missing
+    :type optional: bool
     """
     try:
         ownership = _stat(file_name)
     except subprocess.CalledProcessError as e:
         print("Error reading file: {}".format(e))
-        assert False, "Specified file does not exist: {}".format(file_name)
+        if not optional:
+            assert False, "Specified file does not exist: {}".format(file_name)
     assert owner == ownership.owner, \
         "{} has an incorrect owner: {} should be {}".format(
             file_name, ownership.owner, owner)
@@ -203,7 +160,7 @@ def _validate_file_ownership(owner, group, file_name):
     print("Validate ownership of {}: PASS".format(file_name))
 
 
-def _validate_file_mode(mode, file_name):
+def _validate_file_mode(mode, file_name, optional=False):
     """
     Validate that a specified file has the specified permissions.
 
@@ -211,12 +168,16 @@ def _validate_file_mode(mode, file_name):
     :type owner: str
     :param file_name: Path to the file to verify
     :type file_name: str
+    :param optional: Is this file optional,
+                     ie: Should this test fail when it's missing
+    :type optional: bool
     """
     try:
         ownership = _stat(file_name)
     except subprocess.CalledProcessError as e:
         print("Error reading file: {}".format(e))
-        assert False, "Specified file does not exist: {}".format(file_name)
+        if not optional:
+            assert False, "Specified file does not exist: {}".format(file_name)
     assert mode == ownership.mode, \
         "{} has an incorrect mode: {} should be {}".format(
             file_name, ownership.mode, mode)
@@ -243,14 +204,15 @@ def validate_file_ownership(config):
                     "Invalid ownership configuration: {}".format(key))
         owner = options.get('owner', config.get('owner', 'root'))
         group = options.get('group', config.get('group', 'root'))
+        optional = options.get('optional', config.get('optional', 'False'))
         if '*' in file_name:
             for file in glob.glob(file_name):
                 if file not in files.keys():
                     if os.path.isfile(file):
-                        _validate_file_ownership(owner, group, file)
+                        _validate_file_ownership(owner, group, file, optional)
         else:
             if os.path.isfile(file_name):
-                _validate_file_ownership(owner, group, file_name)
+                _validate_file_ownership(owner, group, file_name, optional)
 
 
 @audit(is_audit_type(AuditType.OpenStackSecurityGuide),
@@ -264,14 +226,15 @@ def validate_file_permissions(config):
                 raise RuntimeError(
                     "Invalid ownership configuration: {}".format(key))
         mode = options.get('mode', config.get('permissions', '600'))
+        optional = options.get('optional', config.get('optional', 'False'))
         if '*' in file_name:
             for file in glob.glob(file_name):
                 if file not in files.keys():
                     if os.path.isfile(file):
-                        _validate_file_mode(mode, file)
+                        _validate_file_mode(mode, file, optional)
         else:
             if os.path.isfile(file_name):
-                _validate_file_mode(mode, file_name)
+                _validate_file_mode(mode, file_name, optional)
 
 
 @audit(is_audit_type(AuditType.OpenStackSecurityGuide))

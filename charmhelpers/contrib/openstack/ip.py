@@ -159,7 +159,7 @@ def resolve_address(endpoint_type=PUBLIC, override=True):
                     if is_address_in_network(bound_cidr, vip):
                         resolved_address = vip
                         break
-            except NotImplementedError:
+            except (NotImplementedError, NoNetworkBinding):
                 # If no net-splits configured and no support for extra
                 # bindings/network spaces so we expect a single vip
                 resolved_address = vips[0]

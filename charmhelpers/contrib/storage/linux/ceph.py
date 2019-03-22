@@ -186,7 +186,7 @@ class Pool(object):
         elif mode == 'writeback':
             pool_forward_cmd = ['ceph', '--id', self.service, 'osd', 'tier',
                                 'cache-mode', cache_pool, 'forward']
-            if cmp_pkgrevno('ceph', '10.1') >= 0:
+            if cmp_pkgrevno('ceph-common', '10.1') >= 0:
                 # Jewel added a mandatory flag
                 pool_forward_cmd.append('--yes-i-really-mean-it')
 
@@ -664,7 +664,7 @@ def create_erasure_profile(service, profile_name, erasure_plugin_name='jerasure'
     if locality is not None and durability_estimator is not None:
         raise ValueError("create_erasure_profile should be called with k, m and one of l or c but not both.")
 
-    luminous_or_later = cmp_pkgrevno('ceph', '12.0.0') >= 0
+    luminous_or_later = cmp_pkgrevno('ceph-common', '12.0.0') >= 0
     # failure_domain changed in luminous
     if luminous_or_later:
         cmd.append('crush-failure-domain=' + failure_domain)
@@ -769,7 +769,7 @@ def get_osds(service, device_class=None):
     :param device_class: Class of storage device for OSD's
     :type device_class: str
     """
-    luminous_or_later = cmp_pkgrevno('ceph', '12.0.0') >= 0
+    luminous_or_later = cmp_pkgrevno('ceph-common', '12.0.0') >= 0
     if luminous_or_later and device_class:
         out = check_output(['ceph', '--id', service,
                             'osd', 'crush', 'class',
@@ -835,7 +835,7 @@ def set_app_name_for_pool(client, pool, name):
 
     :raises: CalledProcessError if ceph call fails
     """
-    if cmp_pkgrevno('ceph', '12.0.0') >= 0:
+    if cmp_pkgrevno('ceph-common', '12.0.0') >= 0:
         cmd = ['ceph', '--id', client, 'osd', 'pool',
                'application', 'enable', pool, name]
         check_call(cmd)

@@ -19,9 +19,16 @@ from charmhelpers.core import unitdata
 @cmdline.subcommand_builder('unitdata', description="Store and retrieve data")
 def unitdata_cmd(subparser):
     nested = subparser.add_subparsers()
+
     get_cmd = nested.add_parser('get', help='Retrieve data')
     get_cmd.add_argument('key', help='Key to retrieve the value of')
     get_cmd.set_defaults(action='get', value=None)
+
+    getrange_cmd = nested.add_parser('getrange', help='Retrieve multiple data')
+    getrange_cmd.add_argument('key', metavar='prefix',
+                              help='Prefix of the keys to retrieve')
+    getrange_cmd.set_defaults(action='getrange', value=None)
+
     set_cmd = nested.add_parser('set', help='Store data')
     set_cmd.add_argument('key', help='Key to set')
     set_cmd.add_argument('value', help='Value to store')
@@ -30,6 +37,8 @@ def unitdata_cmd(subparser):
     def _unitdata_cmd(action, key, value):
         if action == 'get':
             return unitdata.kv().get(key)
+        elif action == 'getrange':
+            return unitdata.kv().getrange(key)
         elif action == 'set':
             unitdata.kv().set(key, value)
             unitdata.kv().flush()
