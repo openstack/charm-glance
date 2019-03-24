@@ -679,10 +679,10 @@ def git_clone_and_install(projects_yaml, core_project):
 
         repositories:
           - {name: keystone,
-             repository: 'git://git.openstack.org/openstack/keystone.git',
+             repository: 'https://git.openstack.org/openstack/keystone.git',
              branch: 'stable/icehouse'}
           - {name: requirements,
-             repository: 'git://git.openstack.org/openstack/requirements.git',
+             repository: 'https://git.openstack.org/openstack/requirements.git',
              branch: 'stable/icehouse'}
 
         directory: /mnt/openstack-git
