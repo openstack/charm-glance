@@ -140,10 +140,10 @@ class GlanceRelationTests(CharmTestCase):
         openstack_origin_git = {
             'repositories': [
                 {'name': 'requirements',
-                 'repository': 'git://git.openstack.org/openstack/requirements',  # noqa
+                 'repository': 'https://git.openstack.org/openstack/requirements',  # noqa
                  'branch': 'stable/juno'},
                 {'name': 'glance',
-                 'repository': 'git://git.openstack.org/openstack/glance',
+                 'repository': 'https://git.openstack.org/openstack/glance',
                  'branch': 'stable/juno'}
             ],
             'directory': '/mnt/openstack-git',
@@ -655,10 +655,10 @@ class GlanceRelationTests(CharmTestCase):
         openstack_origin_git = {
             'repositories': [
                 {'name': 'requirements',
-                 'repository': 'git://git.openstack.org/openstack/requirements',  # noqa
+                 'repository': 'https://git.openstack.org/openstack/requirements',  # noqa
                  'branch': 'stable/juno'},
                 {'name': 'glance',
-                 'repository': 'git://git.openstack.org/openstack/glance',
+                 'repository': 'https://git.openstack.org/openstack/glance',
                  'branch': 'stable/juno'}
             ],
             'directory': '/mnt/openstack-git',
