@@ -40,8 +40,6 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
     relations, service status, endpoint service catalog, create and
     delete new image."""
 
-    SERVICES = ('apache2', 'haproxy', 'glance-api', 'glance-registry')
-
     def __init__(self, series=None, openstack=None, source=None,
                  stable=False):
         """Deploy the entire test environment."""
@@ -60,8 +58,13 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         self._initialize_tests()
 
     def _assert_services(self, should_run):
+        if self._get_openstack_release() >= self.bionic_stein:
+            services = ('apache2', 'haproxy', 'glance-api')
+        else:
+            services = ('apache2', 'haproxy', 'glance-api', 'glance-registry')
+
         u.get_unit_process_ids(
-            {self.glance_sentry: self.SERVICES},
+            {self.glance_sentry: services},
             expect_success=should_run)
 
     def _add_services(self):
@@ -143,9 +146,14 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
            corresponding service units."""
         services = {
             self.keystone_sentry: ['keystone'],
-            self.glance_sentry: ['glance-api', 'glance-registry'],
-            self.rabbitmq_sentry: ['rabbitmq-server']
+            self.rabbitmq_sentry: ['rabbitmq-server'],
         }
+        if self._get_openstack_release() >= self.bionic_stein:
+            services.update(
+                {self.glance_sentry: ['glance-api']})
+        else:
+            services.update(
+                {self.glance_sentry: ['glance-api', 'glance-registry']})
         if self._get_openstack_release() >= self.trusty_liberty:
             services[self.keystone_sentry] = ['apache2']
         ret = u.validate_services_by_name(services)
@@ -262,10 +270,11 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
                             '/etc/glance/glance-api.conf',
                             self._get_openstack_release(),
                             earliest_release=self.trusty_mitaka)
-        u.validate_memcache(self.glance_sentry,
-                            '/etc/glance/glance-registry.conf',
-                            self._get_openstack_release(),
-                            earliest_release=self.trusty_mitaka)
+        if self._get_openstack_release() < self.bionic_stein:
+            u.validate_memcache(self.glance_sentry,
+                                '/etc/glance/glance-registry.conf',
+                                self._get_openstack_release(),
+                                earliest_release=self.trusty_mitaka)
 
     def test_200_mysql_glance_db_relation(self):
         """Verify the mysql:glance shared-db relation data"""
@@ -373,6 +382,10 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
 
     def test_302_glance_registry_default_config(self):
         """Verify configs in glance-registry.conf"""
+        if self._get_openstack_release() >= self.bionic_stein:
+            u.log.debug('Skipping check of glance registry config file for '
+                        '>= bionic-stein')
+            return
         u.log.debug('Checking glance registry config file...')
         unit = self.glance_sentry
         rel_my_gl = self.pxc_sentry.relation('shared-db', 'glance:shared-db')
@@ -491,8 +504,9 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         # Services which are expected to restart upon config change
         services = {
             'glance-api': conf_file,
-            'glance-registry': conf_file,
         }
+        if self._get_openstack_release() < self.bionic_stein:
+            services.update({'glance-registry': conf_file})
 
         # Make config change, check for service restarts
         u.log.debug('Making config change on {}...'.format(juju_service))
