@@ -180,13 +180,17 @@ def create_ip_cert_links(ssl_dir, custom_hostname_link=None):
             os.symlink(hostname_key, custom_key)
 
 
-def install_certs(ssl_dir, certs, chain=None):
+def install_certs(ssl_dir, certs, chain=None, user='root', group='root'):
     """Install the certs passed into the ssl dir and append the chain if
        provided.
 
     :param ssl_dir: str Directory to create symlinks in
     :param certs: {} {'cn': {'cert': 'CERT', 'key': 'KEY'}}
     :param chain: str Chain to be appended to certs
+    :param user: (Optional) Owner of certificate files. Defaults to 'root'
+    :type user: str
+    :param group: (Optional) Group of certificate files. Defaults to 'root'
+    :type group: str
     """
     for cn, bundle in certs.items():
         cert_filename = 'cert_{}'.format(cn)
@@ -197,21 +201,25 @@ def install_certs(ssl_dir, certs, chain=None):
             # trust certs signed by an intermediate in the chain
             cert_data = cert_data + os.linesep + chain
         write_file(
-            path=os.path.join(ssl_dir, cert_filename),
+            path=os.path.join(ssl_dir, cert_filename), owner=user, group=group,
             content=cert_data, perms=0o640)
         write_file(
-            path=os.path.join(ssl_dir, key_filename),
+            path=os.path.join(ssl_dir, key_filename), owner=user, group=group,
             content=bundle['key'], perms=0o640)
 
 
 def process_certificates(service_name, relation_id, unit,
-                         custom_hostname_link=None):
+                         custom_hostname_link=None, user='root', group='root'):
     """Process the certificates supplied down the relation
 
     :param service_name: str Name of service the certifcates are for.
     :param relation_id: str Relation id providing the certs
     :param unit: str Unit providing the certs
     :param custom_hostname_link: str Name of custom link to create
+    :param user: (Optional) Owner of certificate files. Defaults to 'root'
+    :type user: str
+    :param group: (Optional) Group of certificate files. Defaults to 'root'
+    :type group: str
     """
     data = relation_get(rid=relation_id, unit=unit)
     ssl_dir = os.path.join('/etc/apache2/ssl/', service_name)
@@ -223,7 +231,7 @@ def process_certificates(service_name, relation_id, unit,
     if certs:
         certs = json.loads(certs)
         install_ca_cert(ca.encode())
-        install_certs(ssl_dir, certs, chain)
+        install_certs(ssl_dir, certs, chain, user=user, group=group)
         create_ip_cert_links(
             ssl_dir,
             custom_hostname_link=custom_hostname_link)
