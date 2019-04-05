@@ -312,6 +312,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('artful', 'pike'),
             ('bionic', 'queens'),
             ('cosmic', 'rocky'),
+            ('disco', 'stein'),
         ])
         if self.openstack:
             os_origin = self.openstack.split(':')[1]

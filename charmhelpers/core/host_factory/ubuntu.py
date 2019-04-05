@@ -23,6 +23,7 @@ UBUNTU_RELEASES = (
     'artful',
     'bionic',
     'cosmic',
+    'disco',
 )
 
 
