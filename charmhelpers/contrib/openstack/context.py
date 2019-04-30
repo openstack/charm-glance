@@ -351,9 +351,69 @@ class IdentityServiceContext(OSContextGenerator):
             return cachedir
         return None
 
+    def _get_pkg_name(self, python_name='keystonemiddleware'):
+        """Get corresponding distro installed package for python
+        package name.
+
+        :param python_name: nameof the python package
+        :type: string
+        """
+        pkg_names = map(lambda x: x + python_name, ('python3-', 'python-'))
+
+        for pkg in pkg_names:
+            if not filter_installed_packages((pkg,)):
+                return pkg
+
+        return None
+
+    def _get_keystone_authtoken_ctxt(self, ctxt, keystonemiddleware_os_rel):
+        """Build Jinja2 context for full rendering of [keystone_authtoken]
+        section with variable names included. Re-constructed from former
+        template 'section-keystone-auth-mitaka'.
+
+        :param ctxt: Jinja2 context returned from self.__call__()
+        :type: dict
+        :param keystonemiddleware_os_rel: OpenStack release name of
+            keystonemiddleware package installed
+        """
+        c = collections.OrderedDict((('auth_type', 'password'),))
+
+        # 'www_authenticate_uri' replaced 'auth_uri' since Stein,
+        # see keystonemiddleware upstream sources for more info
+        if CompareOpenStackReleases(keystonemiddleware_os_rel) >= 'stein':
+            c.update((
+                ('www_authenticate_uri', "{}://{}:{}/v3".format(
+                    ctxt.get('service_protocol', ''),
+                    ctxt.get('service_host', ''),
+                    ctxt.get('service_port', ''))),))
+        else:
+            c.update((
+                ('auth_uri', "{}://{}:{}/v3".format(
+                    ctxt.get('service_protocol', ''),
+                    ctxt.get('service_host', ''),
+                    ctxt.get('service_port', ''))),))
+
+        c.update((
+            ('auth_url', "{}://{}:{}/v3".format(
+                ctxt.get('auth_protocol', ''),
+                ctxt.get('auth_host', ''),
+                ctxt.get('auth_port', ''))),
+            ('project_domain_name', ctxt.get('admin_domain_name', '')),
+            ('user_domain_name', ctxt.get('admin_domain_name', '')),
+            ('project_name', ctxt.get('admin_tenant_name', '')),
+            ('username', ctxt.get('admin_user', '')),
+            ('password', ctxt.get('admin_password', '')),
+            ('signing_dir', ctxt.get('signing_dir', '')),))
+
+        return c
+
     def __call__(self):
         log('Generating template context for ' + self.rel_name, level=DEBUG)
         ctxt = {}
+
+        keystonemiddleware_os_release = None
+        if self._get_pkg_name():
+            keystonemiddleware_os_release = os_release(self._get_pkg_name())
 
         cachedir = self._setup_pki_cache()
         if cachedir:
@@ -384,6 +444,14 @@ class IdentityServiceContext(OSContextGenerator):
                 if float(api_version) > 2:
                     ctxt.update({'admin_domain_name':
                                  rdata.get('service_domain')})
+
+                # we keep all veriables in ctxt for compatibility and
+                # add nested dictionary for keystone_authtoken generic
+                # templating
+                if keystonemiddleware_os_release:
+                    ctxt['keystone_authtoken'] = \
+                        self._get_keystone_authtoken_ctxt(
+                            ctxt, keystonemiddleware_os_release)
 
                 if self.context_complete(ctxt):
                     # NOTE(jamespage) this is required for >= icehouse
