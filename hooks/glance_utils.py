@@ -124,6 +124,8 @@ HAPROXY_CONF = "/etc/haproxy/haproxy.cfg"
 HTTPS_APACHE_CONF = "/etc/apache2/sites-available/openstack_https_frontend"
 HTTPS_APACHE_24_CONF = "/etc/apache2/sites-available/" \
     "openstack_https_frontend.conf"
+APACHE_SSL_DIR = '/etc/apache2/ssl/glance'
+
 MEMCACHED_CONF = '/etc/memcached.conf'
 
 TEMPLATES = 'templates/'
@@ -366,9 +368,14 @@ def restart_map():
         _map.append((MEMCACHED_CONF, ['memcached']))
 
     if cmp_release >= 'stein':
-        _map.append((GLANCE_POLICY_FILE, ['glance-api']))
+        glance_svcs = ['glance-api']
     else:
-        _map.append((GLANCE_POLICY_FILE, ['glance-api', 'glance-registry']))
+        glance_svcs = ['glance-api', 'glance-registry']
+
+    _map.append((GLANCE_POLICY_FILE, glance_svcs))
+
+    if os.path.isdir(APACHE_SSL_DIR):
+        _map.append(('{}/*'.format(APACHE_SSL_DIR), glance_svcs + ['apache2']))
 
     return OrderedDict(_map)
 

@@ -183,6 +183,31 @@ class TestGlanceUtils(CharmTestCase):
         del ex_map[utils.MEMCACHED_CONF]
         self.assertEqual(ex_map, utils.restart_map())
 
+    @patch.object(utils.os.path, 'isdir')
+    def test_restart_map_stein_ssl(self, isdir):
+        isdir.return_value = True
+        self.enable_memcache.return_value = True
+        self.config.side_effect = None
+        self.service_name.return_value = 'glance'
+        self.os_release.return_value = 'stein'
+
+        ex_map = OrderedDict([
+            (utils.GLANCE_API_CONF, ['glance-api']),
+            (utils.GLANCE_SWIFT_CONF, ['glance-api']),
+            (utils.ceph_config_file(), ['glance-api']),
+            (utils.HAPROXY_CONF, ['haproxy']),
+            (utils.HTTPS_APACHE_CONF, ['apache2']),
+            (utils.HTTPS_APACHE_24_CONF, ['apache2']),
+            (utils.MEMCACHED_CONF, ['memcached']),
+            (utils.GLANCE_POLICY_FILE, ['glance-api']),
+            ('{}/*'.format(utils.APACHE_SSL_DIR),
+             ['glance-api', 'apache2']),
+        ])
+        self.assertEqual(ex_map, utils.restart_map())
+        self.enable_memcache.return_value = False
+        del ex_map[utils.MEMCACHED_CONF]
+        self.assertEqual(ex_map, utils.restart_map())
+
     @patch.object(utils, 'token_cache_pkgs')
     def test_determine_packages(self, token_cache_pkgs):
         self.config.side_effect = None
