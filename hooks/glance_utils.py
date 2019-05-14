@@ -539,12 +539,18 @@ def reinstall_paste_ini(force_reinstall=False):
     is set to True.
     '''
     db = kv()
-    if not db.get(PASTE_INI_MARKER) or force_reinstall:
+    reinstall = not db.get(PASTE_INI_MARKER) or force_reinstall
+    cmp_release = CompareOpenStackReleases(os_release('glance-common'))
+
+    if not os.path.exists(GLANCE_REGISTRY_PASTE) and cmp_release < 'rocky':
+        # See LP: #1812972
+        reinstall = True
+
+    if reinstall:
         for paste_file in [GLANCE_REGISTRY_PASTE,
                            GLANCE_API_PASTE]:
             if os.path.exists(paste_file):
                 os.remove(paste_file)
-        cmp_release = CompareOpenStackReleases(os_release('glance-common'))
         # glance-registry is deprecated at queens but still
         # installed.
         if cmp_release < 'rocky':
