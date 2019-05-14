@@ -360,14 +360,32 @@ class TestGlanceUtils(CharmTestCase):
             fatal=True
         )
 
+    @patch.object(os.path, 'exists')
+    @patch.object(utils, 'os_release')
     @patch.object(utils, 'kv')
-    def test_reinstall_paste_ini_idempotent(self, kv):
+    def test_reinstall_paste_ini_idempotent(self, kv, mock_os_release,
+                                            mock_exists):
         """Ensure that re-running does not re-install files"""
+        mock_exists.return_value = True
+        mock_os_release.return_value = "queens"
         test_kv = SimpleKV()
         test_kv.set(utils.PASTE_INI_MARKER, True)
         kv.return_value = test_kv
         utils.reinstall_paste_ini()
         self.assertFalse(self.apt_install.called)
+
+    @patch.object(os.path, 'exists')
+    @patch.object(utils, 'os_release')
+    @patch.object(utils, 'kv')
+    def test_reinstall_paste_ini_fix_upgrade(self, kv, mock_os_release,
+                                             mock_exists):
+        mock_exists.return_value = False
+        mock_os_release.return_value = "queens"
+        test_kv = SimpleKV()
+        test_kv.set(utils.PASTE_INI_MARKER, True)
+        kv.return_value = test_kv
+        utils.reinstall_paste_ini()
+        self.assertTrue(self.apt_install.called)
 
     def _test_is_api_ready(self, tgt):
         fake_config = MagicMock()
