@@ -688,6 +688,25 @@ class CephContext(OSContextGenerator):
         ensure_packages(['ceph-common'])
         return ctxt
 
+    def context_complete(self, ctxt):
+        """Overridden here to ensure the context is actually complete.
+
+        We set `key` and `auth` to None here, by default, to ensure
+        that the context will always evaluate to incomplete until the
+        Ceph relation has actually sent these details; otherwise,
+        there is a potential race condition between the relation
+        appearing and the first unit actually setting this data on the
+        relation.
+
+        :param ctxt: The current context members
+        :type ctxt: Dict[str, ANY]
+        :returns: True if the context is complete
+        :rtype: bool
+        """
+        if 'auth' not in ctxt or 'key' not in ctxt:
+            return False
+        return super(CephContext, self).context_complete(ctxt)
+
 
 class HAProxyContext(OSContextGenerator):
     """Provides half a context for the haproxy template, which describes
