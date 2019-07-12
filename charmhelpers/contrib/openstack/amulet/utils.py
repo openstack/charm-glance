@@ -54,11 +54,15 @@ NOVA_CLIENT_VERSION = "2"
 
 OPENSTACK_RELEASES_PAIRS = [
     'trusty_icehouse', 'trusty_kilo', 'trusty_liberty',
-    'trusty_mitaka', 'xenial_mitaka', 'xenial_newton',
-    'yakkety_newton', 'xenial_ocata', 'zesty_ocata',
-    'xenial_pike', 'artful_pike', 'xenial_queens',
-    'bionic_queens', 'bionic_rocky', 'cosmic_rocky',
-    'bionic_stein', 'disco_stein']
+    'trusty_mitaka', 'xenial_mitaka',
+    'xenial_newton', 'yakkety_newton',
+    'xenial_ocata', 'zesty_ocata',
+    'xenial_pike', 'artful_pike',
+    'xenial_queens', 'bionic_queens',
+    'bionic_rocky', 'cosmic_rocky',
+    'bionic_stein', 'disco_stein',
+    'bionic_train', 'eoan_train',
+]
 
 
 class OpenStackAmuletUtils(AmuletUtils):

@@ -1482,13 +1482,28 @@ def send_request_if_needed(request, relation='ceph'):
             relation_set(relation_id=rid, broker_req=request.request)
 
 
+def has_broker_rsp(rid=None, unit=None):
+    """Return True if the broker_rsp key is 'truthy' (i.e. set to something) in the relation data.
+
+    :param rid: The relation to check (default of None means current relation)
+    :type rid: Union[str, None]
+    :param unit: The remote unit to check (default of None means current unit)
+    :type unit: Union[str, None]
+    :returns: True if broker key exists and is set to something 'truthy'
+    :rtype: bool
+    """
+    rdata = relation_get(rid=rid, unit=unit) or {}
+    broker_rsp = rdata.get(get_broker_rsp_key())
+    return True if broker_rsp else False
+
+
 def is_broker_action_done(action, rid=None, unit=None):
     """Check whether broker action has completed yet.
 
     @param action: name of action to be performed
     @returns True if action complete otherwise False
     """
-    rdata = relation_get(rid, unit) or {}
+    rdata = relation_get(rid=rid, unit=unit) or {}
     broker_rsp = rdata.get(get_broker_rsp_key())
     if not broker_rsp:
         return False
@@ -1510,7 +1525,7 @@ def mark_broker_action_done(action, rid=None, unit=None):
     @param action: name of action to be performed
     @returns None
     """
-    rdata = relation_get(rid, unit) or {}
+    rdata = relation_get(rid=rid, unit=unit) or {}
     broker_rsp = rdata.get(get_broker_rsp_key())
     if not broker_rsp:
         return

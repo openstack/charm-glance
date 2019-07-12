@@ -33,6 +33,7 @@ from charmhelpers.core.hookenv import (
     hook_name,
     local_unit,
     log,
+    relation_get,
     relation_ids,
     relation_set,
     relations_of_type,
@@ -260,11 +261,23 @@ class NRPE(object):
         relation = relation_ids('nrpe-external-master')
         if relation:
             log("Setting charm primary status {}".format(primary))
-            for rid in relation_ids('nrpe-external-master'):
+            for rid in relation:
                 relation_set(relation_id=rid, relation_settings={'primary': self.primary})
+        self.remove_check_queue = set()
 
     def add_check(self, *args, **kwargs):
+        shortname = None
+        if kwargs.get('shortname') is None:
+            if len(args) > 0:
+                shortname = args[0]
+        else:
+            shortname = kwargs['shortname']
+
         self.checks.append(Check(*args, **kwargs))
+        try:
+            self.remove_check_queue.remove(shortname)
+        except KeyError:
+            pass
 
     def remove_check(self, *args, **kwargs):
         if kwargs.get('shortname') is None:
@@ -281,6 +294,7 @@ class NRPE(object):
 
         check = Check(*args, **kwargs)
         check.remove(self.hostname)
+        self.remove_check_queue.add(kwargs['shortname'])
 
     def write(self):
         try:
@@ -313,7 +327,24 @@ class NRPE(object):
         monitor_ids = relation_ids("local-monitors") + \
             relation_ids("nrpe-external-master")
         for rid in monitor_ids:
-            relation_set(relation_id=rid, monitors=yaml.dump(monitors))
+            reldata = relation_get(unit=local_unit(), rid=rid)
+            if 'monitors' in reldata:
+                # update the existing set of monitors with the new data
+                old_monitors = yaml.safe_load(reldata['monitors'])
+                old_nrpe_monitors = old_monitors['monitors']['remote']['nrpe']
+                # remove keys that are in the remove_check_queue
+                old_nrpe_monitors = {k: v for k, v in old_nrpe_monitors.items()
+                                     if k not in self.remove_check_queue}
+                # update/add nrpe_monitors
+                old_nrpe_monitors.update(nrpe_monitors)
+                old_monitors['monitors']['remote']['nrpe'] = old_nrpe_monitors
+                # write back to the relation
+                relation_set(relation_id=rid, monitors=yaml.dump(old_monitors))
+            else:
+                # write a brand new set of monitors, as no existing ones.
+                relation_set(relation_id=rid, monitors=yaml.dump(monitors))
+
+        self.remove_check_queue.clear()
 
 
 def get_nagios_hostcontext(relation_name='nrpe-external-master'):

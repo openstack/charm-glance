@@ -217,6 +217,11 @@ def neutron_plugins():
         plugins['nsx']['config'] = '/etc/neutron/nsx.ini'
         plugins['vsp']['driver'] = (
             'nuage_neutron.plugins.nuage.plugin.NuagePlugin')
+    if CompareOpenStackReleases(release) >= 'newton':
+        plugins['vsp']['config'] = '/etc/neutron/plugins/ml2/ml2_conf.ini'
+        plugins['vsp']['driver'] = 'neutron.plugins.ml2.plugin.Ml2Plugin'
+        plugins['vsp']['server_packages'] = ['neutron-server',
+                                             'neutron-plugin-ml2']
     return plugins
 
 

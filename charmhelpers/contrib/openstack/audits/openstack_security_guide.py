@@ -126,7 +126,11 @@ def _config_ini(path):
     :returns: Configuration contained in path
     :rtype: Dict
     """
-    conf = configparser.ConfigParser()
+    # When strict is enabled, duplicate options are not allowed in the
+    # parsed INI; however, Oslo allows duplicate values. This change
+    # causes us to ignore the duplicate values which is acceptable as
+    # long as we don't validate any multi-value options
+    conf = configparser.ConfigParser(strict=False)
     conf.read(path)
     return dict(conf)
 
@@ -204,7 +208,7 @@ def validate_file_ownership(config):
                     "Invalid ownership configuration: {}".format(key))
         owner = options.get('owner', config.get('owner', 'root'))
         group = options.get('group', config.get('group', 'root'))
-        optional = options.get('optional', config.get('optional', 'False'))
+        optional = options.get('optional', config.get('optional', False))
         if '*' in file_name:
             for file in glob.glob(file_name):
                 if file not in files.keys():
@@ -226,7 +230,7 @@ def validate_file_permissions(config):
                 raise RuntimeError(
                     "Invalid ownership configuration: {}".format(key))
         mode = options.get('mode', config.get('permissions', '600'))
-        optional = options.get('optional', config.get('optional', 'False'))
+        optional = options.get('optional', config.get('optional', False))
         if '*' in file_name:
             for file in glob.glob(file_name):
                 if file not in files.keys():

@@ -106,9 +106,11 @@ class CertRequest(object):
             sans = sorted(list(set(entry['addresses'])))
             request[entry['cn']] = {'sans': sans}
         if self.json_encode:
-            return {'cert_requests': json.dumps(request, sort_keys=True)}
+            req = {'cert_requests': json.dumps(request, sort_keys=True)}
         else:
-            return {'cert_requests': request}
+            req = {'cert_requests': request}
+        req['unit_name'] = local_unit().replace('/', '_')
+        return req
 
 
 def get_certificate_request(json_encode=True):
@@ -220,6 +222,8 @@ def process_certificates(service_name, relation_id, unit,
     :type user: str
     :param group: (Optional) Group of certificate files. Defaults to 'root'
     :type group: str
+    :returns: True if certificates processed for local unit or False
+    :rtype: bool
     """
     data = relation_get(rid=relation_id, unit=unit)
     ssl_dir = os.path.join('/etc/apache2/ssl/', service_name)
@@ -235,6 +239,8 @@ def process_certificates(service_name, relation_id, unit,
         create_ip_cert_links(
             ssl_dir,
             custom_hostname_link=custom_hostname_link)
+        return True
+    return False
 
 
 def get_requests_for_local_unit(relation_name=None):

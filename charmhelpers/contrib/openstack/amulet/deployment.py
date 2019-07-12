@@ -294,8 +294,10 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('bionic', None): self.bionic_queens,
             ('bionic', 'cloud:bionic-rocky'): self.bionic_rocky,
             ('bionic', 'cloud:bionic-stein'): self.bionic_stein,
+            ('bionic', 'cloud:bionic-train'): self.bionic_train,
             ('cosmic', None): self.cosmic_rocky,
             ('disco', None): self.disco_stein,
+            ('eoan', None): self.eoan_train,
         }
         return releases[(self.series, self.openstack)]
 
@@ -313,12 +315,30 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('bionic', 'queens'),
             ('cosmic', 'rocky'),
             ('disco', 'stein'),
+            ('eoan', 'train'),
         ])
         if self.openstack:
             os_origin = self.openstack.split(':')[1]
             return os_origin.split('%s-' % self.series)[1].split('/')[0]
         else:
             return releases[self.series]
+
+    def get_percona_service_entry(self, memory_constraint=None):
+        """Return a amulet service entry for percona cluster.
+
+        :param memory_constraint: Override the default memory constraint
+                                  in the service entry.
+        :type memory_constraint: str
+        :returns: Amulet service entry.
+        :rtype: dict
+        """
+        memory_constraint = memory_constraint or '3072M'
+        svc_entry = {
+            'name': 'percona-cluster',
+            'constraints': {'mem': memory_constraint}}
+        if self._get_openstack_release() <= self.trusty_mitaka:
+            svc_entry['location'] = 'cs:trusty/percona-cluster'
+        return svc_entry
 
     def get_ceph_expected_pools(self, radosgw=False):
         """Return a list of expected ceph pools in a ceph + cinder + glance

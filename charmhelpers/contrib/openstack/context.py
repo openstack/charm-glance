@@ -117,6 +117,7 @@ except ImportError:
 CA_CERT_PATH = '/usr/local/share/ca-certificates/keystone_juju_ca_cert.crt'
 ADDRESS_TYPES = ['admin', 'internal', 'public']
 HAPROXY_RUN_DIR = '/var/run/haproxy/'
+DEFAULT_OSLO_MESSAGING_DRIVER = "messagingv2"
 
 
 def ensure_packages(packages):
@@ -257,7 +258,7 @@ class SharedDBContext(OSContextGenerator):
                     'database_password': rdata.get(password_setting),
                     'database_type': 'mysql+pymysql'
                 }
-                if CompareOpenStackReleases(rel) < 'stein':
+                if CompareOpenStackReleases(rel) < 'queens':
                     ctxt['database_type'] = 'mysql'
                 if self.context_complete(ctxt):
                     db_ssl(rdata, ctxt, self.ssl_dir)
@@ -442,8 +443,10 @@ class IdentityServiceContext(OSContextGenerator):
                              'api_version': api_version})
 
                 if float(api_version) > 2:
-                    ctxt.update({'admin_domain_name':
-                                 rdata.get('service_domain')})
+                    ctxt.update({
+                        'admin_domain_name': rdata.get('service_domain'),
+                        'service_project_id': rdata.get('service_tenant_id'),
+                        'service_domain_id': rdata.get('service_domain_id')})
 
                 # we keep all veriables in ctxt for compatibility and
                 # add nested dictionary for keystone_authtoken generic
@@ -518,6 +521,86 @@ class IdentityCredentialsContext(IdentityServiceContext):
                     return ctxt
 
         return {}
+
+
+class NovaVendorMetadataContext(OSContextGenerator):
+    """Context used for configuring nova vendor metadata on nova.conf file."""
+
+    def __init__(self, os_release_pkg, interfaces=None):
+        """Initialize the NovaVendorMetadataContext object.
+
+        :param os_release_pkg: the package name to extract the OpenStack
+            release codename from.
+        :type os_release_pkg: str
+        :param interfaces: list of string values to be used as the Context's
+            relation interfaces.
+        :type interfaces: List[str]
+        """
+        self.os_release_pkg = os_release_pkg
+        if interfaces is not None:
+            self.interfaces = interfaces
+
+    def __call__(self):
+        cmp_os_release = CompareOpenStackReleases(
+            os_release(self.os_release_pkg))
+        ctxt = {'vendor_data': False}
+
+        vdata_providers = []
+        vdata = config('vendor-data')
+        vdata_url = config('vendor-data-url')
+
+        if vdata:
+            try:
+                # validate the JSON. If invalid, we do not set anything here
+                json.loads(vdata)
+            except (TypeError, ValueError) as e:
+                log('Error decoding vendor-data. {}'.format(e), level=ERROR)
+            else:
+                ctxt['vendor_data'] = True
+                # Mitaka does not support DynamicJSON
+                # so vendordata_providers is not needed
+                if cmp_os_release > 'mitaka':
+                    vdata_providers.append('StaticJSON')
+
+        if vdata_url:
+            if cmp_os_release > 'mitaka':
+                ctxt['vendor_data_url'] = vdata_url
+                vdata_providers.append('DynamicJSON')
+            else:
+                log('Dynamic vendor data unsupported'
+                    ' for {}.'.format(cmp_os_release), level=ERROR)
+        if vdata_providers:
+            ctxt['vendordata_providers'] = ','.join(vdata_providers)
+
+        return ctxt
+
+
+class NovaVendorMetadataJSONContext(OSContextGenerator):
+    """Context used for writing nova vendor metadata json file."""
+
+    def __init__(self, os_release_pkg):
+        """Initialize the NovaVendorMetadataJSONContext object.
+
+        :param os_release_pkg: the package name to extract the OpenStack
+            release codename from.
+        :type os_release_pkg: str
+        """
+        self.os_release_pkg = os_release_pkg
+
+    def __call__(self):
+        ctxt = {'vendor_data_json': '{}'}
+
+        vdata = config('vendor-data')
+        if vdata:
+            try:
+                # validate the JSON. If invalid, we return empty.
+                json.loads(vdata)
+            except (TypeError, ValueError) as e:
+                log('Error decoding vendor-data. {}'.format(e), level=ERROR)
+            else:
+                ctxt['vendor_data_json'] = vdata
+
+        return ctxt
 
 
 class AMQPContext(OSContextGenerator):
@@ -636,6 +719,19 @@ class AMQPContext(OSContextGenerator):
         if oslo_messaging_flags:
             ctxt['oslo_messaging_flags'] = config_flags_parser(
                 oslo_messaging_flags)
+
+        oslo_messaging_driver = conf.get(
+            'oslo-messaging-driver', DEFAULT_OSLO_MESSAGING_DRIVER)
+        if oslo_messaging_driver:
+            ctxt['oslo_messaging_driver'] = oslo_messaging_driver
+
+        notification_format = conf.get('notification-format', None)
+        if notification_format:
+            ctxt['notification_format'] = notification_format
+
+        send_notifications_to_logs = conf.get('send-notifications-to-logs', None)
+        if send_notifications_to_logs:
+            ctxt['send_notifications_to_logs'] = send_notifications_to_logs
 
         if not self.complete:
             return {}
@@ -1197,7 +1293,9 @@ class NeutronPortContext(OSContextGenerator):
 
         hwaddr_to_nic = {}
         hwaddr_to_ip = {}
-        for nic in list_nics():
+        extant_nics = list_nics()
+
+        for nic in extant_nics:
             # Ignore virtual interfaces (bond masters will be identified from
             # their slaves)
             if not is_phy_iface(nic):
@@ -1228,10 +1326,11 @@ class NeutronPortContext(OSContextGenerator):
                     # Entry is a MAC address for a valid interface that doesn't
                     # have an IP address assigned yet.
                     resolved.append(hwaddr_to_nic[entry])
-            else:
-                # If the passed entry is not a MAC address, assume it's a valid
-                # interface, and that the user put it there on purpose (we can
-                # trust it to be the real external network).
+            elif entry in extant_nics:
+                # If the passed entry is not a MAC address and the interface
+                # exists, assume it's a valid interface, and that the user put
+                # it there on purpose (we can trust it to be the real external
+                # network).
                 resolved.append(entry)
 
         # Ensure no duplicates
@@ -1613,6 +1712,18 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'enable-nsg-logging',
                 'default': False,
             },
+            'enable_nfg_logging': {
+                'rel_key': 'enable-nfg-logging',
+                'default': False,
+            },
+            'global_physnet_mtu': {
+                'rel_key': 'global-physnet-mtu',
+                'default': 1500,
+            },
+            'physical_network_mtus': {
+                'rel_key': 'physical-network-mtus',
+                'default': None,
+            },
         }
         ctxt = self.get_neutron_options({})
         for rid in relation_ids('neutron-plugin-api'):
@@ -1674,13 +1785,13 @@ class DataPortContext(NeutronPortContext):
     def __call__(self):
         ports = config('data-port')
         if ports:
-            # Map of {port/mac:bridge}
+            # Map of {bridge:port/mac}
             portmap = parse_data_port_mappings(ports)
             ports = portmap.keys()
             # Resolve provided ports or mac addresses and filter out those
             # already attached to a bridge.
             resolved = self.resolve_ports(ports)
-            # FIXME: is this necessary?
+            # Rebuild port index using resolved and filtered ports.
             normalized = {get_nic_hwaddr(port): port for port in resolved
                           if port not in ports}
             normalized.update({port: port for port in resolved
