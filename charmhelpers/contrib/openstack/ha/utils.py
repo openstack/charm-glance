@@ -127,7 +127,9 @@ def expect_ha():
     return len(ha_related_units) > 0 or config('vip') or config('dns-ha')
 
 
-def generate_ha_relation_data(service, extra_settings=None):
+def generate_ha_relation_data(service,
+                              extra_settings=None,
+                              haproxy_enabled=True):
     """ Generate relation data for ha relation
 
     Based on configuration options and unit interfaces, generate a json
@@ -152,21 +154,18 @@ def generate_ha_relation_data(service, extra_settings=None):
     @param extra_settings: Dict of additional resource data
     @returns dict: json encoded data for use with relation_set
     """
-    _haproxy_res = 'res_{}_haproxy'.format(service)
-    _relation_data = {
-        'resources': {
-            _haproxy_res: 'lsb:haproxy',
-        },
-        'resource_params': {
+    _relation_data = {'resources': {}, 'resource_params': {}}
+
+    if haproxy_enabled:
+        _haproxy_res = 'res_{}_haproxy'.format(service)
+        _relation_data['resources'] = {_haproxy_res: 'lsb:haproxy'}
+        _relation_data['resource_params'] = {
             _haproxy_res: 'op monitor interval="5s"'
-        },
-        'init_services': {
-            _haproxy_res: 'haproxy'
-        },
-        'clones': {
+        }
+        _relation_data['init_services'] = {_haproxy_res: 'haproxy'}
+        _relation_data['clones'] = {
             'cl_{}_haproxy'.format(service): _haproxy_res
-        },
-    }
+        }
 
     if extra_settings:
         for k, v in extra_settings.items():

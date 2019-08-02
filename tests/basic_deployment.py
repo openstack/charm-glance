@@ -389,7 +389,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
         u.log.debug('Checking glance registry config file...')
         unit = self.glance_sentry
         rel_my_gl = self.pxc_sentry.relation('shared-db', 'glance:shared-db')
-        if self._get_openstack_release() < self.bionic_stein:
+        if self._get_openstack_release() < self.xenial_queens:
             dialect = 'mysql'
         else:
             dialect = 'mysql+pymysql'
