@@ -41,7 +41,7 @@ class GlanceBasicDeployment(OpenStackAmuletDeployment):
     delete new image."""
 
     def __init__(self, series=None, openstack=None, source=None,
-                 stable=False):
+                 stable=True):
         """Deploy the entire test environment."""
         super(GlanceBasicDeployment, self).__init__(series, openstack,
                                                     source, stable)
