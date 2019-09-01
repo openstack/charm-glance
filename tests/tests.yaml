@@ -1,18 +1,25 @@
-# Bootstrap the model if necessary.
-bootstrap: True
-# Re-use bootstrap node.
-reset: True
-# Use tox/requirements to drive the venv instead of bundletester's venv feature.
-virtualenv: False
-# Leave makefile empty, otherwise unit/lint tests will rerun ahead of amulet.
-makefile: []
-# Do not specify juju PPA sources.  Juju is presumed to be pre-installed
-# and configured in all test runner environments.
-#sources:
-# Do not specify or rely on system packages.
-#packages:
-# Do not specify python packages here.  Use test-requirements.txt
-# and tox instead.  ie. The venv is constructed before bundletester
-# is invoked.
-#python-packages:
-reset_timeout: 600
+charm_name: glance
+
+comment:
+  - 'the glance configure job validates operation of identity-service relation'
+
+configure:
+  - zaza.openstack.charm_tests.glance.setup.add_lts_image
+
+smoke_bundles:
+  - bionic-stein
+gate_bundles:
+  - trusty-mitaka
+  - xenial-mitaka
+  - xenial-ocata
+  - xenial-pike
+  - xenial-queens
+  - bionic-queens
+  - bionic-rocky
+  - bionic-stein
+  - disco-stein
+dev_bundles:
+  - bionic-train
+
+tests:
+  - zaza.openstack.charm_tests.glance.tests.GlanceTest

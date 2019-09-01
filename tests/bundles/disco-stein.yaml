@@ -1,0 +1,35 @@
+series: disco
+
+comment:
+  - 'machines section to decide order of deployment. database sooner = faster'
+
+machines:
+  '0':
+    constraints: mem=3072M
+  '1':
+  '2':
+
+relations:
+  - - keystone:shared-db
+    - mysql:shared-db
+  - - glance:shared-db
+    - mysql:shared-db
+  - - glance:identity-service
+    - keystone:identity-service
+
+applications:
+  mysql:
+    charm: cs:~openstack-charmers-next/percona-cluster
+    num_units: 1
+    to:
+      - '0'
+  keystone:
+    charm: cs:~openstack-charmers-next/keystone
+    num_units: 1
+    to:
+      - '1'
+  glance:
+    charm: ../../../glance
+    num_units: 1
+    to:
+      - '2'
