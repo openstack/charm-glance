@@ -1,6 +1,12 @@
-# The order of packages is significant, because pip processes them in the order
-# of appearance. Changing the order has an impact on the overall integration
-# process, which may cause wedges in the gate later.
+# This file is managed centrally by release-tools and should not be modified
+# within individual charm repos.  See the 'global' dir contents for available
+# choices of *requirements.txt files for OpenStack Charms:
+#     https://github.com/openstack-charmers/release-tools
+#
+# TODO: Distill the func test requirements from the lint/unit test
+#       requirements.  They are intertwined.  Also, Zaza itself should specify
+#       all of its own requirements and if it doesn't, fix it there.
+#
 pbr>=1.8.0,<1.9.0
 simplejson>=2.2.0
 netifaces>=0.10.4

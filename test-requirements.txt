@@ -1,10 +1,18 @@
-charm-tools>=2.6.1
+# This file is managed centrally by release-tools and should not be modified
+# within individual charm repos.  See the 'global' dir contents for available
+# choices of *requirements.txt files for OpenStack Charms:
+#     https://github.com/openstack-charmers/release-tools
+#
+# TODO: Distill the func test requirements from the lint/unit test
+#       requirements.  They are intertwined.  Also, Zaza itself should specify
+#       all of its own requirements and if it doesn't, fix it there.
+#
+charm-tools>=2.4.4
 requests>=2.18.4
 mock>=1.2
 flake8>=2.2.4,<=2.4.1
 stestr>=2.2.0
+coverage>=4.5.2
+pyudev              # for ceph-* charm unit tests (need to fix the ceph-* charm unit tests/mocking)
 git+https://github.com/openstack-charmers/zaza.git#egg=zaza;python_version>='3.0'
 git+https://github.com/openstack-charmers/zaza-openstack-tests.git#egg=zaza.openstack
-coverage>=4.5.2
-
-python-glanceclient>=1.1.0

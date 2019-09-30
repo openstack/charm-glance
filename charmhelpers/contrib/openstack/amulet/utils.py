@@ -709,8 +709,8 @@ class OpenStackAmuletUtils(AmuletUtils):
                        '{}...'.format(image_name, image_url))
 
         # Download image
-        http_proxy = os.getenv('AMULET_HTTP_PROXY')
-        self.log.debug('AMULET_HTTP_PROXY: {}'.format(http_proxy))
+        http_proxy = os.getenv('OS_TEST_HTTP_PROXY')
+        self.log.debug('OS_TEST_HTTP_PROXY: {}'.format(http_proxy))
         if http_proxy:
             proxies = {'http': http_proxy}
             opener = urllib.FancyURLopener(proxies)
@@ -800,8 +800,8 @@ class OpenStackAmuletUtils(AmuletUtils):
                        '({})...'.format(image_name))
 
         # Get cirros image URL
-        http_proxy = os.getenv('AMULET_HTTP_PROXY')
-        self.log.debug('AMULET_HTTP_PROXY: {}'.format(http_proxy))
+        http_proxy = os.getenv('OS_TEST_HTTP_PROXY')
+        self.log.debug('OS_TEST_HTTP_PROXY: {}'.format(http_proxy))
         if http_proxy:
             proxies = {'http': http_proxy}
             opener = urllib.FancyURLopener(proxies)

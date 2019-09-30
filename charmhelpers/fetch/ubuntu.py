@@ -13,14 +13,14 @@
 # limitations under the License.
 
 from collections import OrderedDict
-import os
 import platform
 import re
 import six
-import time
 import subprocess
+import sys
+import time
 
-from charmhelpers.core.host import get_distrib_codename
+from charmhelpers.core.host import get_distrib_codename, get_system_env
 
 from charmhelpers.core.hookenv import (
     log,
@@ -29,6 +29,7 @@ from charmhelpers.core.hookenv import (
     env_proxy_settings,
 )
 from charmhelpers.fetch import SourceConfigError, GPGKeyError
+from charmhelpers.fetch import ubuntu_apt_pkg
 
 PROPOSED_POCKET = (
     "# Proposed\n"
@@ -216,18 +217,42 @@ def filter_missing_packages(packages):
     )
 
 
-def apt_cache(in_memory=True, progress=None):
-    """Build and return an apt cache."""
-    from apt import apt_pkg
-    apt_pkg.init()
-    if in_memory:
-        apt_pkg.config.set("Dir::Cache::pkgcache", "")
-        apt_pkg.config.set("Dir::Cache::srcpkgcache", "")
-    return apt_pkg.Cache(progress)
+def apt_cache(*_, **__):
+    """Shim returning an object simulating the apt_pkg Cache.
+
+    :param _: Accept arguments for compability, not used.
+    :type _: any
+    :param __: Accept keyword arguments for compability, not used.
+    :type __: any
+    :returns:Object used to interrogate the system apt and dpkg databases.
+    :rtype:ubuntu_apt_pkg.Cache
+    """
+    if 'apt_pkg' in sys.modules:
+        # NOTE(fnordahl): When our consumer use the upstream ``apt_pkg`` module
+        # in conjunction with the apt_cache helper function, they may expect us
+        # to call ``apt_pkg.init()`` for them.
+        #
+        # Detect this situation, log a warning and make the call to
+        # ``apt_pkg.init()`` to avoid the consumer Python interpreter from
+        # crashing with a segmentation fault.
+        log('Support for use of upstream ``apt_pkg`` module in conjunction'
+            'with charm-helpers is deprecated since 2019-06-25', level=WARNING)
+        sys.modules['apt_pkg'].init()
+    return ubuntu_apt_pkg.Cache()
 
 
 def apt_install(packages, options=None, fatal=False):
-    """Install one or more packages."""
+    """Install one or more packages.
+
+    :param packages: Package(s) to install
+    :type packages: Option[str, List[str]]
+    :param options: Options to pass on to apt-get
+    :type options: Option[None, List[str]]
+    :param fatal: Whether the command's output should be checked and
+                  retried.
+    :type fatal: bool
+    :raises: subprocess.CalledProcessError
+    """
     if options is None:
         options = ['--option=Dpkg::Options::=--force-confold']
 
@@ -244,7 +269,17 @@ def apt_install(packages, options=None, fatal=False):
 
 
 def apt_upgrade(options=None, fatal=False, dist=False):
-    """Upgrade all packages."""
+    """Upgrade all packages.
+
+    :param options: Options to pass on to apt-get
+    :type options: Option[None, List[str]]
+    :param fatal: Whether the command's output should be checked and
+                  retried.
+    :type fatal: bool
+    :param dist: Whether ``dist-upgrade`` should be used over ``upgrade``
+    :type dist: bool
+    :raises: subprocess.CalledProcessError
+    """
     if options is None:
         options = ['--option=Dpkg::Options::=--force-confold']
 
@@ -265,7 +300,15 @@ def apt_update(fatal=False):
 
 
 def apt_purge(packages, fatal=False):
-    """Purge one or more packages."""
+    """Purge one or more packages.
+
+    :param packages: Package(s) to install
+    :type packages: Option[str, List[str]]
+    :param fatal: Whether the command's output should be checked and
+                  retried.
+    :type fatal: bool
+    :raises: subprocess.CalledProcessError
+    """
     cmd = ['apt-get', '--assume-yes', 'purge']
     if isinstance(packages, six.string_types):
         cmd.append(packages)
@@ -276,7 +319,14 @@ def apt_purge(packages, fatal=False):
 
 
 def apt_autoremove(purge=True, fatal=False):
-    """Purge one or more packages."""
+    """Purge one or more packages.
+    :param purge: Whether the ``--purge`` option should be passed on or not.
+    :type purge: bool
+    :param fatal: Whether the command's output should be checked and
+                  retried.
+    :type fatal: bool
+    :raises: subprocess.CalledProcessError
+    """
     cmd = ['apt-get', '--assume-yes', 'autoremove']
     if purge:
         cmd.append('--purge')
@@ -660,21 +710,22 @@ def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
                       retry_message="", cmd_env=None):
     """Run a command and retry until success or max_retries is reached.
 
-    :param: cmd: str: The apt command to run.
-    :param: max_retries: int: The number of retries to attempt on a fatal
-        command. Defaults to CMD_RETRY_COUNT.
-    :param: retry_exitcodes: tuple: Optional additional exit codes to retry.
-        Defaults to retry on exit code 1.
-    :param: retry_message: str: Optional log prefix emitted during retries.
-    :param: cmd_env: dict: Environment variables to add to the command run.
+    :param cmd: The apt command to run.
+    :type cmd: str
+    :param max_retries: The number of retries to attempt on a fatal
+                        command. Defaults to CMD_RETRY_COUNT.
+    :type max_retries: int
+    :param retry_exitcodes: Optional additional exit codes to retry.
+                            Defaults to retry on exit code 1.
+    :type retry_exitcodes: tuple
+    :param retry_message: Optional log prefix emitted during retries.
+    :type retry_message: str
+    :param: cmd_env: Environment variables to add to the command run.
+    :type cmd_env: Option[None, Dict[str, str]]
     """
-
-    env = None
-    kwargs = {}
+    env = get_apt_dpkg_env()
     if cmd_env:
-        env = os.environ.copy()
         env.update(cmd_env)
-        kwargs['env'] = env
 
     if not retry_message:
         retry_message = "Failed executing '{}'".format(" ".join(cmd))
@@ -686,8 +737,7 @@ def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
     retry_results = (None,) + retry_exitcodes
     while result in retry_results:
         try:
-            # result = subprocess.check_call(cmd, env=env)
-            result = subprocess.check_call(cmd, **kwargs)
+            result = subprocess.check_call(cmd, env=env)
         except subprocess.CalledProcessError as e:
             retry_count = retry_count + 1
             if retry_count > max_retries:
@@ -700,22 +750,18 @@ def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
 def _run_apt_command(cmd, fatal=False):
     """Run an apt command with optional retries.
 
-    :param: cmd: str: The apt command to run.
-    :param: fatal: bool: Whether the command's output should be checked and
-        retried.
+    :param cmd: The apt command to run.
+    :type cmd: str
+    :param fatal: Whether the command's output should be checked and
+                  retried.
+    :type fatal: bool
     """
-    # Provide DEBIAN_FRONTEND=noninteractive if not present in the environment.
-    cmd_env = {
-        'DEBIAN_FRONTEND': os.environ.get('DEBIAN_FRONTEND', 'noninteractive')}
-
     if fatal:
         _run_with_retries(
-            cmd, cmd_env=cmd_env, retry_exitcodes=(1, APT_NO_LOCK,),
+            cmd, retry_exitcodes=(1, APT_NO_LOCK,),
             retry_message="Couldn't acquire DPKG lock")
     else:
-        env = os.environ.copy()
-        env.update(cmd_env)
-        subprocess.call(cmd, env=env)
+        subprocess.call(cmd, env=get_apt_dpkg_env())
 
 
 def get_upstream_version(package):
@@ -723,7 +769,6 @@ def get_upstream_version(package):
 
     @returns None (if not installed) or the upstream version
     """
-    import apt_pkg
     cache = apt_cache()
     try:
         pkg = cache[package]
@@ -735,4 +780,18 @@ def get_upstream_version(package):
         # package is known, but no version is currently installed.
         return None
 
-    return apt_pkg.upstream_version(pkg.current_ver.ver_str)
+    return ubuntu_apt_pkg.upstream_version(pkg.current_ver.ver_str)
+
+
+def get_apt_dpkg_env():
+    """Get environment suitable for execution of APT and DPKG tools.
+
+    We keep this in a helper function instead of in a global constant to
+    avoid execution on import of the library.
+    :returns: Environment suitable for execution of APT and DPKG tools.
+    :rtype: Dict[str, str]
+    """
+    # The fallback is used in the event of ``/etc/environment`` not containing
+    # avalid PATH variable.
+    return {'DEBIAN_FRONTEND': 'noninteractive',
+            'PATH': get_system_env('PATH', '/usr/sbin:/usr/bin:/sbin:/bin')}

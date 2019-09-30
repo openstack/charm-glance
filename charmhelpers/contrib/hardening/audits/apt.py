@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from __future__ import absolute_import  # required for external apt import
-from apt import apt_pkg
 from six import string_types
 
 from charmhelpers.fetch import (
@@ -26,6 +25,7 @@ from charmhelpers.core.hookenv import (
     WARNING,
 )
 from charmhelpers.contrib.hardening.audits import BaseAudit
+from charmhelpers.fetch import ubuntu_apt_pkg as apt_pkg
 
 
 class AptConfig(BaseAudit):

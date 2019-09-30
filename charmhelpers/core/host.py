@@ -1075,3 +1075,30 @@ def install_ca_cert(ca_cert, name=None):
     log("Installing new CA cert at: {}".format(cert_file), level=INFO)
     write_file(cert_file, ca_cert)
     subprocess.check_call(['update-ca-certificates', '--fresh'])
+
+
+def get_system_env(key, default=None):
+    """Get data from system environment as represented in ``/etc/environment``.
+
+    :param key: Key to look up
+    :type key: str
+    :param default: Value to return if key is not found
+    :type default: any
+    :returns: Value for key if found or contents of default parameter
+    :rtype: any
+    :raises: subprocess.CalledProcessError
+    """
+    env_file = '/etc/environment'
+    # use the shell and env(1) to parse the global environments file.  This is
+    # done to get the correct result even if the user has shell variable
+    # substitutions or other shell logic in that file.
+    output = subprocess.check_output(
+        ['env', '-i', '/bin/bash', '-c',
+         'set -a && source {} && env'.format(env_file)],
+        universal_newlines=True)
+    for k, v in (line.split('=', 1)
+                 for line in output.splitlines() if '=' in line):
+        if k == key:
+            return v
+    else:
+        return default

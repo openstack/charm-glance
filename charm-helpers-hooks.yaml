@@ -14,3 +14,4 @@ include:
     - contrib.charmsupport
     - core.kernel
     - contrib.hardening|inc=*
+    - contrib.openstack.policyd

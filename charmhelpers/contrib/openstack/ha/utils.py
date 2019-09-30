@@ -289,7 +289,7 @@ def update_hacluster_vip(service, relation_data):
 
         iface, netmask, fallback = get_vip_settings(vip)
 
-        vip_monitoring = 'op monitor depth="0" timeout="20s" interval="10s"'
+        vip_monitoring = 'op monitor timeout="20s" interval="10s" depth="0"'
         if iface is not None:
             # NOTE(jamespage): Delete old VIP resources
             # Old style naming encoding iface in name

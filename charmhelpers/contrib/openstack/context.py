@@ -18,6 +18,7 @@ import json
 import math
 import os
 import re
+import socket
 import time
 from base64 import b64decode
 from subprocess import check_call, CalledProcessError
@@ -1716,6 +1717,10 @@ class NeutronAPIContext(OSContextGenerator):
                 'rel_key': 'enable-nfg-logging',
                 'default': False,
             },
+            'enable_port_forwarding': {
+                'rel_key': 'enable-port-forwarding',
+                'default': False,
+            },
             'global_physnet_mtu': {
                 'rel_key': 'global-physnet-mtu',
                 'default': 1500,
@@ -1744,6 +1749,13 @@ class NeutronAPIContext(OSContextGenerator):
             extension_drivers.append('log')
 
         ctxt['extension_drivers'] = ','.join(extension_drivers)
+
+        l3_extension_plugins = []
+
+        if ctxt['enable_port_forwarding']:
+            l3_extension_plugins.append('port_forwarding')
+
+        ctxt['l3_extension_plugins'] = l3_extension_plugins
 
         return ctxt
 
@@ -2158,5 +2170,16 @@ class LogrotateContext(OSContextGenerator):
             'logrotate_logs_location': self.location,
             'logrotate_interval': self.interval,
             'logrotate_count': self.count,
+        }
+        return ctxt
+
+
+class HostInfoContext(OSContextGenerator):
+    """Context to provide host information."""
+
+    def __call__(self):
+        ctxt = {
+            'host_fqdn': socket.getfqdn(),
+            'host': socket.gethostname(),
         }
         return ctxt
