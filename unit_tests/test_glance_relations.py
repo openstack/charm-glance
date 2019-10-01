@@ -76,6 +76,9 @@ TO_PATCH = [
     'configure_installation_source',
     'os_release',
     'openstack_upgrade_available',
+    # charmhelpers.contrib.openstack.policyd
+    'maybe_do_policyd_overrides',
+    'maybe_do_policyd_overrides_on_config_changed',
     # charmhelpers.contrib.openstack.ha.utils
     'generate_ha_relation_data',
     'is_clustered',

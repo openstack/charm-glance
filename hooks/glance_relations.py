@@ -132,6 +132,11 @@ from charmhelpers.contrib.openstack.cert_utils import (
     get_certificate_request,
     process_certificates,
 )
+from charmhelpers.contrib.openstack.policyd import (
+    maybe_do_policyd_overrides,
+    maybe_do_policyd_overrides_on_config_changed,
+)
+
 
 hooks = Hooks()
 CONFIGS = register_configs()
@@ -155,6 +160,11 @@ def install_hook():
 
     for service in SERVICES:
         service_stop(service)
+    # call the policy overrides handler which will install any policy overrides
+    maybe_do_policyd_overrides(
+        os_release('glance-common'),
+        'glance',
+        restart_handler=lambda: service_restart('glance-api'))
 
 
 @hooks.hook('shared-db-relation-joined')
@@ -376,6 +386,12 @@ def config_changed():
     ceph_changed()
     update_image_location_policy()
 
+    # call the policy overrides handler which will install any policy overrides
+    maybe_do_policyd_overrides_on_config_changed(
+        os_release('glance-common'),
+        'glance',
+        restart_handler=lambda: service_restart('glance-api'))
+
 
 @hooks.hook('cluster-relation-joined')
 def cluster_joined(relation_id=None):
@@ -417,6 +433,11 @@ def upgrade_charm():
         juju_log("Package purge detected, restarting services", "INFO")
         for s in services():
             service_restart(s)
+    # call the policy overrides handler which will install any policy overrides
+    maybe_do_policyd_overrides(
+        os_release('glance-common'),
+        'glance',
+        restart_handler=lambda: service_restart('glance-api'))
 
 
 @hooks.hook('ha-relation-joined')

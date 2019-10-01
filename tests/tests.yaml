@@ -21,5 +21,13 @@ gate_bundles:
 dev_bundles:
   - bionic-train
 
+configure:
+  - zaza.openstack.charm_tests.keystone.setup.add_demo_user
+
 tests:
   - zaza.openstack.charm_tests.glance.tests.GlanceTest
+  - zaza.openstack.charm_tests.policyd.tests.GlanceTests
+
+tests_options:
+  policyd:
+    service: glance

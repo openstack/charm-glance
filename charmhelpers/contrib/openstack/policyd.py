@@ -299,10 +299,17 @@ def maybe_do_policyd_overrides(openstack_release,
     config = hookenv.config()
     try:
         if not config.get(POLICYD_CONFIG_NAME, False):
-            remove_policy_success_file()
             clean_policyd_dir_for(service, blacklist_paths)
+            if (os.path.isfile(_policy_success_file()) and
+                    restart_handler is not None and
+                    callable(restart_handler)):
+                restart_handler()
+            remove_policy_success_file()
             return
-    except Exception:
+    except Exception as e:
+        print("Exception is: ", str(e))
+        import traceback
+        traceback.print_exc()
         return
     if not is_policyd_override_valid_on_this_release(openstack_release):
         return
@@ -348,8 +355,12 @@ def maybe_do_policyd_overrides_on_config_changed(openstack_release,
     config = hookenv.config()
     try:
         if not config.get(POLICYD_CONFIG_NAME, False):
-            remove_policy_success_file()
             clean_policyd_dir_for(service, blacklist_paths)
+            if (os.path.isfile(_policy_success_file()) and
+                    restart_handler is not None and
+                    callable(restart_handler)):
+                restart_handler()
+            remove_policy_success_file()
             return
     except Exception:
         return
@@ -430,8 +441,13 @@ def _yamlfiles(zipfile):
     """
     l = []
     for infolist_item in zipfile.infolist():
-        if infolist_item.is_dir():
-            continue
+        try:
+            if infolist_item.is_dir():
+                continue
+        except AttributeError:
+            # fallback to "old" way to determine dir entry for pre-py36
+            if infolist_item.filename.endswith('/'):
+                continue
         _, name_ext = os.path.split(infolist_item.filename)
         name, ext = os.path.splitext(name_ext)
         ext = ext.lower()
