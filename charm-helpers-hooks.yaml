@@ -1,4 +1,4 @@
-repo: https://github.com/juju/charm-helpers
+repo: https://github.com/juju/charm-helpers@stable/19.10
 destination: charmhelpers
 include:
     - core
