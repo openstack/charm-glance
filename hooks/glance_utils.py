@@ -122,6 +122,7 @@ CEPH_CONF = "/etc/ceph/ceph.conf"
 CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
 
 HAPROXY_CONF = "/etc/haproxy/haproxy.cfg"
+APACHE_PORTS_CONF = '/etc/apache2/ports.conf'
 HTTPS_APACHE_CONF = "/etc/apache2/sites-available/openstack_https_frontend"
 HTTPS_APACHE_24_CONF = "/etc/apache2/sites-available/" \
     "openstack_https_frontend.conf"
@@ -209,7 +210,11 @@ CONFIG_FILES = OrderedDict([
     (HTTPS_APACHE_24_CONF, {
         'hook_contexts': [glance_contexts.ApacheSSLContext()],
         'services': ['apache2'],
-    })
+    }),
+    (APACHE_PORTS_CONF, {
+        'contexts': [],
+        'services': ['apache2'],
+    }),
 ])
 
 
