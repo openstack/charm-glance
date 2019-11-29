@@ -240,6 +240,8 @@ def register_configs():
         confs.append(ceph_config_file())
 
     for conf in confs:
+        if cmp_release >= 'stein' and conf == GLANCE_REGISTRY_CONF:
+            continue
         configs.register(conf, CONFIG_FILES[conf]['hook_contexts'])
 
     if os.path.exists('/etc/apache2/conf-available'):
@@ -281,6 +283,8 @@ def determine_purge_packages():
         pkgs.extend(["python-cinderclient",
                      "python-os-brick",
                      "python-oslo.rootwrap"])
+        if CompareOpenStackReleases(os_release('glance')) >= 'stein':
+            pkgs.append('glance-registry')
         return pkgs
     return []
 
