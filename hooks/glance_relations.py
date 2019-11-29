@@ -190,15 +190,22 @@ def db_joined():
 @hooks.hook('shared-db-relation-changed')
 @restart_on_change(restart_map())
 def db_changed():
-    rel = os_release('glance-common')
+    release = os_release('glance-common')
+    cmp_release = CompareOpenStackReleases(release)
 
     if 'shared-db' not in CONFIGS.complete_contexts():
         juju_log('shared-db relation incomplete. Peer not ready?')
         return
 
-    CONFIGS.write(GLANCE_REGISTRY_CONF)
+    # https://blueprints.launchpad.net/glance/+spec/deprecate-registry
+    # Based on Glance registry deprecation and removal on Stein release,
+    # its configuration is written only if OpenStack version is previous
+    # than Stein.
+    if cmp_release < 'stein':
+        CONFIGS.write(GLANCE_REGISTRY_CONF)
+
     # since folsom, a db connection setting in glance-api.conf is required.
-    if rel != "essex":
+    if cmp_release != "essex":
         CONFIGS.write(GLANCE_API_CONF)
 
     if is_elected_leader(CLUSTER_RES):
@@ -207,7 +214,7 @@ def db_changed():
         # permitted units then check if we're in the list.
         allowed_units = relation_get('allowed_units')
         if allowed_units and local_unit() in allowed_units.split():
-            if rel == "essex":
+            if cmp_release == "essex":
                 status = call(['glance-manage', 'db_version'])
                 if status != 0:
                     juju_log('Setting version_control to 0')

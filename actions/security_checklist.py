@@ -25,6 +25,9 @@ import charmhelpers.contrib.openstack.audits as audits
 from charmhelpers.contrib.openstack.audits import (
     openstack_security_guide,
 )
+from charmhelpers.contrib.openstack.utils import (
+    CompareOpenStackReleases,
+    os_release)
 
 
 # Via the openstack_security_guide above, we are running the following
@@ -70,12 +73,14 @@ def validate_glance_uses_keystone(audit_options):
     glance_api = dict(conf)
     assert glance_api.get('DEFAULT', {}).get('auth_strategy') == "keystone", \
         "Keystone should be used for auth in glance-api.conf"
-    conf = configparser.ConfigParser()
-    conf.read(os.path.join('/etc/glance/glance-registry.conf'))
-    glance_registry = dict(conf)
-    assert glance_registry.get('DEFAULT', {}) \
-                          .get('auth_strategy') == "keystone", \
-        "Keystone should be used for auth in glance-api.conf"
+    cmp_release = CompareOpenStackReleases(os_release('glance-common'))
+    if cmp_release <= 'stein':
+        conf = configparser.ConfigParser()
+        conf.read(os.path.join('/etc/glance/glance-registry.conf'))
+        glance_registry = dict(conf)
+        assert glance_registry.get('DEFAULT', {}) \
+                              .get('auth_strategy') == "keystone", \
+            "Keystone should be used for auth in glance-registry.conf"
 
 
 @audits.audit(audits.is_audit_type(audits.AuditType.OpenStackSecurityGuide))
@@ -96,14 +101,17 @@ def validate_glance_uses_tls_for_keystone(audit_options):
     assert glance_api.get('keystone_authtoken', {}).get('auth_uri'). \
         startswith("https://"), \
         "TLS should be used to authenticate with Keystone"
-    conf = configparser.ConfigParser()
-    conf.read(os.path.join('/etc/glance/glance-registry.conf'))
-    glance_registry = dict(conf)
-    assert not glance_registry.get('keystone_authtoken', {}).get('insecure'), \
-        "Insecure mode should not be used with TLS"
-    assert glance_registry.get('keystone_authtoken', {}).get('auth_uri'). \
-        startswith("https://"), \
-        "TLS should be used to authenticate with Keystone"
+    cmp_release = CompareOpenStackReleases(os_release('glance-common'))
+    if cmp_release <= 'stein':
+        conf = configparser.ConfigParser()
+        conf.read(os.path.join('/etc/glance/glance-registry.conf'))
+        glance_registry = dict(conf)
+        assert not glance_registry.get(
+            'keystone_authtoken', {}).get('insecure'), \
+            "Insecure mode should not be used with TLS"
+        assert glance_registry.get('keystone_authtoken', {}).get('auth_uri'). \
+            startswith("https://"), \
+            "TLS should be used to authenticate with Keystone"
 
 
 def main():
