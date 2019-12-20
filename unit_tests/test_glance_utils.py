@@ -154,7 +154,6 @@ class TestGlanceUtils(CharmTestCase):
             (utils.HAPROXY_CONF, ['haproxy']),
             (utils.HTTPS_APACHE_CONF, ['apache2']),
             (utils.HTTPS_APACHE_24_CONF, ['apache2']),
-            (utils.APACHE_PORTS_CONF, ['apache2']),
             (utils.MEMCACHED_CONF, ['memcached']),
             (utils.GLANCE_POLICY_FILE, ['glance-api', 'glance-registry']),
         ])
@@ -176,7 +175,6 @@ class TestGlanceUtils(CharmTestCase):
             (utils.HAPROXY_CONF, ['haproxy']),
             (utils.HTTPS_APACHE_CONF, ['apache2']),
             (utils.HTTPS_APACHE_24_CONF, ['apache2']),
-            (utils.APACHE_PORTS_CONF, ['apache2']),
             (utils.MEMCACHED_CONF, ['memcached']),
             (utils.GLANCE_POLICY_FILE, ['glance-api']),
         ])
@@ -200,7 +198,6 @@ class TestGlanceUtils(CharmTestCase):
             (utils.HAPROXY_CONF, ['haproxy']),
             (utils.HTTPS_APACHE_CONF, ['apache2']),
             (utils.HTTPS_APACHE_24_CONF, ['apache2']),
-            (utils.APACHE_PORTS_CONF, ['apache2']),
             (utils.MEMCACHED_CONF, ['memcached']),
             (utils.GLANCE_POLICY_FILE, ['glance-api']),
             ('{}/*'.format(utils.APACHE_SSL_DIR),
