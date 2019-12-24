@@ -56,6 +56,7 @@ from glance_utils import (
     pause_unit_helper,
     resume_unit_helper,
     remove_old_packages,
+    deprecated_services,
 )
 from charmhelpers.core.hookenv import (
     charm_dir,
@@ -526,6 +527,7 @@ def update_nrpe_config():
     nrpe_files_dir = os.path.join(
         charm_dir(), 'charmhelpers', 'contrib', 'openstack', 'files')
     nrpe.copy_nrpe_checks(nrpe_files_dir=nrpe_files_dir)
+    nrpe.remove_deprecated_check(nrpe_setup, deprecated_services())
     nrpe.add_init_service_checks(nrpe_setup, services(), current_unit)
     nrpe.add_haproxy_checks(nrpe_setup, current_unit)
     nrpe_setup.write()
