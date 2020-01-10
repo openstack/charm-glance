@@ -484,3 +484,13 @@ def add_haproxy_checks(nrpe, unit_name):
         shortname='haproxy_queue',
         description='Check HAProxy queue depth {%s}' % unit_name,
         check_cmd='check_haproxy_queue_depth.sh')
+
+def remove_deprecated_check(nrpe, deprecated_services):
+    """
+    Remove checks fro deprecated services in list
+
+    :param NRPE nrpe: NRPE object to remove check from
+    """
+    for dep_svc in deprecated_services:
+        log('Deprecated service: {}'.format(dep_svc))
+        nrpe.remove_check(shortname=dep_svc)

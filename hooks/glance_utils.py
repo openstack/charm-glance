@@ -389,6 +389,15 @@ def services():
     return list(set(chain(*restart_map().values())))
 
 
+def deprecated_services():
+    ''' Returns a list of deprecated services with this charm '''
+    cmp_release = CompareOpenStackReleases(os_release('glance-common'))
+    if cmp_release >= 'stein':
+        return ['glance-registry']
+
+    return []
+
+
 def setup_ipv6():
     ubuntu_rel = lsb_release()['DISTRIB_CODENAME'].lower()
     if CompareHostReleases(ubuntu_rel) < "trusty":
