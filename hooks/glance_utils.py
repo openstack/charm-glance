@@ -74,6 +74,7 @@ from charmhelpers.contrib.openstack.utils import (
     resume_unit,
     token_cache_pkgs,
     update_json_file,
+    set_db_initialised,
 )
 
 from charmhelpers.core.decorators import (
@@ -298,6 +299,7 @@ def migrate_database():
     '''
     cmd = ['glance-manage', 'db_sync']
     subprocess.check_call(cmd)
+    set_db_initialised()
 
 
 def remove_old_packages():

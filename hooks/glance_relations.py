@@ -105,6 +105,7 @@ from charmhelpers.contrib.openstack.utils import (
     series_upgrade_prepare,
     series_upgrade_complete,
     CompareOpenStackReleases,
+    is_db_initialised,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
@@ -222,8 +223,11 @@ def db_changed():
                     cmd = ["glance-manage", "version_control", "0"]
                     check_call(cmd)
 
-            juju_log('Cluster leader, performing db sync')
-            migrate_database()
+            if is_db_initialised():
+                juju_log('Skipping DB sync, database already initialised')
+            else:
+                juju_log('Cluster leader, performing db sync')
+                migrate_database()
         else:
             juju_log('allowed_units either not presented, or local unit '
                      'not in acl list: {}'.format(allowed_units))

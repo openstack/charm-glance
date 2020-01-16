@@ -49,6 +49,7 @@ TO_PATCH = [
     'os_application_version_set',
     'enable_memcache',
     'token_cache_pkgs',
+    'set_db_initialised',
 ]
 
 DPKG_OPTS = [
@@ -68,6 +69,7 @@ class TestGlanceUtils(CharmTestCase):
         "It migrates database with cinder-manage"
         utils.migrate_database()
         check_call.assert_called_with(['glance-manage', 'db_sync'])
+        self.set_db_initialised.assert_called_once_with()
 
     @patch('os.path.exists')
     def test_register_configs_apache(self, exists):

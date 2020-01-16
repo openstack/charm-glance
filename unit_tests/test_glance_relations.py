@@ -74,6 +74,7 @@ TO_PATCH = [
     'service_restart',
     # charmhelpers.contrib.openstack.utils
     'configure_installation_source',
+    'is_db_initialised',
     'os_release',
     'openstack_upgrade_available',
     # charmhelpers.contrib.openstack.policyd
@@ -150,6 +151,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_missing_relation_data(self, configs):
+        self.is_db_initialised.return_value = False
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = []
         relations.db_changed()
@@ -168,6 +170,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_allowed(self, configs):
+        self.is_db_initialised.return_value = False
         self._shared_db_test(configs, 'glance/0')
         self.assertEqual([call('/etc/glance/glance-registry.conf'),
                           call('/etc/glance/glance-api.conf')],
@@ -179,6 +182,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_not_allowed(self, configs):
+        self.is_db_initialised.return_value = False
         self._shared_db_test(configs, 'glance/2')
         self.assertEqual([call('/etc/glance/glance-registry.conf'),
                           call('/etc/glance/glance-api.conf')],
@@ -187,6 +191,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_no_acls(self, configs):
+        self.is_db_initialised.return_value = False
         self._shared_db_test(configs, 'glance/2', None)
         self.assertEqual([call('/etc/glance/glance-registry.conf'),
                           call('/etc/glance/glance-api.conf')],
@@ -196,6 +201,7 @@ class GlanceRelationTests(CharmTestCase):
     @patch.object(relations, 'image_service_joined')
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_image_service_joined(self, configs, imgsj):
+        self.is_db_initialised.return_value = False
         rids = ['nova-cloud-controller:1', 'nova-compute:1']
         self.relation_ids.return_value = rids
         self._shared_db_test(configs, 'glance/2', None)
@@ -203,6 +209,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_with_essex_not_setting_version_control(self, configs):
+        self.is_db_initialised.return_value = False
         self.os_release.return_value = "essex"
         self.call.return_value = 0
         self._shared_db_test(configs, 'glance/0')
@@ -215,6 +222,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_with_essex_setting_version_control(self, configs):
+        self.is_db_initialised.return_value = False
         self.os_release.return_value = "essex"
         self.call.return_value = 1
         self._shared_db_test(configs, 'glance/0')
