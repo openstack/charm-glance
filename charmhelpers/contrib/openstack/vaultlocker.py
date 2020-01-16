@@ -37,9 +37,13 @@ class VaultKVContext(context.OSContextGenerator):
         )
 
     def __call__(self):
+        import hvac
+        ctxt = {}
+        # NOTE(hopem): see https://bugs.launchpad.net/charm-helpers/+bug/1849323
         db = unitdata.kv()
-        last_token = db.get('last-token')
+        # currently known-good secret-id
         secret_id = db.get('secret-id')
+
         for relation_id in hookenv.relation_ids(self.interfaces[0]):
             for unit in hookenv.related_units(relation_id):
                 data = hookenv.relation_get(unit=unit,
@@ -54,27 +58,48 @@ class VaultKVContext(context.OSContextGenerator):
 
                     # Tokens may change when secret_id's are being
                     # reissued - if so use token to get new secret_id
-                    if token != last_token:
+                    token_success = False
+                    try:
                         secret_id = retrieve_secret_id(
                             url=vault_url,
                             token=token
                         )
+                        token_success = True
+                    except hvac.exceptions.InvalidRequest:
+                        # Try next
+                        pass
+
+                    if token_success:
                         db.set('secret-id', secret_id)
-                        db.set('last-token', token)
                         db.flush()
 
-                    ctxt = {
-                        'vault_url': vault_url,
-                        'role_id': json.loads(role_id),
-                        'secret_id': secret_id,
-                        'secret_backend': self.secret_backend,
-                    }
-                    vault_ca = data.get('vault_ca')
-                    if vault_ca:
-                        ctxt['vault_ca'] = json.loads(vault_ca)
-                    self.complete = True
-                    return ctxt
-        return {}
+                        ctxt['vault_url'] = vault_url
+                        ctxt['role_id'] = json.loads(role_id)
+                        ctxt['secret_id'] = secret_id
+                        ctxt['secret_backend'] = self.secret_backend
+                        vault_ca = data.get('vault_ca')
+                        if vault_ca:
+                            ctxt['vault_ca'] = json.loads(vault_ca)
+
+                        self.complete = True
+                        break
+                    else:
+                        if secret_id:
+                            ctxt['vault_url'] = vault_url
+                            ctxt['role_id'] = json.loads(role_id)
+                            ctxt['secret_id'] = secret_id
+                            ctxt['secret_backend'] = self.secret_backend
+                            vault_ca = data.get('vault_ca')
+                            if vault_ca:
+                                ctxt['vault_ca'] = json.loads(vault_ca)
+
+            if self.complete:
+                break
+
+        if ctxt:
+            self.complete = True
+
+        return ctxt
 
 
 def write_vaultlocker_conf(context, priority=100):

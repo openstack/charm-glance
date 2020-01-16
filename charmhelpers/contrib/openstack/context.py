@@ -730,6 +730,10 @@ class AMQPContext(OSContextGenerator):
         if notification_format:
             ctxt['notification_format'] = notification_format
 
+        notification_topics = conf.get('notification-topics', None)
+        if notification_topics:
+            ctxt['notification_topics'] = notification_topics
+
         send_notifications_to_logs = conf.get('send-notifications-to-logs', None)
         if send_notifications_to_logs:
             ctxt['send_notifications_to_logs'] = send_notifications_to_logs
@@ -1940,7 +1944,7 @@ class VolumeAPIContext(InternalEndpointContext):
         as well as the catalog_info string that would be supplied. Returns
         a dict containing the volume_api_version and the volume_catalog_info.
         """
-        rel = os_release(self.pkg, base='icehouse')
+        rel = os_release(self.pkg)
         version = '2'
         if CompareOpenStackReleases(rel) >= 'pike':
             version = '3'
@@ -2140,7 +2144,7 @@ class VersionsContext(OSContextGenerator):
         self.pkg = pkg
 
     def __call__(self):
-        ostack = os_release(self.pkg, base='icehouse')
+        ostack = os_release(self.pkg)
         osystem = lsb_release()['DISTRIB_CODENAME'].lower()
         return {
             'openstack_release': ostack,
@@ -2177,9 +2181,66 @@ class LogrotateContext(OSContextGenerator):
 class HostInfoContext(OSContextGenerator):
     """Context to provide host information."""
 
+    def __init__(self, use_fqdn_hint_cb=None):
+        """Initialize HostInfoContext
+
+        :param use_fqdn_hint_cb: Callback whose return value used to populate
+                                 `use_fqdn_hint`
+        :type use_fqdn_hint_cb: Callable[[], bool]
+        """
+        # Store callback used to get hint for whether FQDN should be used
+
+        # Depending on the workload a charm manages, the use of FQDN vs.
+        # shortname may be a deploy-time decision, i.e. behaviour can not
+        # change on charm upgrade or post-deployment configuration change.
+
+        # The hint is passed on as a flag in the context to allow the decision
+        # to be made in the Jinja2 configuration template.
+        self.use_fqdn_hint_cb = use_fqdn_hint_cb
+
+    def _get_canonical_name(self, name=None):
+        """Get the official FQDN of the host
+
+        The implementation of ``socket.getfqdn()`` in the standard Python
+        library does not exhaust all methods of getting the official name
+        of a host ref Python issue https://bugs.python.org/issue5004
+
+        This function mimics the behaviour of a call to ``hostname -f`` to
+        get the official FQDN but returns an empty string if it is
+        unsuccessful.
+
+        :param name: Shortname to get FQDN on
+        :type name: Optional[str]
+        :returns: The official FQDN for host or empty string ('')
+        :rtype: str
+        """
+        name = name or socket.gethostname()
+        fqdn = ''
+
+        if six.PY2:
+            exc = socket.error
+        else:
+            exc = OSError
+
+        try:
+            addrs = socket.getaddrinfo(
+                name, None, 0, socket.SOCK_DGRAM, 0, socket.AI_CANONNAME)
+        except exc:
+            pass
+        else:
+            for addr in addrs:
+                if addr[3]:
+                    if '.' in addr[3]:
+                        fqdn = addr[3]
+                    break
+        return fqdn
+
     def __call__(self):
+        name = socket.gethostname()
         ctxt = {
-            'host_fqdn': socket.getfqdn(),
-            'host': socket.gethostname(),
+            'host_fqdn': self._get_canonical_name(name) or name,
+            'host': name,
+            'use_fqdn_hint': (
+                self.use_fqdn_hint_cb() if self.use_fqdn_hint_cb else False)
         }
         return ctxt

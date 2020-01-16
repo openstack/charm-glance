@@ -17,9 +17,11 @@ import contextlib
 import os
 import six
 import shutil
+import sys
 import yaml
 import zipfile
 
+import charmhelpers
 import charmhelpers.core.hookenv as hookenv
 import charmhelpers.core.host as ch_host
 
@@ -115,8 +117,8 @@ library for further details).
     default: False
     description: |
       If True then use the resource file named 'policyd-override' to install
-      override yaml files in the service's policy.d directory.  The resource
-      file should be a zip file containing at least one yaml file with a .yaml
+      override YAML files in the service's policy.d directory.  The resource
+      file should be a ZIP file containing at least one yaml file with a .yaml
       or .yml extension.  If False then remove the overrides.
 """
 
@@ -134,14 +136,14 @@ resources:
 Policy Overrides
 ----------------
 
-This service allows for policy overrides using the `policy.d` directory.  This
-is an **advanced** feature and the policies that the service supports should be
-clearly and unambiguously understood before trying to override, or add to, the
-default policies that the service uses.
+This feature allows for policy overrides using the `policy.d` directory.  This
+is an **advanced** feature and the policies that the OpenStack service supports
+should be clearly and unambiguously understood before trying to override, or
+add to, the default policies that the service uses.  The charm also has some
+policy defaults.  They should also be understood before being overridden.
 
-The charm also has some policy defaults.  They should also be understood before
-being overridden.  It is possible to break the system (for tenants and other
-services) if policies are incorrectly applied to the service.
+> **Caution**: It is possible to break the system (for tenants and other
+  services) if policies are incorrectly applied to the service.
 
 Policy overrides are YAML files that contain rules that will add to, or
 override, existing policy rules in the service.  The `policy.d` directory is
@@ -149,30 +151,16 @@ a place to put the YAML override files.  This charm owns the
 `/etc/keystone/policy.d` directory, and as such, any manual changes to it will
 be overwritten on charm upgrades.
 
-Policy overrides are provided to the charm using a resource file called
-`policyd-override`.  This is attached to the charm using (for example):
+Overrides are provided to the charm using a Juju resource called
+`policyd-override`.  The resource is a ZIP file.  This file, say
+`overrides.zip`, is attached to the charm by:
 
-    juju attach-resource <charm-name> policyd-override=<some-file>
 
-The `<charm-name>` is the name that this charm is deployed as, with
-`<some-file>` being the resource file containing the policy overrides.
+    juju attach-resource <charm-name> policyd-override=overrides.zip
 
-The format of the resource file is a ZIP file (.zip extension) containing at
-least one YAML file with an extension of `.yaml` or `.yml`.  Note that any
-directories in the ZIP file are ignored; all of the files are flattened into a
-single directory.  There must not be any duplicated filenames; this will cause
-an error and nothing in the resource file will be applied.
+The policy override is enabled in the charm using:
 
-(ed. next part is optional is the charm supports some form of
-template/substitution on a read file)
-
-If a (ed. "one or more of") [`.j2`, `.tmpl`, `.tpl`] file is found in the
-resource file then the charm will perform a substitution with charm variables
-taken from the config or relations.  (ed. edit as appropriate to include the
-variable).
-
-To enable the policy overrides the config option `use-policyd-override` must be
-set to `True`.
+    juju config <charm-name> use-policyd-override=true
 
 When `use-policyd-override` is `True` the status line of the charm will be
 prefixed with `PO:` indicating that policies have been overridden.  If the
@@ -180,12 +168,8 @@ installation of the policy override YAML files failed for any reason then the
 status line will be prefixed with `PO (broken):`.  The log file for the charm
 will indicate the reason.  No policy override files are installed if the `PO
 (broken):` is shown.  The status line indicates that the overrides are broken,
-not that the policy for the service has failed - they will be the defaults for
-the charm and service.
-
-If the policy overrides did not install then *either* attach a new, corrected,
-resource file *or* disable the policy overrides by setting
-`use-policyd-override` to False.
+not that the policy for the service has failed. The policy will be the defaults
+for the charm and service.
 
 Policy overrides on one service may affect the functionality of another
 service. Therefore, it may be necessary to provide policy overrides for
@@ -251,7 +235,10 @@ def maybe_do_policyd_overrides(openstack_release,
                                blacklist_paths=None,
                                blacklist_keys=None,
                                template_function=None,
-                               restart_handler=None):
+                               restart_handler=None,
+                               user=None,
+                               group=None,
+                               config_changed=False):
     """If the config option is set, get the resource file and process it to
     enable the policy.d overrides for the service passed.
 
@@ -280,6 +267,11 @@ def maybe_do_policyd_overrides(openstack_release,
     directory.  However, for any services where this is buggy then a
     restart_handler can be used to force the policy.d files to be read.
 
+    If the config_changed param is True, then the handling is slightly
+    different: It will only perform the policyd overrides if the config is True
+    and the success file doesn't exist.  Otherwise, it does nothing as the
+    resource file has already been processed.
+
     :param openstack_release: The openstack release that is installed.
     :type openstack_release: str
     :param service: the service name to construct the policy.d directory for.
@@ -295,11 +287,26 @@ def maybe_do_policyd_overrides(openstack_release,
     :param restart_handler: The function to call if the service should be
                             restarted.
     :type restart_handler: Union[None, Callable[]]
+    :param user: The user to create/write files/directories as
+    :type user: Union[None, str]
+    :param group: the group to create/write files/directories as
+    :type group: Union[None, str]
+    :param config_changed: Set to True for config_changed hook.
+    :type config_changed: bool
     """
+    _user = service if user is None else user
+    _group = service if group is None else group
+    if not is_policyd_override_valid_on_this_release(openstack_release):
+        return
+    hookenv.log("Running maybe_do_policyd_overrides",
+                level=POLICYD_LOG_LEVEL_DEFAULT)
     config = hookenv.config()
     try:
         if not config.get(POLICYD_CONFIG_NAME, False):
-            clean_policyd_dir_for(service, blacklist_paths)
+            clean_policyd_dir_for(service,
+                                  blacklist_paths,
+                                  user=_user,
+                                  group=_group)
             if (os.path.isfile(_policy_success_file()) and
                     restart_handler is not None and
                     callable(restart_handler)):
@@ -307,11 +314,16 @@ def maybe_do_policyd_overrides(openstack_release,
             remove_policy_success_file()
             return
     except Exception as e:
-        print("Exception is: ", str(e))
+        hookenv.log("... ERROR: Exception is: {}".format(str(e)),
+                    level=POLICYD_CONFIG_NAME)
         import traceback
-        traceback.print_exc()
+        hookenv.log(traceback.format_exc(), level=POLICYD_LOG_LEVEL_DEFAULT)
         return
-    if not is_policyd_override_valid_on_this_release(openstack_release):
+    # if the policyd overrides have been performed when doing config_changed
+    # just return
+    if config_changed and is_policy_success_file_set():
+        hookenv.log("... already setup, so skipping.",
+                    level=POLICYD_LOG_LEVEL_DEFAULT)
         return
     # from now on it should succeed; if it doesn't then status line will show
     # broken.
@@ -323,53 +335,18 @@ def maybe_do_policyd_overrides(openstack_release,
         restart_handler()
 
 
-def maybe_do_policyd_overrides_on_config_changed(openstack_release,
-                                                 service,
-                                                 blacklist_paths=None,
-                                                 blacklist_keys=None,
-                                                 template_function=None,
-                                                 restart_handler=None):
-    """This function is designed to be called from the config changed hook
-    handler.  It will only perform the policyd overrides if the config is True
-    and the success file doesn't exist.  Otherwise, it does nothing as the
-    resource file has already been processed.
+@charmhelpers.deprecate("Use maybe_do_poliyd_overrrides instead")
+def maybe_do_policyd_overrides_on_config_changed(*args, **kwargs):
+    """This function is designed to be called from the config changed hook.
+
+    DEPRECATED: please use maybe_do_policyd_overrides() with the param
+    `config_changed` as `True`.
 
     See maybe_do_policyd_overrides() for more details on the params.
-
-    :param openstack_release: The openstack release that is installed.
-    :type openstack_release: str
-    :param service: the service name to construct the policy.d directory for.
-    :type service: str
-    :param blacklist_paths: optional list of paths to leave alone
-    :type blacklist_paths: Union[None, List[str]]
-    :param blacklist_keys: optional list of keys that mustn't appear in the
-                           yaml file's
-    :type blacklist_keys: Union[None, List[str]]
-    :param template_function: Optional function that can modify the string
-                              prior to being processed as a Yaml document.
-    :type template_function: Union[None, Callable[[str], str]]
-    :param restart_handler: The function to call if the service should be
-                            restarted.
-    :type restart_handler: Union[None, Callable[]]
     """
-    config = hookenv.config()
-    try:
-        if not config.get(POLICYD_CONFIG_NAME, False):
-            clean_policyd_dir_for(service, blacklist_paths)
-            if (os.path.isfile(_policy_success_file()) and
-                    restart_handler is not None and
-                    callable(restart_handler)):
-                restart_handler()
-            remove_policy_success_file()
-            return
-    except Exception:
-        return
-    # if the policyd overrides have been performed just return
-    if os.path.isfile(_policy_success_file()):
-        return
-    maybe_do_policyd_overrides(
-        openstack_release, service, blacklist_paths, blacklist_keys,
-        template_function, restart_handler)
+    if 'config_changed' not in kwargs.keys():
+        kwargs['config_changed'] = True
+    return maybe_do_policyd_overrides(*args, **kwargs)
 
 
 def get_policy_resource_filename():
@@ -386,12 +363,15 @@ def get_policy_resource_filename():
 
 
 @contextlib.contextmanager
-def open_and_filter_yaml_files(filepath):
+def open_and_filter_yaml_files(filepath, has_subdirs=False):
     """Validate that the filepath provided is a zip file and contains at least
     one (.yaml|.yml) file, and that the files are not duplicated when the zip
     file is flattened.  Note that the yaml files are not checked.  This is the
     first stage in validating the policy zipfile; individual yaml files are not
     checked for validity or black listed keys.
+
+    If the has_subdirs param is True, then the files are flattened to the first
+    directory, and the files in the root are ignored.
 
     An example of use is:
 
@@ -401,6 +381,8 @@ def open_and_filter_yaml_files(filepath):
 
     :param filepath: a filepath object that can be opened by zipfile
     :type filepath: Union[AnyStr, os.PathLike[AntStr]]
+    :param has_subdirs: Keep first level of subdirectories in yaml file.
+    :type has_subdirs: bool
     :returns: (zfp handle,
                a generator of the (name, filename, ZipInfo object) tuples) as a
                tuple.
@@ -413,7 +395,7 @@ def open_and_filter_yaml_files(filepath):
     with zipfile.ZipFile(filepath, 'r') as zfp:
         # first pass through; check for duplicates and at least one yaml file.
         names = collections.defaultdict(int)
-        yamlfiles = _yamlfiles(zfp)
+        yamlfiles = _yamlfiles(zfp, has_subdirs)
         for name, _, _, _ in yamlfiles:
             names[name] += 1
         # There must be at least 1 yaml file.
@@ -429,17 +411,33 @@ def open_and_filter_yaml_files(filepath):
         yield (zfp, yamlfiles)
 
 
-def _yamlfiles(zipfile):
+def _yamlfiles(zipfile, has_subdirs=False):
     """Helper to get a yaml file (according to POLICYD_VALID_EXTS extensions)
     and the infolist item from a zipfile.
 
+    If the `has_subdirs` param is True, the the only yaml files that have a
+    directory component are read, and then first part of the directory
+    component is kept, along with the filename in the name.  e.g. an entry with
+    a filename of:
+
+        compute/someotherdir/override.yaml
+
+    is returned as:
+
+        compute/override, yaml, override.yaml, <ZipInfo object>
+
+    This is to help with the special, additional, processing that the dashboard
+    charm requires.
+
     :param zipfile: the zipfile to read zipinfo items from
     :type zipfile: zipfile.ZipFile
-    :returns: generator of (name, ext, filename, info item) for each self-identified
-              yaml file.
+    :param has_subdirs: Keep first level of subdirectories in yaml file.
+    :type has_subdirs: bool
+    :returns: generator of (name, ext, filename, info item) for each
+              self-identified yaml file.
     :rtype: List[(str, str, str, zipfile.ZipInfo)]
     """
-    l = []
+    files = []
     for infolist_item in zipfile.infolist():
         try:
             if infolist_item.is_dir():
@@ -448,12 +446,14 @@ def _yamlfiles(zipfile):
             # fallback to "old" way to determine dir entry for pre-py36
             if infolist_item.filename.endswith('/'):
                 continue
-        _, name_ext = os.path.split(infolist_item.filename)
+        _dir, name_ext = os.path.split(infolist_item.filename)
         name, ext = os.path.splitext(name_ext)
+        if has_subdirs and _dir != "":
+            name = os.path.join(_dir.split(os.path.sep)[0], name)
         ext = ext.lower()
         if ext and ext in POLICYD_VALID_EXTS:
-            l.append((name, ext, name_ext, infolist_item))
-    return l
+            files.append((name, ext, name_ext, infolist_item))
+    return files
 
 
 def read_and_validate_yaml(stream_or_doc, blacklist_keys=None):
@@ -499,9 +499,6 @@ def read_and_validate_yaml(stream_or_doc, blacklist_keys=None):
 def policyd_dir_for(service):
     """Return the policy directory for the named service.
 
-    This assumes the default name of "policy.d" which is kept across all
-    charms.
-
     :param service: str
     :returns: the policy.d override directory.
     :rtype: os.PathLike[str]
@@ -509,7 +506,7 @@ def policyd_dir_for(service):
     return os.path.join("/", "etc", service, "policy.d")
 
 
-def clean_policyd_dir_for(service, keep_paths=None):
+def clean_policyd_dir_for(service, keep_paths=None, user=None, group=None):
     """Clean out the policyd directory except for items that should be kept.
 
     The keep_paths, if used, should be set to the full path of the files that
@@ -522,12 +519,19 @@ def clean_policyd_dir_for(service, keep_paths=None):
     :type service: str
     :param keep_paths: optional list of paths to not delete.
     :type keep_paths: Union[None, List[str]]
+    :param user: The user to create/write files/directories as
+    :type user: Union[None, str]
+    :param group: the group to create/write files/directories as
+    :type group: Union[None, str]
     """
+    _user = service if user is None else user
+    _group = service if group is None else group
     keep_paths = keep_paths or []
     path = policyd_dir_for(service)
+    hookenv.log("Cleaning path: {}".format(path), level=hookenv.DEBUG)
     if not os.path.exists(path):
-        ch_host.mkdir(path, owner=service, group=service, perms=0o775)
-    _scanner = os.scandir if six.PY3 else _py2_scandir
+        ch_host.mkdir(path, owner=_user, group=_group, perms=0o775)
+    _scanner = os.scandir if sys.version_info > (3, 4) else _py2_scandir
     for direntry in _scanner(path):
         # see if the path should be kept.
         if direntry.path in keep_paths:
@@ -537,6 +541,22 @@ def clean_policyd_dir_for(service, keep_paths=None):
             shutil.rmtree(direntry.path)
         else:
             os.remove(direntry.path)
+
+
+def maybe_create_directory_for(path, user, group):
+    """For the filename 'path', ensure that the directory for that path exists.
+
+    Note that if the directory already exists then the permissions are NOT
+    changed.
+
+    :param path: the filename including the path to it.
+    :type path: str
+    :param user: the user to create the directory as
+    :param group: the group to create the directory as
+    """
+    _dir, _ = os.path.split(path)
+    if not os.path.exists(_dir):
+        ch_host.mkdir(_dir, owner=user, group=group, perms=0o775)
 
 
 @contextlib.contextmanager
@@ -574,6 +594,11 @@ def path_for_policy_file(service, name):
     It is constructed using policyd_dir_for(), the name and the ".yaml"
     extension.
 
+    For horizon, for example, it's a bit more complicated.  The name param is
+    actually "override_service_dir/a_name", where target_service needs to be
+    one the allowed horizon override services.  This translation and check is
+    done in the _yamlfiles() function.
+
     :param service: the service name
     :type service: str
     :param name: the name for the policy override
@@ -601,6 +626,22 @@ def remove_policy_success_file():
         pass
 
 
+def set_policy_success_file():
+    """Set the file that indicates successful policyd override."""
+    open(_policy_success_file(), "w").close()
+
+
+def is_policy_success_file_set():
+    """Returns True if the policy success file has been set.
+
+    This indicates that policies are overridden and working properly.
+
+    :returns: True if the policy file is set
+    :rtype: bool
+    """
+    return os.path.isfile(_policy_success_file())
+
+
 def policyd_status_message_prefix():
     """Return the prefix str for the status line.
 
@@ -610,7 +651,7 @@ def policyd_status_message_prefix():
     :returns: the prefix
     :rtype: str
     """
-    if os.path.isfile(_policy_success_file()):
+    if is_policy_success_file_set():
         return "PO:"
     return "PO (broken):"
 
@@ -619,7 +660,11 @@ def process_policy_resource_file(resource_file,
                                  service,
                                  blacklist_paths=None,
                                  blacklist_keys=None,
-                                 template_function=None):
+                                 template_function=None,
+                                 preserve_topdir=False,
+                                 preprocess_filename=None,
+                                 user=None,
+                                 group=None):
     """Process the resource file (which should contain at least one yaml file)
     and write those files to the service's policy.d directory.
 
@@ -639,6 +684,16 @@ def process_policy_resource_file(resource_file,
     its file path reconstructed.  This, also, must not match any path in the
     black list.
 
+    The yaml filename can be modified in two ways.  If the `preserve_topdir`
+    param is True, then files will be flattened to the top dir.  This allows
+    for creating sets of files that can be grouped into a single level tree
+    structure.
+
+    Secondly, if the `preprocess_filename` param is not None and callable()
+    then the name is passed to that function for preprocessing before being
+    converted to the end location.  This is to allow munging of the filename
+    prior to being tested for a blacklist path.
+
     If any error occurs, then the policy.d directory is cleared, the error is
     written to the log, and the status line will eventually show as failed.
 
@@ -654,17 +709,39 @@ def process_policy_resource_file(resource_file,
     :param template_function: Optional function that can modify the yaml
                               document.
     :type template_function: Union[None, Callable[[AnyStr], AnyStr]]
+    :param preserve_topdir: Keep the toplevel subdir
+    :type preserve_topdir: bool
+    :param preprocess_filename: Optional function to use to process filenames
+                                extracted from the resource file.
+    :type preprocess_filename: Union[None, Callable[[AnyStr]. AnyStr]]
+    :param user: The user to create/write files/directories as
+    :type user: Union[None, str]
+    :param group: the group to create/write files/directories as
+    :type group: Union[None, str]
     :returns: True if the processing was successful, False if not.
     :rtype: boolean
     """
+    hookenv.log("Running process_policy_resource_file", level=hookenv.DEBUG)
     blacklist_paths = blacklist_paths or []
     completed = False
+    _preprocess = None
+    if preprocess_filename is not None and callable(preprocess_filename):
+        _preprocess = preprocess_filename
+    _user = service if user is None else user
+    _group = service if group is None else group
     try:
-        with open_and_filter_yaml_files(resource_file) as (zfp, gen):
+        with open_and_filter_yaml_files(
+                resource_file, preserve_topdir) as (zfp, gen):
             # first clear out the policy.d directory and clear success
             remove_policy_success_file()
-            clean_policyd_dir_for(service, blacklist_paths)
+            clean_policyd_dir_for(service,
+                                  blacklist_paths,
+                                  user=_user,
+                                  group=_group)
             for name, ext, filename, zipinfo in gen:
+                # See if the name should be preprocessed.
+                if _preprocess is not None:
+                    name = _preprocess(name)
                 # construct a name for the output file.
                 yaml_filename = path_for_policy_file(service, name)
                 if yaml_filename in blacklist_paths:
@@ -682,8 +759,12 @@ def process_policy_resource_file(resource_file,
                                 "available".format(filename))
                         doc = template_function(doc)
                     yaml_doc = read_and_validate_yaml(doc, blacklist_keys)
-                with open(yaml_filename, "wt") as f:
-                    yaml.dump(yaml_doc, f)
+                # we may have to create the directory
+                maybe_create_directory_for(yaml_filename, _user, _group)
+                ch_host.write_file(yaml_filename,
+                                   yaml.dump(yaml_doc).encode('utf-8'),
+                                   _user,
+                                   _group)
         # Every thing worked, so we mark up a success.
         completed = True
     except (BadZipFile, BadPolicyZipFile, BadPolicyYamlFile) as e:
@@ -707,10 +788,13 @@ def process_policy_resource_file(resource_file,
             hookenv.log("Processing {} failed: cleaning policy.d directory"
                         .format(resource_file),
                         level=POLICYD_LOG_LEVEL_DEFAULT)
-            clean_policyd_dir_for(service, blacklist_paths)
+            clean_policyd_dir_for(service,
+                                  blacklist_paths,
+                                  user=_user,
+                                  group=_group)
         else:
             # touch the success filename
             hookenv.log("policy.d overrides installed.",
                         level=POLICYD_LOG_LEVEL_DEFAULT)
-            open(_policy_success_file(), "w").close()
+            set_policy_success_file()
         return completed

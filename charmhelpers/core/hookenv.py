@@ -34,6 +34,8 @@ import errno
 import tempfile
 from subprocess import CalledProcessError
 
+from charmhelpers import deprecate
+
 import six
 if not six.PY3:
     from UserDict import UserDict
@@ -114,6 +116,24 @@ def log(message, level=None):
             if level:
                 message = "{}: {}".format(level, message)
             message = "juju-log: {}".format(message)
+            print(message, file=sys.stderr)
+        else:
+            raise
+
+
+def function_log(message):
+    """Write a function progress message"""
+    command = ['function-log']
+    if not isinstance(message, six.string_types):
+        message = repr(message)
+    command += [message[:SH_MAX_ARG]]
+    # Missing function-log should not cause failures in unit tests
+    # Send function_log output to stderr
+    try:
+        subprocess.call(command)
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            message = "function-log: {}".format(message)
             print(message, file=sys.stderr)
         else:
             raise
@@ -946,9 +966,23 @@ def charm_dir():
     return os.environ.get('CHARM_DIR')
 
 
+def cmd_exists(cmd):
+    """Return True if the specified cmd exists in the path"""
+    return any(
+        os.access(os.path.join(path, cmd), os.X_OK)
+        for path in os.environ["PATH"].split(os.pathsep)
+    )
+
+
 @cached
+@deprecate("moved to function_get()", log=log)
 def action_get(key=None):
-    """Gets the value of an action parameter, or all key/value param pairs"""
+    """
+    .. deprecated:: 0.20.7
+       Alias for :func:`function_get`.
+
+    Gets the value of an action parameter, or all key/value param pairs.
+    """
     cmd = ['action-get']
     if key is not None:
         cmd.append(key)
@@ -957,19 +991,71 @@ def action_get(key=None):
     return action_data
 
 
+@cached
+def function_get(key=None):
+    """Gets the value of an action parameter, or all key/value param pairs"""
+    cmd = ['function-get']
+    # Fallback for older charms.
+    if not cmd_exists('function-get'):
+        cmd = ['action-get']
+
+    if key is not None:
+        cmd.append(key)
+    cmd.append('--format=json')
+    function_data = json.loads(subprocess.check_output(cmd).decode('UTF-8'))
+    return function_data
+
+
+@deprecate("moved to function_set()", log=log)
 def action_set(values):
-    """Sets the values to be returned after the action finishes"""
+    """
+    .. deprecated:: 0.20.7
+       Alias for :func:`function_set`.
+
+    Sets the values to be returned after the action finishes.
+    """
     cmd = ['action-set']
     for k, v in list(values.items()):
         cmd.append('{}={}'.format(k, v))
     subprocess.check_call(cmd)
 
 
-def action_fail(message):
-    """Sets the action status to failed and sets the error message.
+def function_set(values):
+    """Sets the values to be returned after the function finishes"""
+    cmd = ['function-set']
+    # Fallback for older charms.
+    if not cmd_exists('function-get'):
+        cmd = ['action-set']
 
-    The results set by action_set are preserved."""
+    for k, v in list(values.items()):
+        cmd.append('{}={}'.format(k, v))
+    subprocess.check_call(cmd)
+
+
+@deprecate("moved to function_fail()", log=log)
+def action_fail(message):
+    """
+    .. deprecated:: 0.20.7
+       Alias for :func:`function_fail`.
+
+    Sets the action status to failed and sets the error message.
+
+    The results set by action_set are preserved.
+    """
     subprocess.check_call(['action-fail', message])
+
+
+def function_fail(message):
+    """Sets the function status to failed and sets the error message.
+
+    The results set by function_set are preserved."""
+    cmd = ['function-fail']
+    # Fallback for older charms.
+    if not cmd_exists('function-fail'):
+        cmd = ['action-fail']
+    cmd.append(message)
+
+    subprocess.check_call(cmd)
 
 
 def action_name():
@@ -977,14 +1063,29 @@ def action_name():
     return os.environ.get('JUJU_ACTION_NAME')
 
 
+def function_name():
+    """Get the name of the currently executing function."""
+    return os.environ.get('JUJU_FUNCTION_NAME') or action_name()
+
+
 def action_uuid():
     """Get the UUID of the currently executing action."""
     return os.environ.get('JUJU_ACTION_UUID')
 
 
+def function_id():
+    """Get the ID of the currently executing function."""
+    return os.environ.get('JUJU_FUNCTION_ID') or action_uuid()
+
+
 def action_tag():
     """Get the tag for the currently executing action."""
     return os.environ.get('JUJU_ACTION_TAG')
+
+
+def function_tag():
+    """Get the tag for the currently executing function."""
+    return os.environ.get('JUJU_FUNCTION_TAG') or action_tag()
 
 
 def status_set(workload_state, message):

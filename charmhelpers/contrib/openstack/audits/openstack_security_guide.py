@@ -244,8 +244,8 @@ def validate_file_permissions(config):
 @audit(is_audit_type(AuditType.OpenStackSecurityGuide))
 def validate_uses_keystone(audit_options):
     """Validate that the service uses Keystone for authentication."""
-    section = _config_section(audit_options, 'DEFAULT')
-    assert section is not None, "Missing section 'DEFAULT'"
+    section = _config_section(audit_options, 'api') or _config_section(audit_options, 'DEFAULT')
+    assert section is not None, "Missing section 'api / DEFAULT'"
     assert section.get('auth_strategy') == "keystone", \
         "Application is not using Keystone"
 
