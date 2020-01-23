@@ -38,6 +38,7 @@ so with this we get rid of the dependency.
 import locale
 import os
 import subprocess
+import sys
 
 
 class _container(dict):
@@ -58,6 +59,13 @@ class Cache(object):
     """Simulation of ``apt_pkg`` Cache object."""
     def __init__(self, progress=None):
         pass
+
+    def __contains__(self, package):
+        try:
+            pkg = self.__getitem__(package)
+            return pkg is not None
+        except KeyError:
+            return False
 
     def __getitem__(self, package):
         """Get information about a package from apt and dpkg databases.
@@ -176,6 +184,28 @@ class Cache(object):
             if cp.returncode != 100:
                 raise
         return pkgs
+
+
+class Config(_container):
+    def __init__(self):
+        super(Config, self).__init__(self._populate())
+
+    def _populate(self):
+        cfgs = {}
+        cmd = ['apt-config', 'dump']
+        output = subprocess.check_output(cmd,
+                                         stderr=subprocess.STDOUT,
+                                         universal_newlines=True)
+        for line in output.splitlines():
+            if not line.startswith("CommandLine"):
+                k, v = line.split(" ", 1)
+                cfgs[k] = v.strip(";").strip("\"")
+
+        return cfgs
+
+
+# Backwards compatibility with old apt_pkg module
+sys.modules[__name__].config = Config()
 
 
 def init():

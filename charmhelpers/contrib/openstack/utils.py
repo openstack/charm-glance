@@ -44,6 +44,7 @@ from charmhelpers.core.hookenv import (
     INFO,
     ERROR,
     related_units,
+    relation_get,
     relation_ids,
     relation_set,
     status_set,
@@ -330,6 +331,10 @@ PACKAGE_CODENAMES = {
 }
 
 DEFAULT_LOOPBACK_SIZE = '5G'
+
+DB_SERIES_UPGRADING_KEY = 'cluster-series-upgrading'
+
+DB_MAINTENANCE_KEYS = [DB_SERIES_UPGRADING_KEY]
 
 
 class CompareOpenStackReleases(BasicStringComparator):
@@ -1912,3 +1917,33 @@ def set_db_initialised():
     """
     juju_log('Setting db-initialised to True', 'DEBUG')
     leader_set({'db-initialised': True})
+
+
+def is_db_maintenance_mode(relid=None):
+    """Check relation data from notifications of db in maintenance mode.
+
+    :returns: Whether db has notified it is in maintenance mode.
+    :rtype: bool
+    """
+    juju_log('Checking for maintenance notifications', 'DEBUG')
+    if relid:
+        r_ids = [relid]
+    else:
+        r_ids = relation_ids('shared-db')
+    rids_units = [(r, u) for r in r_ids for u in related_units(r)]
+    notifications = []
+    for r_id, unit in rids_units:
+        settings = relation_get(unit=unit, rid=r_id)
+        for key, value in settings.items():
+            if value and key in DB_MAINTENANCE_KEYS:
+                juju_log(
+                    'Unit: {}, Key: {}, Value: {}'.format(unit, key, value),
+                    'DEBUG')
+                try:
+                    notifications.append(bool_from_string(value))
+                except ValueError:
+                    juju_log(
+                        'Could not discern bool from {}'.format(value),
+                        'WARN')
+                    pass
+    return True in notifications

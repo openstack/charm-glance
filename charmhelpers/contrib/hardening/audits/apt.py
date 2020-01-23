@@ -52,7 +52,7 @@ class RestrictedPackages(BaseAudit):
     def __init__(self, pkgs, **kwargs):
         super(RestrictedPackages, self).__init__(**kwargs)
         if isinstance(pkgs, string_types) or not hasattr(pkgs, '__iter__'):
-            self.pkgs = [pkgs]
+            self.pkgs = pkgs.split()
         else:
             self.pkgs = pkgs
 
@@ -100,4 +100,5 @@ class RestrictedPackages(BaseAudit):
             apt_purge(pkg.name)
 
     def is_virtual_package(self, pkg):
-        return pkg.has_provides and not pkg.has_versions
+        return (pkg.get('has_provides', False) and
+                not pkg.get('has_versions', False))
