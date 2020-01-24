@@ -182,6 +182,14 @@ CLOUD_ARCHIVE_POCKETS = {
     'train/proposed': 'bionic-proposed/train',
     'bionic-train/proposed': 'bionic-proposed/train',
     'bionic-proposed/train': 'bionic-proposed/train',
+    # Ussuri
+    'ussuri': 'bionic-updates/ussuri',
+    'bionic-ussuri': 'bionic-updates/ussuri',
+    'bionic-ussuri/updates': 'bionic-updates/ussuri',
+    'bionic-updates/ussuri': 'bionic-updates/ussuri',
+    'ussuri/proposed': 'bionic-proposed/ussuri',
+    'bionic-ussuri/proposed': 'bionic-proposed/ussuri',
+    'bionic-proposed/ussuri': 'bionic-proposed/ussuri',
 }
 
 

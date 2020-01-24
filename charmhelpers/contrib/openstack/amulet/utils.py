@@ -62,6 +62,7 @@ OPENSTACK_RELEASES_PAIRS = [
     'bionic_rocky', 'cosmic_rocky',
     'bionic_stein', 'disco_stein',
     'bionic_train', 'eoan_train',
+    'bionic_ussuri', 'focal_ussuri',
 ]
 
 
