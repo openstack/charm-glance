@@ -106,6 +106,7 @@ from charmhelpers.contrib.openstack.utils import (
     series_upgrade_complete,
     CompareOpenStackReleases,
     is_db_initialised,
+    is_db_maintenance_mode,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
@@ -192,6 +193,9 @@ def db_joined():
 @hooks.hook('shared-db-relation-changed')
 @restart_on_change(restart_map())
 def db_changed():
+    if is_db_maintenance_mode():
+        juju_log('Database maintenance mode, aborting hook.')
+        return
     release = os_release('glance-common')
     cmp_release = CompareOpenStackReleases(release)
 

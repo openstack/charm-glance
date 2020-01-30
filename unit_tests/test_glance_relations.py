@@ -106,6 +106,7 @@ TO_PATCH = [
     'sync_db_with_multi_ipv6_addresses',
     'delete_keyring',
     'get_relation_ip',
+    'is_db_maintenance_mode',
 ]
 
 
@@ -151,6 +152,7 @@ class GlanceRelationTests(CharmTestCase):
 
     @patch.object(relations, 'CONFIGS')
     def test_db_changed_missing_relation_data(self, configs):
+        self.is_db_maintenance_mode.return_value = False
         self.is_db_initialised.return_value = False
         configs.complete_contexts = MagicMock()
         configs.complete_contexts.return_value = []
@@ -161,6 +163,7 @@ class GlanceRelationTests(CharmTestCase):
 
     def _shared_db_test(self, configs, unit_name,
                         allowed_units='glance/0 glance/3'):
+        self.is_db_maintenance_mode.return_value = False
         self.relation_get.return_value = allowed_units
         self.local_unit.return_value = unit_name
         configs.complete_contexts = MagicMock()
