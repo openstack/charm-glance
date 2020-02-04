@@ -20,6 +20,9 @@ def get_platform():
         # Stock Python does not detect Ubuntu and instead returns debian.
         # Or at least it does in some build environments like Travis CI
         return "ubuntu"
+    elif "elementary" in current_platform:
+        # ElementaryOS fails to run tests locally without this.
+        return "ubuntu"
     else:
         raise RuntimeError("This module is not supported on {}."
                            .format(current_platform))
