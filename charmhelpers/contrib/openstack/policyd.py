@@ -17,7 +17,6 @@ import contextlib
 import os
 import six
 import shutil
-import sys
 import yaml
 import zipfile
 
@@ -531,7 +530,7 @@ def clean_policyd_dir_for(service, keep_paths=None, user=None, group=None):
     hookenv.log("Cleaning path: {}".format(path), level=hookenv.DEBUG)
     if not os.path.exists(path):
         ch_host.mkdir(path, owner=_user, group=_group, perms=0o775)
-    _scanner = os.scandir if sys.version_info > (3, 4) else _py2_scandir
+    _scanner = os.scandir if hasattr(os, 'scandir') else _fallback_scandir
     for direntry in _scanner(path):
         # see if the path should be kept.
         if direntry.path in keep_paths:
@@ -560,23 +559,25 @@ def maybe_create_directory_for(path, user, group):
 
 
 @contextlib.contextmanager
-def _py2_scandir(path):
-    """provide a py2 implementation of os.scandir if this module ever gets used
-    in a py2 charm (unlikely).  uses os.listdir() to get the names in the path,
-    and then mocks the is_dir() function using os.path.isdir() to check for a
+def _fallback_scandir(path):
+    """Fallback os.scandir implementation.
+
+    provide a fallback implementation of os.scandir if this module ever gets
+    used in a py2 or py34 charm. Uses os.listdir() to get the names in the path,
+    and then mocks the is_dir() function using os.path.isdir() to check for
     directory.
 
     :param path: the path to list the directories for
     :type path: str
-    :returns: Generator that provides _P27Direntry objects
-    :rtype: ContextManager[_P27Direntry]
+    :returns: Generator that provides _FBDirectory objects
+    :rtype: ContextManager[_FBDirectory]
     """
     for f in os.listdir(path):
-        yield _P27Direntry(f)
+        yield _FBDirectory(f)
 
 
-class _P27Direntry(object):
-    """Mock a scandir Direntry object with enough to use in
+class _FBDirectory(object):
+    """Mock a scandir Directory object with enough to use in
     clean_policyd_dir_for
     """
 

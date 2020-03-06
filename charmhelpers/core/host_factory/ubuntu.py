@@ -25,6 +25,7 @@ UBUNTU_RELEASES = (
     'cosmic',
     'disco',
     'eoan',
+    'focal'
 )
 
 

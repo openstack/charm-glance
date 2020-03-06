@@ -1042,7 +1042,7 @@ def filesystem_mounted(fs):
 def make_filesystem(blk_device, fstype='ext4', timeout=10):
     """Make a new filesystem on the specified block device."""
     count = 0
-    e_noent = os.errno.ENOENT
+    e_noent = errno.ENOENT
     while not os.path.exists(blk_device):
         if count >= timeout:
             log('Gave up waiting on block device %s' % blk_device,

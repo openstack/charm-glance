@@ -1,4 +1,5 @@
 import platform
+import os
 
 
 def get_platform():
@@ -9,9 +10,13 @@ def get_platform():
     This string is used to decide which platform module should be imported.
     """
     # linux_distribution is deprecated and will be removed in Python 3.7
-    # Warings *not* disabled, as we certainly need to fix this.
-    tuple_platform = platform.linux_distribution()
-    current_platform = tuple_platform[0]
+    # Warnings *not* disabled, as we certainly need to fix this.
+    if hasattr(platform, 'linux_distribution'):
+        tuple_platform = platform.linux_distribution()
+        current_platform = tuple_platform[0]
+    else:
+        current_platform = _get_platform_from_fs()
+
     if "Ubuntu" in current_platform:
         return "ubuntu"
     elif "CentOS" in current_platform:
@@ -26,3 +31,16 @@ def get_platform():
     else:
         raise RuntimeError("This module is not supported on {}."
                            .format(current_platform))
+
+
+def _get_platform_from_fs():
+    """Get Platform from /etc/os-release."""
+    with open(os.path.join(os.sep, 'etc', 'os-release')) as fin:
+        content = dict(
+            line.split('=', 1)
+            for line in fin.read().splitlines()
+            if '=' in line
+        )
+    for k, v in content.items():
+        content[k] = v.strip('"')
+    return content["NAME"]
