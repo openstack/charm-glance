@@ -18,8 +18,10 @@ gate_bundles:
   - bionic-rocky
   - bionic-stein
   - bionic-train
+  - bionic-ussuri
+  - focal-ussuri
 dev_bundles:
-  - bionic-train
+  - focal-ussuri
 
 configure:
   - zaza.openstack.charm_tests.keystone.setup.add_demo_user
@@ -31,3 +33,5 @@ tests:
 tests_options:
   policyd:
     service: glance
+  force_deploy:
+    - focal-ussuri
