@@ -36,6 +36,7 @@ from charmhelpers.core.hookenv import (
     config,
     log,
     INFO,
+    WARNING,
     relation_ids,
     service_name,
 )
@@ -119,6 +120,11 @@ GLANCE_REGISTRY_PASTE = os.path.join(GLANCE_CONF_DIR,
 GLANCE_API_PASTE = os.path.join(GLANCE_CONF_DIR,
                                 'glance-api-paste.ini')
 GLANCE_POLICY_FILE = os.path.join(GLANCE_CONF_DIR, "policy.json")
+# NOTE(ajkavanagh): from Ussuri, glance switched to policy-in-code; this is the
+# policy.yaml file (as there is not packaged policy.json or .yaml) that is used
+# to provide the image_location override config value:
+# 'restrict-image-location-operations'
+GLANCE_POLICY_YAML = os.path.join(GLANCE_CONF_DIR, "policy.yaml")
 CEPH_CONF = "/etc/ceph/ceph.conf"
 CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
 
@@ -220,6 +226,10 @@ CONFIG_FILES = OrderedDict([
         'contexts': [],
         'services': ['apache2'],
     }),
+    (GLANCE_POLICY_YAML, {
+        'hook_contexts': [glance_contexts.GlancePolicyContext()],
+        'services': [],
+    }),
 ])
 
 
@@ -270,8 +280,8 @@ def register_configs():
                          CONFIG_FILES[GLANCE_SWIFT_CONF]['hook_contexts'])
 
     if cmp_release >= 'ussuri':
-        configs.register(GLANCE_POLICY_FILE,
-                         CONFIG_FILES[GLANCE_POLICY_FILE]['hook_contexts'])
+        configs.register(GLANCE_POLICY_YAML,
+                         CONFIG_FILES[GLANCE_POLICY_YAML]['hook_contexts'])
 
     return configs
 
@@ -599,38 +609,79 @@ def is_api_ready(configs):
     return (not incomplete_relation_data(configs, REQUIRED_INTERFACES))
 
 
-def update_image_location_policy():
+def update_image_location_policy(configs=None):
     """Update *_image_location policy to restrict to admin role.
 
     We do this unconditonally and keep a record of the original as installed by
     the package.
+
+    For ussuri, the charm updates/writes the policy.yaml file.  The configs
+    param is optional as the caller may already be writing all the configs.
+    From ussuri onwards glance is policy-in-code (rather than using a
+    policy.json) and, therefore, policy files are essentially all overrides.
+
+    From ussuri, this function deletes the policy.json file and alternatively
+    writes the GLANCE_POLICY_YAML file via the configs object.
+
+    :param configs: The configs for the charm
+    :type configs: Optional[:class:templating.OSConfigRenderer()]
     """
-    if CompareOpenStackReleases(os_release('glance-common')) < 'kilo':
+    _res = os_release('glance-common')
+    cmp = CompareOpenStackReleases(_res)
+    if cmp < 'kilo':
         # NOTE(hopem): at the time of writing we are unable to do this for
         # earlier than Kilo due to LP: #1502136
         return
+    if cmp >= 'ussuri':
+        # If the policy.json exists, then remove it as it's the packaged
+        # version from a previous version of OpenStack, and thus not used.
+        if os.path.isfile(GLANCE_POLICY_FILE):
+            try:
+                os.remove(GLANCE_POLICY_FILE)
+            except Exception as e:
+                log("Problem removing file: {}: {}"
+                    .format(GLANCE_POLICY_FILE, str(e)))
+        # if the caller supplied a configs param then update the
+        # GLANCE_POLICY_FILE using its context.
+        if configs is not None:
+            configs.write(GLANCE_POLICY_YAML)
+        return
 
+    # otherwise the OpenStack release after kilo and before ussuri, so continue
+    # modifying the existing policy.json file.
     db = kv()
     policies = ["get_image_location", "set_image_location",
                 "delete_image_location"]
+
+    try:
+        with open(GLANCE_POLICY_FILE) as f:
+            pmap = json.load(f)
+    except IOError as e:
+        log("Problem opening glance policy file: {}.  Error was:{}"
+            .format(GLANCE_POLICY_FILE, str(e)),
+            level=WARNING)
+        return
+
     for policy_key in policies:
         # Save original value at time of first install in case we ever need to
         # revert.
         db_key = "policy_{}".format(policy_key)
         if db.get(db_key) is None:
-            p = json.loads(open(GLANCE_POLICY_FILE).read())
-            if policy_key in p:
-                db.set(db_key, p[policy_key])
+            if policy_key in pmap:
+                db.set(db_key, pmap[policy_key])
                 db.flush()
             else:
                 log("key '{}' not found in policy file".format(policy_key),
                     level=INFO)
 
-        if config('restrict-image-location-operations'):
-            policy_value = 'role:admin'
-        else:
-            policy_value = ''
+    if config('restrict-image-location-operations'):
+        policy_value = 'role:admin'
+    else:
+        policy_value = ''
 
+    new_policies = {k: policy_value for k in policies}
+    for policy_key, policy_value in new_policies.items():
         log("Updating Glance policy file setting policy "
-            "'{}':'{}'".format(policy_key, policy_value), level=INFO)
-        update_json_file(GLANCE_POLICY_FILE, {policy_key: policy_value})
+            "'{}': '{}'".format(policy_key, policy_value), level=INFO)
+
+    update_json_file(GLANCE_POLICY_FILE, new_policies)

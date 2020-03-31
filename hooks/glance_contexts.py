@@ -71,6 +71,35 @@ class GlanceContext(OSContextGenerator):
         return ctxt
 
 
+class GlancePolicyContext(OSContextGenerator):
+    """This Context is only used from Ussuri onwards.  At Ussuri, Glance
+    implemented policy-in-code, and thus didn't ship with a policy.json.
+    Therefore, the charm introduces a 'policy.yaml' file that is used to
+    provide the override here.
+
+    Note that this is separate from policy overrides as it's a charm config
+    option that has existed prior to its introduction.
+
+    Update *_image_location policy to restrict to admin role.
+
+    We do this unconditonally and keep a record of the original as installed by
+    the package.
+    """
+
+    def __call__(self):
+        if config('restrict-image-location-operations'):
+            policy_value = 'role:admin'
+        else:
+            policy_value = ''
+
+        ctxt = {
+            "get_image_location": policy_value,
+            "set_image_location": policy_value,
+            "delete_image_location": policy_value,
+        }
+        return ctxt
+
+
 class CephGlanceContext(OSContextGenerator):
     interfaces = ['ceph-glance']
 

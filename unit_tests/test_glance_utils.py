@@ -471,32 +471,30 @@ class TestGlanceUtils(CharmTestCase):
             utils.update_image_location_policy()
             self.assertFalse(mock_kv.called)
 
+            # Function has no effect in ussuri onwards
+            mock_os_release.return_value = 'ussuri'
+            utils.update_image_location_policy()
+            self.assertFalse(mock_kv.called)
+
             mock_os_release.return_value = 'kilo'
             utils.update_image_location_policy()
             self.assertTrue(mock_kv.called)
+
             mock_update_json_file.assert_has_calls([
                 call('/etc/glance/policy.json',
-                     {'get_image_location': ''}),
-                call('/etc/glance/policy.json',
-                     {'set_image_location': ''}),
-                call('/etc/glance/policy.json',
-                     {'delete_image_location': ''})])
+                     {'get_image_location': '',
+                      'set_image_location': '',
+                      'delete_image_location': ''})])
 
             mock_update_json_file.reset_mock()
             config['restrict-image-location-operations'] = True
             utils.update_image_location_policy()
             mock_update_json_file.assert_has_calls([
                 call('/etc/glance/policy.json',
-                     {'get_image_location': 'role:admin'}),
-                call('/etc/glance/policy.json',
-                     {'set_image_location': 'role:admin'}),
-                call('/etc/glance/policy.json',
-                     {'delete_image_location': 'role:admin'})])
+                     {'get_image_location': 'role:admin',
+                      'set_image_location': 'role:admin',
+                      'delete_image_location': 'role:admin'})])
 
             db_obj.get.assert_has_calls([call('policy_get_image_location'),
                                          call('policy_set_image_location'),
                                          call('policy_delete_image_location')])
-            db_obj.set.assert_has_calls([call('policy_get_image_location', ''),
-                                         call('policy_set_image_location', ''),
-                                         call('policy_delete_image_location',
-                                              '')])

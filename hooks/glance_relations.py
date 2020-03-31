@@ -272,7 +272,7 @@ def object_store_joined():
         return
 
     [image_service_joined(rid) for rid in relation_ids('image-service')]
-    update_image_location_policy()
+    update_image_location_policy(CONFIGS)
     CONFIGS.write(GLANCE_API_CONF)
 
 
@@ -400,7 +400,7 @@ def config_changed():
     # NOTE(jamespage): trigger any configuration related changes
     #                  for cephx permissions restrictions
     ceph_changed()
-    update_image_location_policy()
+    update_image_location_policy(CONFIGS)
 
     # call the policy overrides handler which will install any policy overrides
     maybe_do_policyd_overrides_on_config_changed(
@@ -443,6 +443,9 @@ def upgrade_charm():
     reinstall_paste_ini(force_reinstall=packages_removed)
     configure_https()
     update_nrpe_config()
+    # NOTE(ajkavanagh) the update_image_location_policy() call below isn't
+    # called with CONFIGS as the config files all get re-written after the
+    # call.
     update_image_location_policy()
     CONFIGS.write_all()
     if packages_removed:

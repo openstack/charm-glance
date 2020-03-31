@@ -1,0 +1,5 @@
+# The file is controlled by Juju -- do not edit by hand as it will be
+# overwritten
+"get_image_location": "{{ get_image_location }}"
+"set_image_location": "{{ set_image_location }}"
+"delete_image_location": "{{ delete_image_location }}"
