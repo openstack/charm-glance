@@ -1,0 +1,5 @@
+{
+    "delete_image_location": "rule:default",
+    "get_image_location": "rule:default",
+    "set_image_location": "rule:default"
+}

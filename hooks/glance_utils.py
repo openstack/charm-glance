@@ -195,6 +195,10 @@ CONFIG_FILES = OrderedDict([
                               service_user='glance')],
         'services': ['glance-api']
     }),
+    (GLANCE_POLICY_FILE, {
+        'hook_contexts': [],
+        'services': ['glance-api', 'glance-registry']
+    }),
     (ceph_config_file(), {
         'hook_contexts': [context.CephContext()],
         'services': ['glance-api', 'glance-registry']
@@ -264,6 +268,11 @@ def register_configs():
     if cmp_release >= 'mitaka':
         configs.register(GLANCE_SWIFT_CONF,
                          CONFIG_FILES[GLANCE_SWIFT_CONF]['hook_contexts'])
+
+    if cmp_release >= 'ussuri':
+        configs.register(GLANCE_POLICY_FILE,
+                         CONFIG_FILES[GLANCE_POLICY_FILE]['hook_contexts'])
+
     return configs
 
 
@@ -383,8 +392,6 @@ def restart_map():
         glance_svcs = ['glance-api']
     else:
         glance_svcs = ['glance-api', 'glance-registry']
-
-    _map.append((GLANCE_POLICY_FILE, glance_svcs))
 
     if os.path.isdir(APACHE_SSL_DIR):
         _map.append(('{}/*'.format(APACHE_SSL_DIR), glance_svcs + ['apache2']))
