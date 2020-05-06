@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Common python helper functions used for OpenStack charms.
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 from functools import wraps
 
 import subprocess
@@ -36,15 +36,20 @@ from charmhelpers.contrib.network import ip
 from charmhelpers.core import unitdata
 
 from charmhelpers.core.hookenv import (
+    WORKLOAD_STATES,
     action_fail,
     action_set,
     config,
+    expected_peer_units,
+    expected_related_units,
     log as juju_log,
     charm_dir,
     INFO,
     ERROR,
+    metadata,
     related_units,
     relation_get,
+    relation_id,
     relation_ids,
     relation_set,
     status_set,
@@ -53,6 +58,7 @@ from charmhelpers.core.hookenv import (
     cached,
     leader_set,
     leader_get,
+    local_unit,
 )
 
 from charmhelpers.core.strutils import (
@@ -106,6 +112,10 @@ from charmhelpers.contrib.openstack.exceptions import OSContextError
 from charmhelpers.contrib.openstack.policyd import (
     policyd_status_message_prefix,
     POLICYD_CONFIG_NAME,
+)
+
+from charmhelpers.contrib.openstack.ha.utils import (
+    expect_ha,
 )
 
 CLOUD_ARCHIVE_URL = "http://ubuntu-cloud.archive.canonical.com/ubuntu"
@@ -1810,6 +1820,16 @@ def os_application_version_set(package):
         application_version_set(application_version)
 
 
+def os_application_status_set(check_function):
+    """Run the supplied function and set the application status accordingly.
+
+    :param check_function: Function to run to get app states and messages.
+    :type check_function: function
+    """
+    state, message = check_function()
+    status_set(state, message, application=True)
+
+
 def enable_memcache(source=None, release=None, package=None):
     """Determine if memcache should be enabled on the local unit
 
@@ -2046,3 +2066,287 @@ def is_db_maintenance_mode(relid=None):
                         'WARN')
                     pass
     return True in notifications
+
+
+@cached
+def container_scoped_relations():
+    """Get all the container scoped relations
+
+    :returns: List of relation names
+    :rtype: List
+    """
+    md = metadata()
+    relations = []
+    for relation_type in ('provides', 'requires', 'peers'):
+        for relation in md.get(relation_type, []):
+            if md[relation_type][relation].get('scope') == 'container':
+                relations.append(relation)
+    return relations
+
+
+def is_db_ready(use_current_context=False, rel_name=None):
+    """Check remote database is ready to be used.
+
+    Database relations are expected to provide a list of 'allowed' units to
+    confirm that the database is ready for use by those units.
+
+    If db relation has provided this information and local unit is a member,
+    returns True otherwise False.
+
+    :param use_current_context: Whether to limit checks to current hook
+                                context.
+    :type use_current_context: bool
+    :param rel_name: Name of relation to check
+    :type rel_name: string
+    :returns: Whether remote db is ready.
+    :rtype: bool
+    :raises: Exception
+    """
+    key = 'allowed_units'
+
+    rel_name = rel_name or 'shared-db'
+    this_unit = local_unit()
+
+    if use_current_context:
+        if relation_id() in relation_ids(rel_name):
+            rids_units = [(None, None)]
+        else:
+            raise Exception("use_current_context=True but not in {} "
+                            "rel hook contexts (currently in {})."
+                            .format(rel_name, relation_id()))
+    else:
+        rids_units = [(r_id, u)
+                      for r_id in relation_ids(rel_name)
+                      for u in related_units(r_id)]
+
+    for rid, unit in rids_units:
+        allowed_units = relation_get(rid=rid, unit=unit, attribute=key)
+        if allowed_units and this_unit in allowed_units.split():
+            juju_log("This unit ({}) is in allowed unit list from {}".format(
+                this_unit,
+                unit), 'DEBUG')
+            return True
+
+    juju_log("This unit was not found in any allowed unit list")
+    return False
+
+
+def is_expected_scale(peer_relation_name='cluster'):
+    """Query juju goal-state to determine whether our peer- and dependency-
+    relations are at the expected scale.
+
+    Useful for deferring per unit per relation housekeeping work until we are
+    ready to complete it successfully and without unnecessary repetiton.
+
+    Always returns True if version of juju used does not support goal-state.
+
+    :param peer_relation_name: Name of peer relation
+    :type rel_name: string
+    :returns: True or False
+    :rtype: bool
+    """
+    def _get_relation_id(rel_type):
+        return next((rid for rid in relation_ids(reltype=rel_type)), None)
+
+    Relation = namedtuple('Relation', 'rel_type rel_id')
+    peer_rid = _get_relation_id(peer_relation_name)
+    # Units with no peers should still have a peer relation.
+    if not peer_rid:
+        juju_log('Not at expected scale, no peer relation found', 'DEBUG')
+        return False
+    expected_relations = [
+        Relation(rel_type='shared-db', rel_id=_get_relation_id('shared-db'))]
+    if expect_ha():
+        expected_relations.append(
+            Relation(
+                rel_type='ha',
+                rel_id=_get_relation_id('ha')))
+    juju_log(
+        'Checking scale of {} relations'.format(
+            ','.join([r.rel_type for r in expected_relations])),
+        'DEBUG')
+    try:
+        if (len(related_units(relid=peer_rid)) <
+                len(list(expected_peer_units()))):
+            return False
+        for rel in expected_relations:
+            if not rel.rel_id:
+                juju_log(
+                    'Expected to find {} relation, but it is missing'.format(
+                        rel.rel_type),
+                    'DEBUG')
+                return False
+            # Goal state returns every unit even for container scoped
+            # relations but the charm only ever has a relation with
+            # the local unit.
+            if rel.rel_type in container_scoped_relations():
+                expected_count = 1
+            else:
+                expected_count = len(
+                    list(expected_related_units(reltype=rel.rel_type)))
+            if len(related_units(relid=rel.rel_id)) < expected_count:
+                juju_log(
+                    ('Not at expected scale, not enough units on {} '
+                     'relation'.format(rel.rel_type)),
+                    'DEBUG')
+                return False
+    except NotImplementedError:
+        return True
+    juju_log('All checks have passed, unit is at expected scale', 'DEBUG')
+    return True
+
+
+def get_peer_key(unit_name):
+    """Get the peer key for this unit.
+
+    The peer key is the key a unit uses to publish its status down the peer
+    relation
+
+    :param unit_name: Name of unit
+    :type unit_name: string
+    :returns: Peer key for given unit
+    :rtype: string
+    """
+    return 'unit-state-{}'.format(unit_name.replace('/', '-'))
+
+
+UNIT_READY = 'READY'
+UNIT_NOTREADY = 'NOTREADY'
+UNIT_UNKNOWN = 'UNKNOWN'
+UNIT_STATES = [UNIT_READY, UNIT_NOTREADY, UNIT_UNKNOWN]
+
+
+def inform_peers_unit_state(state, relation_name='cluster'):
+    """Inform peers of the state of this unit.
+
+    :param state: State of unit to publish
+    :type state: string
+    :param relation_name: Name of relation to publish state on
+    :type relation_name: string
+    """
+    if state not in UNIT_STATES:
+        raise ValueError(
+            "Setting invalid state {} for unit".format(state))
+    for r_id in relation_ids(relation_name):
+        relation_set(relation_id=r_id,
+                     relation_settings={
+                         get_peer_key(local_unit()): state})
+
+
+def get_peers_unit_state(relation_name='cluster'):
+    """Get the state of all peers.
+
+    :param relation_name: Name of relation to check peers on.
+    :type relation_name: string
+    :returns: Unit states keyed on unit name.
+    :rtype: dict
+    :raises: ValueError
+    """
+    r_ids = relation_ids(relation_name)
+    rids_units = [(r, u) for r in r_ids for u in related_units(r)]
+    unit_states = {}
+    for r_id, unit in rids_units:
+        settings = relation_get(unit=unit, rid=r_id)
+        unit_states[unit] = settings.get(get_peer_key(unit), UNIT_UNKNOWN)
+        if unit_states[unit] not in UNIT_STATES:
+            raise ValueError(
+                "Unit in unknown state {}".format(unit_states[unit]))
+    return unit_states
+
+
+def are_peers_ready(relation_name='cluster'):
+    """Check if all peers are ready.
+
+    :param relation_name: Name of relation to check peers on.
+    :type relation_name: string
+    :returns: Whether all units are ready.
+    :rtype: bool
+    """
+    unit_states = get_peers_unit_state(relation_name)
+    return all(v == UNIT_READY for v in unit_states.values())
+
+
+def inform_peers_if_ready(check_unit_ready_func, relation_name='cluster'):
+    """Inform peers if this unit is ready.
+
+    The check function should return a tuple (state, message). A state
+    of 'READY' indicates the unit is READY.
+
+    :param check_unit_ready_func: Function to run to check readiness
+    :type check_unit_ready_func: function
+    :param relation_name: Name of relation to check peers on.
+    :type relation_name: string
+    """
+    unit_ready, msg = check_unit_ready_func()
+    if unit_ready:
+        state = UNIT_READY
+    else:
+        state = UNIT_NOTREADY
+    juju_log('Telling peers this unit is: {}'.format(state), 'DEBUG')
+    inform_peers_unit_state(state, relation_name)
+
+
+def check_api_unit_ready(check_db_ready=True):
+    """Check if this unit is ready.
+
+    :param check_db_ready: Include checks of database readiness.
+    :type check_db_ready: bool
+    :returns: Whether unit state is ready and status message
+    :rtype: (bool, str)
+    """
+    unit_state, msg = get_api_unit_status(check_db_ready=check_db_ready)
+    return unit_state == WORKLOAD_STATES.ACTIVE, msg
+
+
+def get_api_unit_status(check_db_ready=True):
+    """Return a workload status and message for this unit.
+
+    :param check_db_ready: Include checks of database readiness.
+    :type check_db_ready: bool
+    :returns: Workload state and message
+    :rtype: (bool, str)
+    """
+    unit_state = WORKLOAD_STATES.ACTIVE
+    msg = 'Unit is ready'
+    if is_db_maintenance_mode():
+        unit_state = WORKLOAD_STATES.MAINTENANCE
+        msg = 'Database in maintenance mode.'
+    elif is_unit_paused_set():
+        unit_state = WORKLOAD_STATES.BLOCKED
+        msg = 'Unit paused.'
+    elif check_db_ready and not is_db_ready():
+        unit_state = WORKLOAD_STATES.WAITING
+        msg = 'Allowed_units list provided but this unit not present'
+    elif not is_db_initialised():
+        unit_state = WORKLOAD_STATES.WAITING
+        msg = 'Database not initialised'
+    elif not is_expected_scale():
+        unit_state = WORKLOAD_STATES.WAITING
+        msg = 'Charm and its dependencies not yet at expected scale'
+    juju_log(msg, 'DEBUG')
+    return unit_state, msg
+
+
+def check_api_application_ready():
+    """Check if this application is ready.
+
+    :returns: Whether application state is ready and status message
+    :rtype: (bool, str)
+    """
+    app_state, msg = get_api_application_status()
+    return app_state == WORKLOAD_STATES.ACTIVE, msg
+
+
+def get_api_application_status():
+    """Return a workload status and message for this application.
+
+    :returns: Workload state and message
+    :rtype: (bool, str)
+    """
+    app_state, msg = get_api_unit_status()
+    if app_state == WORKLOAD_STATES.ACTIVE:
+        if are_peers_ready():
+            return WORKLOAD_STATES.ACTIVE, 'Application Ready'
+        else:
+            return WORKLOAD_STATES.WAITING, 'Some units are not ready'
+    return app_state, msg

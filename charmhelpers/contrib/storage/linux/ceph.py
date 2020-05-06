@@ -22,6 +22,7 @@
 #  Adam Gandelman <adamg@ubuntu.com>
 #
 
+import collections
 import errno
 import hashlib
 import math
@@ -91,6 +92,88 @@ DEFAULT_PGS_PER_OSD_TARGET = 100
 DEFAULT_POOL_WEIGHT = 10.0
 LEGACY_PG_COUNT = 200
 DEFAULT_MINIMUM_PGS = 2
+
+
+class OsdPostUpgradeError(Exception):
+    """Error class for OSD post-upgrade operations."""
+    pass
+
+
+class OSDSettingConflict(Exception):
+    """Error class for conflicting osd setting requests."""
+    pass
+
+
+class OSDSettingNotAllowed(Exception):
+    """Error class for a disallowed setting."""
+    pass
+
+
+OSD_SETTING_EXCEPTIONS = (OSDSettingConflict, OSDSettingNotAllowed)
+
+OSD_SETTING_WHITELIST = [
+    'osd heartbeat grace',
+    'osd heartbeat interval',
+]
+
+
+def _order_dict_by_key(rdict):
+    """Convert a dictionary into an OrderedDict sorted by key.
+
+    :param rdict: Dictionary to be ordered.
+    :type rdict: dict
+    :returns: Ordered Dictionary.
+    :rtype: collections.OrderedDict
+    """
+    return collections.OrderedDict(sorted(rdict.items(), key=lambda k: k[0]))
+
+
+def get_osd_settings(relation_name):
+    """Consolidate requested osd settings from all clients.
+
+    Consolidate requested osd settings from all clients. Check that the
+    requested setting is on the whitelist and it does not conflict with
+    any other requested settings.
+
+    :returns: Dictionary of settings
+    :rtype: dict
+
+    :raises: OSDSettingNotAllowed
+    :raises: OSDSettingConflict
+    """
+    rel_ids = relation_ids(relation_name)
+    osd_settings = {}
+    for relid in rel_ids:
+        for unit in related_units(relid):
+            unit_settings = relation_get('osd-settings', unit, relid) or '{}'
+            unit_settings = json.loads(unit_settings)
+            for key, value in unit_settings.items():
+                if key not in OSD_SETTING_WHITELIST:
+                    msg = 'Illegal settings "{}"'.format(key)
+                    raise OSDSettingNotAllowed(msg)
+                if key in osd_settings:
+                    if osd_settings[key] != unit_settings[key]:
+                        msg = 'Conflicting settings for "{}"'.format(key)
+                        raise OSDSettingConflict(msg)
+                else:
+                    osd_settings[key] = value
+    return _order_dict_by_key(osd_settings)
+
+
+def send_osd_settings():
+    """Pass on requested OSD settings to osd units."""
+    try:
+        settings = get_osd_settings('client')
+    except OSD_SETTING_EXCEPTIONS as e:
+        # There is a problem with the settings, not passing them on. Update
+        # status will notify the user.
+        log(e, level=ERROR)
+        return
+    data = {
+        'osd-settings': json.dumps(settings, sort_keys=True)}
+    for relid in relation_ids('osd'):
+        relation_set(relation_id=relid,
+                     relation_settings=data)
 
 
 def validator(value, valid_type, valid_range=None):
@@ -1635,5 +1718,67 @@ class CephConfContext(object):
                 continue
 
             ceph_conf[key] = conf[key]
-
         return ceph_conf
+
+
+class CephOSDConfContext(CephConfContext):
+    """Ceph config (ceph.conf) context.
+
+    Consolidates settings from config-flags via CephConfContext with
+    settings provided by the mons. The config-flag values are preserved in
+    conf['osd'], settings from the mons which do not clash with config-flag
+    settings are in conf['osd_from_client'] and finally settings which do
+    clash are in conf['osd_from_client_conflict']. Rather than silently drop
+    the conflicting settings they are provided in the context so they can be
+    rendered commented out to give some visability to the admin.
+    """
+
+    def __init__(self, permitted_sections=None):
+        super(CephOSDConfContext, self).__init__(
+            permitted_sections=permitted_sections)
+        try:
+            self.settings_from_mons = get_osd_settings('mon')
+        except OSDSettingConflict:
+            log(
+                "OSD settings from mons are inconsistent, ignoring them",
+                level=WARNING)
+            self.settings_from_mons = {}
+
+    def filter_osd_from_mon_settings(self):
+        """Filter settings from client relation against config-flags.
+
+        :returns: A tuple (
+            ,config-flag values,
+            ,client settings which do not conflict with config-flag values,
+            ,client settings which confilct with config-flag values)
+        :rtype: (OrderedDict, OrderedDict, OrderedDict)
+        """
+        ceph_conf = super(CephOSDConfContext, self).__call__()
+        conflicting_entries = {}
+        clear_entries = {}
+        for key, value in self.settings_from_mons.items():
+            if key in ceph_conf.get('osd', {}):
+                if ceph_conf['osd'][key] != value:
+                    conflicting_entries[key] = value
+            else:
+                clear_entries[key] = value
+        clear_entries = _order_dict_by_key(clear_entries)
+        conflicting_entries = _order_dict_by_key(conflicting_entries)
+        return ceph_conf, clear_entries, conflicting_entries
+
+    def __call__(self):
+        """Construct OSD config context.
+
+        Standard context with two additional special keys.
+            osd_from_client_conflict: client settings which confilct with
+                                      config-flag values
+            osd_from_client: settings which do not conflict with config-flag
+                             values
+
+        :returns: OSD config context dict.
+        :rtype: dict
+        """
+        conf, osd_clear, osd_conflict = self.filter_osd_from_mon_settings()
+        conf['osd_from_client_conflict'] = osd_conflict
+        conf['osd_from_client'] = osd_clear
+        return conf

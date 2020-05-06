@@ -32,6 +32,10 @@ def loopback_devices():
 
         /dev/loop0: [0807]:961814 (/tmp/my.img)
 
+    or:
+
+        /dev/loop0: [0807]:961814 (/tmp/my.img (deleted))
+
     :returns: dict: a dict mapping {loopback_dev: backing_file}
     '''
     loopbacks = {}
@@ -39,9 +43,9 @@ def loopback_devices():
     output = check_output(cmd)
     if six.PY3:
         output = output.decode('utf-8')
-    devs = [d.strip().split(' ') for d in output.splitlines() if d != '']
+    devs = [d.strip().split(' ', 2) for d in output.splitlines() if d != '']
     for dev, _, f in devs:
-        loopbacks[dev.replace(':', '')] = re.search(r'\((\S+)\)', f).groups()[0]
+        loopbacks[dev.replace(':', '')] = re.search(r'\((.+)\)', f).groups()[0]
     return loopbacks
 
 

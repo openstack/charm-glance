@@ -140,9 +140,16 @@ def vault_relation_complete(backend=None):
     :ptype backend: string
     :returns: whether the relation to vault is complete
     :rtype: bool"""
-    vault_kv = VaultKVContext(secret_backend=backend or VAULTLOCKER_BACKEND)
-    vault_kv()
-    return vault_kv.complete
+    try:
+        import hvac
+    except ImportError:
+        return False
+    try:
+        vault_kv = VaultKVContext(secret_backend=backend or VAULTLOCKER_BACKEND)
+        vault_kv()
+        return vault_kv.complete
+    except hvac.exceptions.InvalidRequest:
+        return False
 
 
 # TODO: contrib a high level unwrap method to hvac that works
@@ -156,7 +163,16 @@ def retrieve_secret_id(url, token):
     :returns: secret_id to use for Vault Access
     :rtype: str"""
     import hvac
-    client = hvac.Client(url=url, token=token)
+    try:
+        # hvac 0.10.1 changed default adapter to JSONAdapter
+        client = hvac.Client(url=url, token=token, adapter=hvac.adapters.Request)
+    except AttributeError:
+        # hvac < 0.6.2 doesn't have adapter but uses the same response interface
+        client = hvac.Client(url=url, token=token)
+    else:
+        # hvac < 0.9.2 assumes adapter is an instance, so doesn't instantiate
+        if not isinstance(client.adapter, hvac.adapters.Request):
+            client.adapter = hvac.adapters.Request(base_uri=url, token=token)
     response = client._post('/v1/sys/wrapping/unwrap')
     if response.status_code == 200:
         data = response.json()
