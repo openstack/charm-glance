@@ -92,6 +92,7 @@ DEFAULT_PGS_PER_OSD_TARGET = 100
 DEFAULT_POOL_WEIGHT = 10.0
 LEGACY_PG_COUNT = 200
 DEFAULT_MINIMUM_PGS = 2
+AUTOSCALER_DEFAULT_PGS = 32
 
 
 class OsdPostUpgradeError(Exception):
@@ -399,16 +400,28 @@ class ReplicatedPool(Pool):
 
     def create(self):
         if not pool_exists(self.service, self.name):
+            nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
             # Create it
-            cmd = ['ceph', '--id', self.service, 'osd', 'pool', 'create',
-                   self.name, str(self.pg_num)]
+            if nautilus_or_later:
+                cmd = [
+                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                    '--pg-num-min={}'.format(
+                        min(AUTOSCALER_DEFAULT_PGS, self.pg_num)
+                    ),
+                    self.name, str(self.pg_num)
+                ]
+            else:
+                cmd = [
+                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                    self.name, str(self.pg_num)
+                ]
+
             try:
                 check_call(cmd)
                 # Set the pool replica size
                 update_pool(client=self.service,
                             pool=self.name,
                             settings={'size': str(self.replicas)})
-                nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
                 if nautilus_or_later:
                     # Ensure we set the expected pool ratio
                     update_pool(client=self.service,
@@ -466,10 +479,24 @@ class ErasurePool(Pool):
             k = int(erasure_profile['k'])
             m = int(erasure_profile['m'])
             pgs = self.get_pgs(k + m, self.percent_data)
+            nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
             # Create it
-            cmd = ['ceph', '--id', self.service, 'osd', 'pool', 'create',
-                   self.name, str(pgs), str(pgs),
-                   'erasure', self.erasure_code_profile]
+            if nautilus_or_later:
+                cmd = [
+                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                    '--pg-num-min={}'.format(
+                        min(AUTOSCALER_DEFAULT_PGS, pgs)
+                    ),
+                    self.name, str(pgs), str(pgs),
+                    'erasure', self.erasure_code_profile
+                ]
+            else:
+                cmd = [
+                    'ceph', '--id', self.service, 'osd', 'pool', 'create',
+                    self.name, str(pgs), str(pgs),
+                    'erasure', self.erasure_code_profile
+                ]
+
             try:
                 check_call(cmd)
                 try:
@@ -478,7 +505,6 @@ class ErasurePool(Pool):
                                           name=self.app_name)
                 except CalledProcessError:
                     log('Could not set app name for pool {}'.format(self.name, level=WARNING))
-                nautilus_or_later = cmp_pkgrevno('ceph-common', '14.2.0') >= 0
                 if nautilus_or_later:
                     # Ensure we set the expected pool ratio
                     update_pool(client=self.service,
