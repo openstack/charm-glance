@@ -142,7 +142,24 @@ from charmhelpers.contrib.openstack.policyd import (
 
 
 hooks = Hooks()
-CONFIGS = register_configs()
+# Note that CONFIGS is now set up via resolve_CONFIGS so that it is not a
+# module load time constraint.
+CONFIGS = None
+
+
+def resolve_CONFIGS(force_update=False):
+    """lazy function to resolve the CONFIGS so that it doesn't have to evaluate
+    at module load time.  Note that it also returns the CONFIGS so that it can
+    be used in other, module loadtime, functions.
+
+    :param force_update: Force a refresh of CONFIGS
+    :type force_update: bool
+    :returns: CONFIGS variable
+    :rtype: `:class:templating.OSConfigRenderer`
+    """
+    global CONFIGS
+    if CONFIGS is None or force_update:
+        CONFIGS = register_configs()
 
 
 @hooks.hook('install.real')
@@ -193,6 +210,7 @@ def db_joined():
 @hooks.hook('shared-db-relation-changed')
 @restart_on_change(restart_map())
 def db_changed():
+    resolve_CONFIGS()
     if is_db_maintenance_mode():
         juju_log('Database maintenance mode, aborting hook.')
         return
@@ -242,6 +260,7 @@ def db_changed():
 
 @hooks.hook('image-service-relation-joined')
 def image_service_joined(relation_id=None):
+    resolve_CONFIGS()
     relation_data = {
         'glance-api-server':
         "{}:9292".format(canonical_url(CONFIGS, INTERNAL))
@@ -261,7 +280,7 @@ def image_service_joined(relation_id=None):
 @hooks.hook('object-store-relation-joined')
 @restart_on_change(restart_map())
 def object_store_joined():
-
+    resolve_CONFIGS()
     if 'identity-service' not in CONFIGS.complete_contexts():
         juju_log('Deferring swift storage configuration until '
                  'an identity-service relation exists')
@@ -299,6 +318,7 @@ def get_ceph_request():
 @hooks.hook('ceph-relation-changed')
 @restart_on_change(restart_map())
 def ceph_changed():
+    resolve_CONFIGS()
     if 'ceph' not in CONFIGS.complete_contexts():
         juju_log('ceph relation incomplete. Peer not ready?')
         return
@@ -324,6 +344,7 @@ def ceph_changed():
 
 @hooks.hook('ceph-relation-broken')
 def ceph_broken():
+    resolve_CONFIGS()
     service = service_name()
     delete_keyring(service=service)
     CONFIGS.write_all()
@@ -331,6 +352,7 @@ def ceph_broken():
 
 @hooks.hook('identity-service-relation-joined')
 def keystone_joined(relation_id=None):
+    resolve_CONFIGS()
     if config('vip') and not is_clustered():
         juju_log('Defering registration until clustered', level=DEBUG)
         return
@@ -351,6 +373,7 @@ def keystone_joined(relation_id=None):
 @hooks.hook('identity-service-relation-changed')
 @restart_on_change(restart_map())
 def keystone_changed():
+    resolve_CONFIGS()
     if 'identity-service' not in CONFIGS.complete_contexts():
         juju_log('identity-service relation incomplete. Peer not ready?')
         return
@@ -373,6 +396,7 @@ def keystone_changed():
 @restart_on_change(restart_map(), stopstart=True)
 @harden()
 def config_changed():
+    resolve_CONFIGS()
     if config('prefer-ipv6'):
         setup_ipv6()
         status_set('maintenance', 'Sync DB')
@@ -383,6 +407,7 @@ def config_changed():
         if openstack_upgrade_available('glance-common'):
             status_set('maintenance', 'Upgrading OpenStack release')
             do_openstack_upgrade(CONFIGS)
+            resolve_CONFIGS(force_update=True)
 
     open_port(9292)
     configure_https()
@@ -429,6 +454,7 @@ def cluster_joined(relation_id=None):
 @hooks.hook('cluster-relation-departed')
 @restart_on_change(restart_map(), stopstart=True)
 def cluster_changed():
+    resolve_CONFIGS()
     configure_https()
     CONFIGS.write(GLANCE_API_CONF)
     CONFIGS.write(HAPROXY_CONF)
@@ -438,6 +464,7 @@ def cluster_changed():
 @restart_on_change(restart_map(), stopstart=True)
 @harden()
 def upgrade_charm():
+    resolve_CONFIGS()
     apt_install(filter_installed_packages(determine_packages()), fatal=True)
     packages_removed = remove_old_packages()
     reinstall_paste_ini(force_reinstall=packages_removed)
@@ -485,6 +512,7 @@ def ha_relation_changed():
             'cinder-volume-service-relation-broken',
             'storage-backend-relation-broken')
 def relation_broken():
+    resolve_CONFIGS()
     CONFIGS.write_all()
 
 
@@ -493,6 +521,7 @@ def configure_https():
     identity-service and image-service with any required
     updates
     '''
+    resolve_CONFIGS()
     CONFIGS.write_all()
     if 'https' in CONFIGS.complete_contexts():
         cmd = ['a2ensite', 'openstack_https_frontend']
@@ -521,6 +550,7 @@ def amqp_joined():
 @hooks.hook('amqp-relation-changed')
 @restart_on_change(restart_map())
 def amqp_changed():
+    resolve_CONFIGS()
     if 'amqp' not in CONFIGS.complete_contexts():
         juju_log('amqp relation incomplete. Peer not ready?')
         return
@@ -564,6 +594,7 @@ def install_packages_for_cinder_store():
 @os_requires_version('mitaka', 'glance-common')
 @restart_on_change(restart_map(), stopstart=True)
 def cinder_volume_service_relation_joined(relid=None):
+    resolve_CONFIGS()
     install_packages_for_cinder_store()
     CONFIGS.write_all()
 
@@ -572,6 +603,7 @@ def cinder_volume_service_relation_joined(relid=None):
 @os_requires_version('mitaka', 'glance-common')
 @restart_on_change(restart_map(), stopstart=True)
 def storage_backend_hook():
+    resolve_CONFIGS()
     if 'storage-backend' not in CONFIGS.complete_contexts():
         juju_log('storage-backend relation incomplete. Peer not ready?')
         return
@@ -595,6 +627,7 @@ def certs_changed(relation_id=None, unit=None):
 
 @hooks.hook('pre-series-upgrade')
 def pre_series_upgrade():
+    resolve_CONFIGS()
     juju_log("Running prepare series upgrade hook", "INFO")
     series_upgrade_prepare(
         pause_unit_helper, CONFIGS)
@@ -602,6 +635,7 @@ def pre_series_upgrade():
 
 @hooks.hook('post-series-upgrade')
 def post_series_upgrade():
+    resolve_CONFIGS()
     juju_log("Running complete series upgrade hook", "INFO")
     series_upgrade_complete(
         resume_unit_helper, CONFIGS)
@@ -612,4 +646,5 @@ if __name__ == '__main__':
         hooks.execute(sys.argv)
     except UnregisteredHookError as e:
         juju_log('Unknown hook {} - skipping.'.format(e))
+    resolve_CONFIGS()
     assess_status(CONFIGS)
