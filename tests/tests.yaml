@@ -3,9 +3,6 @@ charm_name: glance
 comment:
   - 'the glance configure job validates operation of identity-service relation'
 
-configure:
-  - zaza.openstack.charm_tests.glance.setup.add_lts_image
-
 smoke_bundles:
   - bionic-train
 gate_bundles:
@@ -24,6 +21,7 @@ dev_bundles:
   - focal-ussuri
 
 configure:
+  - zaza.openstack.charm_tests.glance.setup.add_lts_image
   - zaza.openstack.charm_tests.keystone.setup.add_demo_user
 
 tests:
