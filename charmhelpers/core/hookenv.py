@@ -17,8 +17,6 @@
 #
 # Authors:
 #  Charm Helpers Developers <juju@lists.ubuntu.com>
-
-from __future__ import print_function
 import copy
 from distutils.version import LooseVersion
 from enum import Enum
