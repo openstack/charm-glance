@@ -225,7 +225,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('train',
         ['2.22.0', '2.23.0']),
     ('ussuri',
-        ['2.24.0']),
+        ['2.24.0', '2.25.0']),
 ])
 
 # >= Liberty version->codename mapping

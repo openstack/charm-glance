@@ -432,13 +432,13 @@ class ReplicatedPool(Pool):
                                           pool=self.name,
                                           name=self.app_name)
                 except CalledProcessError:
-                    log('Could not set app name for pool {}'.format(self.name, level=WARNING))
+                    log('Could not set app name for pool {}'.format(self.name), level=WARNING)
                 if 'pg_autoscaler' in enabled_manager_modules():
                     try:
                         enable_pg_autoscale(self.service, self.name)
                     except CalledProcessError as e:
                         log('Could not configure auto scaling for pool {}: {}'.format(
-                            self.name, e, level=WARNING))
+                            self.name, e), level=WARNING)
             except CalledProcessError:
                 raise
 
@@ -504,7 +504,7 @@ class ErasurePool(Pool):
                                           pool=self.name,
                                           name=self.app_name)
                 except CalledProcessError:
-                    log('Could not set app name for pool {}'.format(self.name, level=WARNING))
+                    log('Could not set app name for pool {}'.format(self.name), level=WARNING)
                 if nautilus_or_later:
                     # Ensure we set the expected pool ratio
                     update_pool(client=self.service,
@@ -515,7 +515,7 @@ class ErasurePool(Pool):
                         enable_pg_autoscale(self.service, self.name)
                     except CalledProcessError as e:
                         log('Could not configure auto scaling for pool {}: {}'.format(
-                            self.name, e, level=WARNING))
+                            self.name, e), level=WARNING)
             except CalledProcessError:
                 raise
 

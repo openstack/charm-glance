@@ -69,7 +69,7 @@ def _snap_exec(commands):
                     .format(SNAP_NO_LOCK_RETRY_COUNT))
             return_code = e.returncode
             log('Snap failed to acquire lock, trying again in {} seconds.'
-                .format(SNAP_NO_LOCK_RETRY_DELAY, level='WARN'))
+                .format(SNAP_NO_LOCK_RETRY_DELAY), level='WARN')
             sleep(SNAP_NO_LOCK_RETRY_DELAY)
 
     return return_code
