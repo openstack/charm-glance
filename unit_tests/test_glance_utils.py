@@ -15,7 +15,7 @@
 import os
 
 from collections import OrderedDict
-from mock import patch, call, MagicMock, mock_open
+from unittest.mock import patch, call, MagicMock, mock_open
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
 import glance_utils as utils

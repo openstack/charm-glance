@@ -14,7 +14,7 @@
 
 import os
 
-import mock
+from unittest import mock
 
 from test_utils import CharmTestCase
 

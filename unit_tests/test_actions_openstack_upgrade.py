@@ -15,7 +15,7 @@
 import os
 import sys
 
-from mock import patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 os.environ['JUJU_UNIT_NAME'] = 'glance'
 
