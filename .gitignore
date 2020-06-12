@@ -12,3 +12,5 @@ trusty
 .stestr
 func-results.json
 __pycache__
+tempest-workspace
+tempest.log
