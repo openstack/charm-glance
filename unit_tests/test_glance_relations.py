@@ -107,6 +107,7 @@ TO_PATCH = [
     'delete_keyring',
     'get_relation_ip',
     'is_db_maintenance_mode',
+    'send_application_name',
 ]
 
 
@@ -312,6 +313,7 @@ class GlanceRelationTests(CharmTestCase):
     def test_ceph_joined(self):
         relations.ceph_joined()
         self.apt_install.assert_called_with(['ceph-common'])
+        self.send_application_name.assert_called_with()
 
     @patch.object(relations, 'CONFIGS')
     def test_ceph_changed_missing_relation_data(self, configs):

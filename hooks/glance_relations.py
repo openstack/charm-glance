@@ -109,6 +109,7 @@ from charmhelpers.contrib.openstack.utils import (
     is_db_maintenance_mode,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
+    send_application_name,
     send_request_if_needed,
     is_request_complete,
     ensure_ceph_keyring,
@@ -299,6 +300,7 @@ def object_store_joined():
 @hooks.hook('ceph-relation-joined')
 def ceph_joined():
     apt_install(['ceph-common'])
+    send_application_name()
 
 
 def get_ceph_request():
