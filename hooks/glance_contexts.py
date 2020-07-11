@@ -111,9 +111,13 @@ class CephGlanceContext(OSContextGenerator):
                                 keys="key"):
             return {}
         service = service_name()
+        if config('rbd-pool-name'):
+            pool_name = config('rbd-pool-name')
+        else:
+            pool_name = service
         return {
             # pool created based on service name.
-            'rbd_pool': service,
+            'rbd_pool': pool_name,
             'rbd_user': service,
             'expose_image_locations': config('expose-image-locations')
         }

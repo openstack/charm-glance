@@ -110,6 +110,11 @@ options:
     default: False
     description: |
       Optionally restrict Ceph key permissions to access pools as required.
+  rbd-pool-name:
+    default:
+    type: string
+    description: |
+      Optionally specify an existing rbd pool that cinder should map to.
   worker-multiplier:
     type: float
     default:
