@@ -300,6 +300,8 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('disco', None): self.disco_stein,
             ('eoan', None): self.eoan_train,
             ('focal', None): self.focal_ussuri,
+            ('focal', 'cloud:focal-victoria'): self.focal_victoria,
+            ('groovy', None): self.groovy_victoria,
         }
         return releases[(self.series, self.openstack)]
 
@@ -319,6 +321,7 @@ class OpenStackAmuletDeployment(AmuletDeployment):
             ('disco', 'stein'),
             ('eoan', 'train'),
             ('focal', 'ussuri'),
+            ('groovy', 'victoria'),
         ])
         if self.openstack:
             os_origin = self.openstack.split(':')[1]

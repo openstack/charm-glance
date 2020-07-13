@@ -2798,6 +2798,17 @@ class BridgePortInterfaceMap(object):
                 self.add_interface(
                     bridge, portname, ifname, iftype, pci_address, global_mtu)
 
+            if not macs:
+                # We have not mapped the interface and it is probably some sort
+                # of virtual interface. Our user have put it in the config with
+                # a purpose so let's carry out their wish. LP: #1884743
+                log('Add unmapped interface from config: name "{}" bridge "{}"'
+                    .format(ifname, bridge),
+                    level=DEBUG)
+                self.add_interface(
+                    bridge, ifname, ifname, self.interface_type.system, None,
+                    global_mtu)
+
     def __getitem__(self, key):
         """Provide a Dict-like interface, get value of item.
 

@@ -14,6 +14,8 @@
 
 # Bootstrap charm-helpers, installing its dependencies if necessary using
 # only standard libraries.
+from __future__ import print_function
+from __future__ import absolute_import
 
 import functools
 import inspect

@@ -190,6 +190,14 @@ CLOUD_ARCHIVE_POCKETS = {
     'ussuri/proposed': 'bionic-proposed/ussuri',
     'bionic-ussuri/proposed': 'bionic-proposed/ussuri',
     'bionic-proposed/ussuri': 'bionic-proposed/ussuri',
+    # Victoria
+    'victoria': 'focal-updates/victoria',
+    'focal-victoria': 'focal-updates/victoria',
+    'focal-victoria/updates': 'focal-updates/victoria',
+    'focal-updates/victoria': 'focal-updates/victoria',
+    'victoria/proposed': 'focal-proposed/victoria',
+    'focal-victoria/proposed': 'focal-proposed/victoria',
+    'focal-proposed/victoria': 'focal-proposed/victoria',
 }
 
 
