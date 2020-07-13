@@ -18,7 +18,8 @@ gate_bundles:
   - bionic-ussuri
   - focal-ussuri
 dev_bundles:
-  - focal-ussuri
+  - focal-victoria
+  - groovy-victoria
 
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
@@ -32,4 +33,4 @@ tests_options:
   policyd:
     service: glance
   force_deploy:
-    - focal-ussuri
+    - groovy-victoria
