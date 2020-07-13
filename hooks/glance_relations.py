@@ -302,10 +302,14 @@ def ceph_joined():
 
 def get_ceph_request():
     service = service_name()
+    if config('rbd-pool-name'):
+        pool_name = config('rbd-pool-name')
+    else:
+        pool_name = service
     rq = CephBrokerRq()
     replicas = config('ceph-osd-replication-count')
     weight = config('ceph-pool-weight')
-    rq.add_op_create_pool(name=service, replica_count=replicas,
+    rq.add_op_create_pool(name=pool_name, replica_count=replicas,
                           weight=weight, group='images', app_name='rbd')
     if config('restrict-ceph-pools'):
         rq.add_op_request_access_to_group(

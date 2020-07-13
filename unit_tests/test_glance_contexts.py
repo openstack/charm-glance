@@ -107,13 +107,25 @@ class TestGlanceContexts(CharmTestCase):
         self.is_relation_made.return_value = True
         service = 'glance'
         self.service_name.return_value = service
-        self.config.return_value = True
+        conf_dict = {
+            'rbd-pool-name': None,
+            'expose-image-locations': True}
+        self.config.side_effect = lambda x: conf_dict[x]
         self.assertEqual(
             contexts.CephGlanceContext()(),
             {'rbd_pool': service,
              'rbd_user': service,
              'expose_image_locations': True})
         self.config.assert_called_with('expose-image-locations')
+        # Check user supplied pool name:
+        conf_dict = {
+            'rbd-pool-name': 'mypoolname',
+            'expose-image-locations': True}
+        self.assertEqual(
+            contexts.CephGlanceContext()(),
+            {'rbd_pool': 'mypoolname',
+             'rbd_user': service,
+             'expose_image_locations': True})
 
     def test_multistore_below_mitaka(self):
         self.os_release.return_value = 'liberty'
