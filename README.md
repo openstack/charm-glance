@@ -1,15 +1,15 @@
 # Overview
 
-This charm provides the Glance image service for OpenStack.  It is intended to
-be used alongside the other OpenStack components.
+The glance charm provides the Glance image service for OpenStack. It is
+intended to be used alongside the other OpenStack components.
 
 # Usage
 
-Glance may be deployed in a number of ways.  This charm focuses on 3 main
-configurations.  All require the existence of the other core OpenStack
-services deployed via Juju charms, specifically: mysql, keystone and
-nova-cloud-controller.  The following assumes these services have already
-been deployed.
+Glance may be deployed in a number of ways. This charm focuses on 3 main
+configurations. All require the existence of the other core OpenStack services
+deployed via Juju charms, specifically: mysql, keystone and
+nova-cloud-controller. The following assumes these services have already been
+deployed.
 
 ## Local Storage
 
@@ -23,9 +23,9 @@ to store image data:
 
 ## Swift backed storage
 
-Glance can also use Swift Object storage for image storage.  Swift is often
+Glance can also use Swift Object storage for image storage. Swift is often
 deployed as part of an OpenStack cloud and provides increased resilience and
-scale when compared to using local disk storage.  This configuration assumes
+scale when compared to using local disk storage. This configuration assumes
 that you have already deployed Swift using the swift-proxy and swift-storage
 charms:
 
@@ -40,21 +40,21 @@ This configuration can be used to support Glance in HA/Scale-out deployments.
 ## Ceph backed storage
 
 In this configuration, Glance uses Ceph based object storage to provide
-scalable, resilient storage of images.  This configuration assumes that you
+scalable, resilient storage of images. This configuration assumes that you
 have already deployed Ceph using the ceph charm:
 
     juju deploy glance
     juju add-relation glance keystone
     juju add-relation glance mysql
     juju add-relation glance nova-cloud-controller
-    juju add-relation glance ceph
+    juju add-relation glance ceph-mon
 
 This configuration can also be used to support Glance in HA/Scale-out
 deployments.
 
-NOTE: Glance acts as a Ceph client in this case which requires IP (L3)
-connectivity to ceph monitors and OSDs. For MAAS-based deployments this
-can be addressed with network spaces (see the relevant section below).
+> **Note**: Glance acts as a Ceph client in this case which requires IP (L3)
+  connectivity to Ceph monitors and OSDs. For MAAS-based deployments this can
+  be addressed with network spaces (see section 'Network spaces' below).
 
 ## High availability
 
@@ -84,11 +84,13 @@ e.g.
     juju add-relation glance ceilometer-agent
     ...
 
-## Spaces
+## Network spaces
 
-This charm supports the use of Juju Spaces, allowing the charm to be bound to
-network space configurations managed directly by Juju. This is only supported
-with Juju 2.0 and above.
+This charm supports the use of Juju [network spaces][juju-docs-spaces]. This
+feature optionally allows specific types of the application's network traffic
+to be bound to subnets that the underlying hardware is connected to.
+
+> **Note**: Spaces must be configured in the backing cloud prior to deployment.
 
 API endpoints can be bound to distinct network spaces supporting the network
 separation of public, internal and admin endpoints.
@@ -125,19 +127,16 @@ configuration:
         ceph: ceph-access-space
 ```
 
-NOTE: Spaces must be configured in the underlying provider prior to attempting
-to use them.
+> **Note**: Existing glance units configured with the `os-admin-network`,
+  `os-internal-network`, or `os-public-network` options will continue to honour
+  them. Furthermore, these options override any space bindings, if set.
 
-NOTE: Existing deployments using os-*-network configuration options will
-continue to function; these options are preferred over any network space
-binding provided if set.
+## Policy overrides
 
-## Policy Overrides
-
-Policy overrides is an **advanced** feature that allows an operator to override
-the default policy of an OpenStack service. The policies that the service
-supports, the defaults it implements in its code, and the defaults that a charm
-may include should all be clearly understood before proceeding.
+Policy overrides is an advanced feature that allows an operator to override the
+default policy of an OpenStack service. The policies that the service supports,
+the defaults it implements in its code, and the defaults that a charm may
+include should all be clearly understood before proceeding.
 
 > **Caution**: It is possible to break the system (for tenants and other
   services) if policies are incorrectly applied to the service.
@@ -152,14 +151,14 @@ Here are the essential commands (filenames are arbitrary):
     juju attach-resource glance policyd-override=overrides.zip
     juju config glance use-policyd-override=true
 
-See appendix [Policy Overrides][cdg-appendix-n] in the [OpenStack Charms
+See appendix [Policy overrides][cdg-appendix-n] in the [OpenStack Charms
 Deployment Guide][cdg] for a thorough treatment of this feature.
 
 # Bugs
 
 Please report bugs on [Launchpad][lp-bugs-charm-glance].
 
-For general charm questions refer to the OpenStack [Charm Guide][cg].
+For general charm questions refer to the [OpenStack Charm Guide][cg].
 
 <!-- LINKS -->
 
@@ -169,3 +168,4 @@ For general charm questions refer to the OpenStack [Charm Guide][cg].
 [lp-bugs-charm-glance]: https://bugs.launchpad.net/charm-glance/+filebug
 [hacluster-charm]: https://jaas.ai/hacluster
 [cdg-ha-apps]: https://docs.openstack.org/project-deploy-guide/charm-deployment-guide/latest/app-ha.html#ha-applications
+[juju-docs-spaces]: https://juju.is/docs/spaces
