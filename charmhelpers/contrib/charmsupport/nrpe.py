@@ -18,14 +18,14 @@
 # Authors:
 #  Matthew Wedgwood <matthew.wedgwood@canonical.com>
 
-import subprocess
-import pwd
+import glob
 import grp
 import os
-import glob
-import shutil
+import pwd
 import re
 import shlex
+import shutil
+import subprocess
 import yaml
 
 from charmhelpers.core.hookenv import (
@@ -265,6 +265,11 @@ class NRPE(object):
                 relation_set(relation_id=rid, relation_settings={'primary': self.primary})
         self.remove_check_queue = set()
 
+    @classmethod
+    def does_nrpe_conf_dir_exist(cls):
+        """Return True if th nrpe_confdif directory exists."""
+        return os.path.isdir(cls.nrpe_confdir)
+
     def add_check(self, *args, **kwargs):
         shortname = None
         if kwargs.get('shortname') is None:
@@ -310,6 +315,12 @@ class NRPE(object):
 
         nrpe_monitors = {}
         monitors = {"monitors": {"remote": {"nrpe": nrpe_monitors}}}
+
+        # check that the charm can write to the conf dir.  If not, then nagios
+        # probably isn't installed, and we can defer.
+        if not self.does_nrpe_conf_dir_exist():
+            return
+
         for nrpecheck in self.checks:
             nrpecheck.write(self.nagios_context, self.hostname,
                             self.nagios_servicegroups)
@@ -400,7 +411,7 @@ def add_init_service_checks(nrpe, services, unit_name, immediate_check=True):
         upstart_init = '/etc/init/%s.conf' % svc
         sysv_init = '/etc/init.d/%s' % svc
 
-        if host.init_is_systemd():
+        if host.init_is_systemd(service_name=svc):
             nrpe.add_check(
                 shortname=svc,
                 description='process check {%s}' % unit_name,

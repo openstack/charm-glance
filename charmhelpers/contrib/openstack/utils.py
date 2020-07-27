@@ -2241,10 +2241,13 @@ def inform_peers_unit_state(state, relation_name='cluster'):
     if state not in UNIT_STATES:
         raise ValueError(
             "Setting invalid state {} for unit".format(state))
+    this_unit = local_unit()
     for r_id in relation_ids(relation_name):
+        juju_log('Telling peer behind relation {} that {} is {}'.format(
+            r_id, this_unit, state), 'DEBUG')
         relation_set(relation_id=r_id,
                      relation_settings={
-                         get_peer_key(local_unit()): state})
+                         get_peer_key(this_unit): state})
 
 
 def get_peers_unit_state(relation_name='cluster'):
@@ -2276,8 +2279,10 @@ def are_peers_ready(relation_name='cluster'):
     :returns: Whether all units are ready.
     :rtype: bool
     """
-    unit_states = get_peers_unit_state(relation_name)
-    return all(v == UNIT_READY for v in unit_states.values())
+    unit_states = get_peers_unit_state(relation_name).values()
+    juju_log('{} peers are in the following states: {}'.format(
+        relation_name, unit_states), 'DEBUG')
+    return all(state == UNIT_READY for state in unit_states)
 
 
 def inform_peers_if_ready(check_unit_ready_func, relation_name='cluster'):
@@ -2360,7 +2365,9 @@ def get_api_application_status():
     app_state, msg = get_api_unit_status()
     if app_state == WORKLOAD_STATES.ACTIVE:
         if are_peers_ready():
-            return WORKLOAD_STATES.ACTIVE, 'Application Ready'
+            msg = 'Application Ready'
         else:
-            return WORKLOAD_STATES.WAITING, 'Some units are not ready'
+            app_state = WORKLOAD_STATES.WAITING
+            msg = 'Some units are not ready'
+    juju_log(msg, 'DEBUG')
     return app_state, msg

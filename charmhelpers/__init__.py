@@ -49,7 +49,8 @@ __deprecated_functions = {}
 
 def deprecate(warning, date=None, log=None):
     """Add a deprecation warning the first time the function is used.
-    The date, which is a string in semi-ISO8660 format indicate the year-month
+
+    The date which is a string in semi-ISO8660 format indicates the year-month
     that the function is officially going to be removed.
 
     usage:
@@ -62,10 +63,11 @@ def deprecate(warning, date=None, log=None):
     The reason for passing the logging function (log) is so that hookenv.log
     can be used for a charm if needed.
 
-    :param warning:  String to indicat where it has moved ot.
-    :param date: optional sting, in YYYY-MM format to indicate when the
+    :param warning: String to indicate what is to be used instead.
+    :param date: Optional string in YYYY-MM format to indicate when the
                  function will definitely (probably) be removed.
-    :param log: The log function to call to log.  If not, logs to stdout
+    :param log: The log function to call in order to log. If None, logs to
+                stdout
     """
     def wrap(f):
 
