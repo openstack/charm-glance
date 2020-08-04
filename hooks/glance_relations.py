@@ -306,11 +306,73 @@ def get_ceph_request():
         pool_name = config('rbd-pool-name')
     else:
         pool_name = service
+
     rq = CephBrokerRq()
-    replicas = config('ceph-osd-replication-count')
     weight = config('ceph-pool-weight')
-    rq.add_op_create_pool(name=pool_name, replica_count=replicas,
-                          weight=weight, group='images', app_name='rbd')
+    replicas = config('ceph-osd-replication-count')
+
+    if config('pool-type') == 'erasure-coded':
+        # General EC plugin config
+        plugin = config('ec-profile-plugin')
+        technique = config('ec-profile-technique')
+        device_class = config('ec-profile-device-class')
+        metadata_pool_name = (
+            config('ec-rbd-metadata-pool') or
+            "{}-metadata".format(service)
+        )
+        bdm_k = config('ec-profile-k')
+        bdm_m = config('ec-profile-m')
+        # LRC plugin config
+        bdm_l = config('ec-profile-locality')
+        crush_locality = config('ec-profile-crush-locality')
+        # SHEC plugin config
+        bdm_c = config('ec-profile-durability-estimator')
+        # CLAY plugin config
+        bdm_d = config('ec-profile-helper-chunks')
+        scalar_mds = config('ec-profile-scalar-mds')
+        # Profile name
+        profile_name = (
+            config('ec-profile-name') or "{}-profile".format(service)
+        )
+        # Metadata sizing is approximately 1% of overall data weight
+        # but is in effect driven by the number of rbd's rather than
+        # their size - so it can be very lightweight.
+        metadata_weight = weight * 0.01
+        # Resize data pool weight to accomodate metadata weight
+        weight = weight - metadata_weight
+        # Create metadata pool
+        rq.add_op_create_pool(
+            name=metadata_pool_name, replica_count=replicas,
+            weight=metadata_weight, group='images', app_name='rbd'
+        )
+
+        # Create erasure profile
+        rq.add_op_create_erasure_profile(
+            name=profile_name,
+            k=bdm_k, m=bdm_m,
+            lrc_locality=bdm_l,
+            lrc_crush_locality=crush_locality,
+            shec_durability_estimator=bdm_c,
+            clay_helper_chunks=bdm_d,
+            clay_scalar_mds=scalar_mds,
+            device_class=device_class,
+            erasure_type=plugin,
+            erasure_technique=technique
+        )
+
+        # Create EC data pool
+        rq.add_op_create_erasure_pool(
+            name=pool_name,
+            erasure_profile=profile_name,
+            weight=weight,
+            group="images",
+            app_name="rbd",
+            allow_ec_overwrites=True
+        )
+    else:
+        rq.add_op_create_pool(name=pool_name, replica_count=replicas,
+                              weight=weight, group='images', app_name='rbd')
+
     if config('restrict-ceph-pools'):
         rq.add_op_request_access_to_group(
             name="images",

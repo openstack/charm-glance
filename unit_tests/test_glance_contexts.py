@@ -109,8 +109,10 @@ class TestGlanceContexts(CharmTestCase):
         self.service_name.return_value = service
         conf_dict = {
             'rbd-pool-name': None,
-            'expose-image-locations': True}
-        self.config.side_effect = lambda x: conf_dict[x]
+            'expose-image-locations': True,
+            'pool-type': 'replicated',
+        }
+        self.config.side_effect = lambda x: conf_dict.get(x)
         self.assertEqual(
             contexts.CephGlanceContext()(),
             {'rbd_pool': service,
@@ -120,10 +122,48 @@ class TestGlanceContexts(CharmTestCase):
         # Check user supplied pool name:
         conf_dict = {
             'rbd-pool-name': 'mypoolname',
-            'expose-image-locations': True}
+            'expose-image-locations': True,
+            'pool-type': 'replicated',
+        }
         self.assertEqual(
             contexts.CephGlanceContext()(),
             {'rbd_pool': 'mypoolname',
+             'rbd_user': service,
+             'expose_image_locations': True})
+        # Check erasure-coded pool type
+        conf_dict = {
+            'rbd-pool-name': None,
+            'expose-image-locations': True,
+            'pool-type': 'erasure-coded',
+            'ec-rbd-metadata-pool': None,
+        }
+        self.assertEqual(
+            contexts.CephGlanceContext()(),
+            {'rbd_pool': "{}-metadata".format(service),
+             'rbd_user': service,
+             'expose_image_locations': True})
+        # Ensure rbd-pool-name used for metadata pool name
+        conf_dict = {
+            'rbd-pool-name': 'foobar',
+            'expose-image-locations': True,
+            'pool-type': 'erasure-coded',
+            'ec-rbd-metadata-pool': None,
+        }
+        self.assertEqual(
+            contexts.CephGlanceContext()(),
+            {'rbd_pool': "foobar-metadata",
+             'rbd_user': service,
+             'expose_image_locations': True})
+        # Ensure ec-rbd-metadata-pool overrides everything
+        conf_dict = {
+            'rbd-pool-name': 'foobar',
+            'expose-image-locations': True,
+            'pool-type': 'erasure-coded',
+            'ec-rbd-metadata-pool': 'another-metadata',
+        }
+        self.assertEqual(
+            contexts.CephGlanceContext()(),
+            {'rbd_pool': "another-metadata",
              'rbd_user': service,
              'expose_image_locations': True})
 

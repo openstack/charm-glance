@@ -384,6 +384,53 @@ class GlanceRelationTests(CharmTestCase):
                 permission='rwx'),
         ])
 
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_create_erasure_pool')
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_create_erasure_profile')
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_request_access_to_group')
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_create_pool')
+    def test_create_ec_pool_op(self, mock_create_pool,
+                               mock_request_access,
+                               mock_create_erasure_profile,
+                               mock_create_erasure_pool):
+        self.service_name.return_value = 'glance'
+        self.test_config.set('ceph-osd-replication-count', 3)
+        self.test_config.set('ceph-pool-weight', 6)
+        self.test_config.set('pool-type', 'erasure-coded')
+        self.test_config.set('ec-profile-plugin', 'isa')
+        self.test_config.set('ec-profile-k', 6)
+        self.test_config.set('ec-profile-m', 2)
+        relations.get_ceph_request()
+        mock_create_pool.assert_called_once_with(
+            name='glance-metadata',
+            replica_count=3,
+            weight=0.06,
+            group='images',
+            app_name='rbd')
+        mock_create_erasure_profile.assert_called_once_with(
+            name='glance-profile',
+            k=6, m=2,
+            lrc_locality=None,
+            lrc_crush_locality=None,
+            shec_durability_estimator=None,
+            clay_helper_chunks=None,
+            clay_scalar_mds=None,
+            device_class=None,
+            erasure_type='isa',
+            erasure_technique=None,
+        )
+        mock_create_erasure_pool.assert_called_once_with(
+            name='glance',
+            erasure_profile='glance-profile',
+            weight=5.94,
+            group='images',
+            app_name='rbd',
+            allow_ec_overwrites=True)
+        mock_request_access.assert_not_called()
+
     @patch.object(relations, 'get_ceph_request')
     @patch.object(relations, 'send_request_if_needed')
     @patch.object(relations, 'is_request_complete')

@@ -115,6 +115,104 @@ options:
     type: string
     description: |
       Optionally specify an existing rbd pool that cinder should map to.
+  pool-type:
+    type: string
+    default: replicated
+    description: |
+      Ceph pool type to use for storage - valid values include ‘replicated’
+      and ‘erasure-coded’.
+  ec-profile-name:
+    type: string
+    default:
+    description: |
+      Name for the EC profile to be created for the EC pools. If not defined
+      a profile name will be generated based on the name of the pool used by
+      the application.
+  ec-rbd-metadata-pool:
+    type: string
+    default:
+    description: |
+      Name of the metadata pool to be created (for RBD use-cases). If not
+      defined a metadata pool name will be generated based on the name of
+      the data pool used by the application.  The metadata pool is always
+      replicated, not erasure coded.
+  ec-profile-k:
+    type: int
+    default: 1
+    description: |
+      Number of data chunks that will be used for EC data pool. K+M factors
+      should never be greater than the number of available zones (or hosts)
+      for balancing.
+  ec-profile-m:
+    type: int
+    default: 2
+    description: |
+      Number of coding chunks that will be used for EC data pool. K+M factors
+      should never be greater than the number of available zones (or hosts)
+      for balancing.
+  ec-profile-locality:
+    type: int
+    default:
+    description: |
+      (lrc plugin - l) Group the coding and data chunks into sets of size l.
+      For instance, for k=4 and m=2, when l=3 two groups of three are created.
+      Each set can be recovered without reading chunks from another set. Note
+      that using the lrc plugin does incur more raw storage usage than isa or
+      jerasure in order to reduce the cost of recovery operations.
+  ec-profile-crush-locality:
+    type: string
+    default:
+    description: |
+      (lrc plugin) The type of the crush bucket in which each set of chunks
+      defined by l will be stored. For instance, if it is set to rack, each
+      group of l chunks will be placed in a different rack. It is used to
+      create a CRUSH rule step such as step choose rack. If it is not set,
+      no such grouping is done.
+  ec-profile-durability-estimator:
+    type: int
+    default:
+    description: |
+      (shec plugin - c) The number of parity chunks each of which includes
+      each data chunk in its calculation range. The number is used as a
+      durability estimator. For instance, if c=2, 2 OSDs can be down
+      without losing data.
+  ec-profile-helper-chunks:
+    type: int
+    default:
+    description: |
+      (clay plugin - d) Number of OSDs requested to send data during
+      recovery of a single chunk. d needs to be chosen such that
+      k+1 <= d <= k+m-1. Larger the d, the better the savings.
+  ec-profile-scalar-mds:
+    type: string
+    default:
+    description: |
+      (clay plugin) specifies the plugin that is used as a building
+      block in the layered construction. It can be one of jerasure,
+      isa, shec (defaults to jerasure).
+  ec-profile-plugin:
+    type: string
+    default: jerasure
+    description: |
+      EC plugin to use for this applications pool. The following list of
+      plugins acceptable - jerasure, lrc, isa, shec, clay.
+  ec-profile-technique:
+    type: string
+    default:
+    description: |
+      EC profile technique used for this applications pool - will be
+      validated based on the plugin configured via ec-profile-plugin.
+      Supported techniques are ‘reed_sol_van’, ‘reed_sol_r6_op’,
+      ‘cauchy_orig’, ‘cauchy_good’, ‘liber8tion’ for jerasure,
+      ‘reed_sol_van’, ‘cauchy’ for isa and ‘single’, ‘multiple’
+      for shec.
+  ec-profile-device-class:
+    type: string
+    default:
+    description: |
+      Device class from CRUSH map to use for placement groups for
+      erasure profile - valid values: ssd, hdd or nvme (or leave
+      unset to not use a device class).
   worker-multiplier:
     type: float
     default:
@@ -142,7 +240,7 @@ options:
       True.
       WARNING: enabling this restriction will cause Nova to no longer be able
       to create COW clones or snapshots for non-admin users when using the
-      RBDImageBackend in the nova-compute charm. 
+      RBDImageBackend in the nova-compute charm.
   rabbit-user:
     type: string
     default: glance

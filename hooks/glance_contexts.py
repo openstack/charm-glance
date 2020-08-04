@@ -111,10 +111,17 @@ class CephGlanceContext(OSContextGenerator):
                                 keys="key"):
             return {}
         service = service_name()
-        if config('rbd-pool-name'):
-            pool_name = config('rbd-pool-name')
+        if config('pool-type') == 'erasure-coded':
+            pool_name = (
+                config('ec-rbd-metadata-pool') or
+                "{}-metadata".format(config('rbd-pool-name') or
+                                     service)
+            )
         else:
-            pool_name = service
+            if config('rbd-pool-name'):
+                pool_name = config('rbd-pool-name')
+            else:
+                pool_name = service
         return {
             # pool created based on service name.
             'rbd_pool': pool_name,
