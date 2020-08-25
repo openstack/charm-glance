@@ -37,10 +37,12 @@ from charmhelpers.contrib.openstack.utils import (
 
 from glance_relations import (
     config_changed,
-    CONFIGS
 )
 
-from glance_utils import do_openstack_upgrade
+from glance_utils import (
+    do_openstack_upgrade,
+    register_configs,
+)
 
 
 def openstack_upgrade():
@@ -52,7 +54,7 @@ def openstack_upgrade():
     on config-changed."""
     if (do_action_openstack_upgrade('glance-common',
                                     do_openstack_upgrade,
-                                    CONFIGS)):
+                                    register_configs())):
         config_changed()
 
 if __name__ == '__main__':
