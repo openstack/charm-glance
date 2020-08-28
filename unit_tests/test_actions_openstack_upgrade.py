@@ -26,16 +26,16 @@ sys.modules['apt'] = mock_apt
 mock_apt.apt_pkg = MagicMock()
 
 with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec, \
-    patch('charmhelpers.contrib.openstack.utils.'
-          'os_requires_version') as mock_os, \
-    patch('glance_utils.register_configs'), \
+        patch('charmhelpers.contrib.openstack.utils.'
+              'os_requires_version') as mock_os, \
+        patch('glance_utils.register_configs'), \
         patch('glance_utils.restart_map'):
-            mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
-                                    lambda *args, **kwargs: f(*args, **kwargs))
+    mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                            lambda *args, **kwargs: f(*args, **kwargs))
 
-            mock_os.side_effect = (lambda *dargs, **dkwargs: lambda f:
-                                   lambda *args, **kwargs: f(*args, **kwargs))
-            import openstack_upgrade
+    mock_os.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                           lambda *args, **kwargs: f(*args, **kwargs))
+    import openstack_upgrade
 
 from test_utils import CharmTestCase
 
