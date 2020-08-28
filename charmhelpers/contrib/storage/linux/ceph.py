@@ -705,12 +705,12 @@ class ErasurePool(BasePool):
             # from different handling of this in the `charms.ceph` library.
             self.erasure_code_profile = op.get('erasure-profile',
                                                'default-canonical')
+            self.allow_ec_overwrites = op.get('allow-ec-overwrites')
         else:
             # We keep the class default when initialized from keyword arguments
             # to not break the API for any other consumers.
             self.erasure_code_profile = erasure_code_profile or 'default'
-
-        self.allow_ec_overwrites = allow_ec_overwrites
+            self.allow_ec_overwrites = allow_ec_overwrites
 
     def _create(self):
         # Try to find the erasure profile information in order to properly
@@ -1972,12 +1972,14 @@ class CephBrokerRq(object):
                            'request-id': self.request_id})
 
     def _ops_equal(self, other):
+        keys_to_compare = [
+            'replicas', 'name', 'op', 'pg_num', 'group-permission',
+            'object-prefix-permissions',
+        ]
+        keys_to_compare += list(self._partial_build_common_op_create().keys())
         if len(self.ops) == len(other.ops):
             for req_no in range(0, len(self.ops)):
-                for key in [
-                        'replicas', 'name', 'op', 'pg_num', 'weight',
-                        'group', 'group-namespace', 'group-permission',
-                        'object-prefix-permissions']:
+                for key in keys_to_compare:
                     if self.ops[req_no].get(key) != other.ops[req_no].get(key):
                         return False
         else:

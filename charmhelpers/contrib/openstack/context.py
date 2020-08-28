@@ -3245,6 +3245,18 @@ class CephBlueStoreCompressionContext(OSContextGenerator):
         """
         return self.op
 
+    def get_kwargs(self):
+        """Get values for use as keyword arguments.
+
+        :returns: Context values with key suitable for use as kwargs to
+                  CephBrokerRq add_op_create_*_pool methods.
+        :rtype: Dict[str,any]
+        """
+        return {
+            k.replace('-', '_'): v
+            for k, v in self.op.items()
+        }
+
     def validate(self):
         """Validate options.
 

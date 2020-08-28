@@ -459,3 +459,69 @@ options:
       override YAML files in the service's policy.d directory.  The resource
       file should be a ZIP file containing at least one yaml file with a .yaml
       or .yml extension.  If False then remove the overrides.
+  bluestore-compression-algorithm:
+    type: string
+    default:
+    description: |
+      Compressor to use (if any) for pools requested by this charm.
+      .
+      NOTE: The ceph-osd charm sets a global default for this value (defaults
+      to 'lz4' unless configured by the end user) which will be used unless
+      specified for individual pools.
+  bluestore-compression-mode:
+    type: string
+    default:
+    description: |
+      Policy for using compression on pools requested by this charm.
+      .
+      'none' means never use compression.
+      'passive' means use compression when clients hint that data is
+      compressible.
+      'aggressive' means use compression unless clients hint that
+      data is not compressible.
+      'force' means use compression under all circumstances even if the clients
+      hint that the data is not compressible.
+  bluestore-compression-required-ratio:
+    type: float
+    default:
+    description: |
+      The ratio of the size of the data chunk after compression relative to the
+      original size must be at least this small in order to store the
+      compressed version on pools requested by this charm.
+  bluestore-compression-min-blob-size:
+    type: int
+    default:
+    description: |
+      Chunks smaller than this are never compressed on pools requested by
+      this charm.
+  bluestore-compression-min-blob-size-hdd:
+    type: int
+    default:
+    description: |
+      Value of bluestore compression min blob size for rotational media on
+      pools requested by this charm.
+  bluestore-compression-min-blob-size-ssd:
+    type: int
+    default:
+    description: |
+      Value of bluestore compression min blob size for solid state media on
+      pools requested by this charm.
+  bluestore-compression-max-blob-size:
+    type: int
+    default:
+    description: |
+      Chunks larger than this are broken into smaller blobs sizing bluestore
+      compression max blob size before being compressed on pools requested by
+      this charm.
+  bluestore-compression-max-blob-size-hdd:
+    type: int
+    default:
+    description: |
+      Value of bluestore compression max blob size for rotational media on
+      pools requested by this charm.
+  bluestore-compression-max-blob-size-ssd:
+    type: int
+    default:
+    description: |
+      Value of bluestore compression max blob size for solid state media on
+      pools requested by this charm.

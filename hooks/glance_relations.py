@@ -126,7 +126,8 @@ from charmhelpers.contrib.openstack.ip import (
     PUBLIC, INTERNAL, ADMIN
 )
 from charmhelpers.contrib.openstack.context import (
-    ADDRESS_TYPES
+    ADDRESS_TYPES,
+    CephBlueStoreCompressionContext,
 )
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.contrib.hardening.harden import harden
@@ -310,6 +311,7 @@ def get_ceph_request():
     rq = CephBrokerRq()
     weight = config('ceph-pool-weight')
     replicas = config('ceph-osd-replication-count')
+    bluestore_compression = CephBlueStoreCompressionContext()
 
     if config('pool-type') == 'erasure-coded':
         # General EC plugin config
@@ -361,17 +363,35 @@ def get_ceph_request():
         )
 
         # Create EC data pool
-        rq.add_op_create_erasure_pool(
-            name=pool_name,
-            erasure_profile=profile_name,
-            weight=weight,
-            group="images",
-            app_name="rbd",
-            allow_ec_overwrites=True
-        )
+
+        # NOTE(fnordahl): once we deprecate Python 3.5 support we can do
+        # the unpacking of the BlueStore compression arguments as part of
+        # the function arguments. Until then we need to build the dict
+        # prior to the function call.
+        kwargs = {
+            'name': pool_name,
+            'erasure_profile': profile_name,
+            'weight': weight,
+            'group': "images",
+            'app_name': "rbd",
+            'allow_ec_overwrites': True,
+        }
+        kwargs.update(bluestore_compression.get_kwargs())
+        rq.add_op_create_erasure_pool(**kwargs)
     else:
-        rq.add_op_create_pool(name=pool_name, replica_count=replicas,
-                              weight=weight, group='images', app_name='rbd')
+        # NOTE(fnordahl): once we deprecate Python 3.5 support we can do
+        # the unpacking of the BlueStore compression arguments as part of
+        # the function arguments. Until then we need to build the dict
+        # prior to the function call.
+        kwargs = {
+            'name': pool_name,
+            'replica_count': replicas,
+            'weight': weight,
+            'group': 'images',
+            'app_name': 'rbd',
+        }
+        kwargs.update(bluestore_compression.get_kwargs())
+        rq.add_op_create_replicated_pool(**kwargs)
 
     if config('restrict-ceph-pools'):
         rq.add_op_request_access_to_group(
@@ -498,8 +518,18 @@ def config_changed():
 
     # NOTE(jamespage): trigger any configuration related changes
     #                  for cephx permissions restrictions
-    ceph_changed()
-    update_image_location_policy(CONFIGS)
+    try:
+        ceph_changed()
+        update_image_location_policy(CONFIGS)
+    except ValueError as e:
+        # The end user has most likely provided a invalid value for a
+        # configuration option. Just log the traceback here, the end user will
+        # be notified by assess_status() called at the end of the hook
+        # execution.
+        juju_log(
+            'Caught ValueError, invalid value provided for configuration?: '
+            '"{}"'.format(str(e)),
+            level=DEBUG)
 
     # call the policy overrides handler which will install any policy overrides
     maybe_do_policyd_overrides_on_config_changed(

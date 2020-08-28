@@ -354,12 +354,14 @@ class GlanceRelationTests(CharmTestCase):
         for c in [call('/etc/glance/glance.conf')]:
             self.assertNotIn(c, configs.write.call_args_list)
 
+    @patch.object(relations, 'CephBlueStoreCompressionContext')
     @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
            '.add_op_request_access_to_group')
     @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
-           '.add_op_create_pool')
+           '.add_op_create_replicated_pool')
     def test_create_pool_op(self, mock_create_pool,
-                            mock_request_access):
+                            mock_request_access,
+                            mock_bluestore_compression):
         self.service_name.return_value = 'glance'
         self.test_config.set('ceph-osd-replication-count', 3)
         self.test_config.set('ceph-pool-weight', 6)
@@ -384,6 +386,21 @@ class GlanceRelationTests(CharmTestCase):
                 permission='rwx'),
         ])
 
+        # confirm operation with bluestore compression
+        mock_create_pool.reset_mock()
+        mock_bluestore_compression().get_kwargs.return_value = {
+            'compression_mode': 'fake',
+        }
+        relations.get_ceph_request()
+        mock_create_pool.assert_called_once_with(
+            name='glance',
+            replica_count=3,
+            weight=6,
+            group='images',
+            app_name='rbd',
+            compression_mode='fake')
+
+    @patch.object(relations, 'CephBlueStoreCompressionContext')
     @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
            '.add_op_create_erasure_pool')
     @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
@@ -395,7 +412,8 @@ class GlanceRelationTests(CharmTestCase):
     def test_create_ec_pool_op(self, mock_create_pool,
                                mock_request_access,
                                mock_create_erasure_profile,
-                               mock_create_erasure_pool):
+                               mock_create_erasure_pool,
+                               mock_bluestore_compression):
         self.service_name.return_value = 'glance'
         self.test_config.set('ceph-osd-replication-count', 3)
         self.test_config.set('ceph-pool-weight', 6)
@@ -430,6 +448,21 @@ class GlanceRelationTests(CharmTestCase):
             app_name='rbd',
             allow_ec_overwrites=True)
         mock_request_access.assert_not_called()
+
+        # confirm operation with bluestore compression
+        mock_create_erasure_pool.reset_mock()
+        mock_bluestore_compression().get_kwargs.return_value = {
+            'compression_mode': 'fake',
+        }
+        relations.get_ceph_request()
+        mock_create_erasure_pool.assert_called_once_with(
+            name='glance',
+            erasure_profile='glance-profile',
+            weight=5.94,
+            group='images',
+            app_name='rbd',
+            allow_ec_overwrites=True,
+            compression_mode='fake')
 
     @patch.object(relations, 'get_ceph_request')
     @patch.object(relations, 'send_request_if_needed')

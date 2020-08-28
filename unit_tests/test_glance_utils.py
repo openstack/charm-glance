@@ -309,7 +309,7 @@ class TestGlanceUtils(CharmTestCase):
         make_assess_status_func.assert_called_once_with(
             'test-config',
             {'int': ['test 1'], 'opt': ['test 2']},
-            charm_func=utils.check_optional_relations,
+            charm_func=utils.check_optional_config_and_relations,
             services=['s1'], ports=None)
 
     def test_pause_unit_helper(self):
