@@ -408,7 +408,15 @@ def ceph_changed():
         send_request_if_needed(get_ceph_request())
 
 
+@hooks.hook('ceph-relation-departed')
+@restart_on_change(restart_map())
+def ceph_departed():
+    resolve_CONFIGS()
+    CONFIGS.write_all()
+
+
 @hooks.hook('ceph-relation-broken')
+@restart_on_change(restart_map())
 def ceph_broken():
     resolve_CONFIGS()
     service = service_name()
