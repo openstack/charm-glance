@@ -8,6 +8,7 @@ machines:
     constraints: mem=3072M
   '1':
   '2':
+    constraints: mem=3072M
 
 relations:
   - ["keystone:shared-db", "mysql:shared-db"]
