@@ -6,6 +6,7 @@ comment:
 smoke_bundles:
   - full_run: bionic-train
 gate_bundles:
+  - erasure-coded: focal-ussuri-ec
   - trusty-mitaka
   - xenial-mitaka
   - xenial-ocata
@@ -31,13 +32,16 @@ configure:
     - zaza.openstack.charm_tests.keystone.setup.add_tempest_roles
     - zaza.openstack.charm_tests.tempest.setup.render_tempest_config_keystone_v3
 tests:
+  - erasure-coded:
+    - zaza.openstack.charm_tests.glance.tests.GlanceTest
+    - zaza.openstack.charm_tests.policyd.tests.GlanceTests
+    - zaza.openstack.charm_tests.ceph.tests.CheckPoolTypes
   - zaza.openstack.charm_tests.glance.tests.GlanceTest
   - zaza.openstack.charm_tests.policyd.tests.GlanceTests
   - full_run:
     - zaza.openstack.charm_tests.tempest.tests.TempestTest
     - zaza.openstack.charm_tests.glance.tests.GlanceTest
     - zaza.openstack.charm_tests.policyd.tests.GlanceTests
-
 tests_options:
   tempest:
     full_run:
