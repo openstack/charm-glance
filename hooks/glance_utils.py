@@ -150,6 +150,7 @@ REQUIRED_INTERFACES = {
 def ceph_config_file():
     return CHARM_CEPH_CONF.format(service_name())
 
+
 CONFIG_FILES = OrderedDict([
     (GLANCE_REGISTRY_CONF, {
         'hook_contexts': [context.SharedDBContext(ssl_dir=GLANCE_CONF_DIR),
@@ -475,7 +476,7 @@ def check_optional_relations(configs):
     if relation_ids('ha'):
         try:
             get_hacluster_config()
-        except:
+        except Exception:
             return ('blocked',
                     'hacluster missing configuration: '
                     'vip, vip_iface, vip_cidr')

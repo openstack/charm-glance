@@ -11,7 +11,7 @@ setuptools<50.0.0  # https://github.com/pypa/setuptools/commit/04e3df22df840c6bb
 charm-tools>=2.4.4
 requests>=2.18.4
 mock>=1.2
-flake8>=2.2.4,<=2.4.1
+flake8>=2.2.4
 stestr>=2.2.0
 coverage>=4.5.2
 setuptools<50
