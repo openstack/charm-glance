@@ -164,6 +164,68 @@ class CinderStoreContext(OSContextGenerator):
         return {}
 
 
+class MultiBackendContext(OSContextGenerator):
+
+    def _get_ceph_config(self):
+        ceph_ctx = CephGlanceContext()()
+        if not ceph_ctx:
+            return
+        ctx = {
+            "rbd_store_chunk_size": 8,
+            "rbd_store_pool": ceph_ctx["rbd_pool"],
+            "rbd_store_user": ceph_ctx["rbd_user"],
+            "rados_connect_timeout": 0,
+            "rbd_store_ceph_conf": "/etc/ceph/ceph.conf",
+        }
+        return ctx
+
+    def _get_swift_config(self):
+        swift_ctx = ObjectStoreContext()()
+        if not swift_ctx or swift_ctx.get("swift_store", False) is False:
+            return
+        ctx = {
+            "default_swift_reference": "swift",
+            "swift_store_config_file": "/etc/glance/glance-swift.conf",
+            "swift_store_create_container_on_put": "true",
+        }
+        return ctx
+
+    def __call__(self):
+        ctxt = {
+            "enabled_backend_configs": {},
+            "enabled_backends": None,
+            "default_store_backend": None,
+        }
+        backends = []
+
+        local_fs = config('filesystem-store-datadir')
+        if local_fs:
+            backends.append("local:file")
+            ctxt["enabled_backend_configs"]["local"] = {
+                "filesystem_store_datadir": local_fs,
+                "store_description": "Local filesystem store",
+            }
+        ceph_ctx = self._get_ceph_config()
+        if ceph_ctx:
+            backends.append("ceph:rbd")
+            ctxt["enabled_backend_configs"]["ceph"] = ceph_ctx
+            ctxt["default_store_backend"] = "ceph"
+
+        swift_ctx = self._get_swift_config()
+        if swift_ctx:
+            backends.append("swift:swift")
+            ctxt["enabled_backend_configs"]["swift"] = swift_ctx
+            if not ctxt["default_store_backend"]:
+                ctxt["default_store_backend"] = "swift"
+
+        if local_fs and not ctxt["default_store_backend"]:
+            ctxt["default_store_backend"] = "local"
+
+        if len(backends) > 0:
+            ctxt["enabled_backends"] = ", ".join(backends)
+        return ctxt
+
+
 class MultiStoreContext(OSContextGenerator):
 
     def __call__(self):

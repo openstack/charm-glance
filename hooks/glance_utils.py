@@ -183,6 +183,7 @@ CONFIG_FILES = OrderedDict([
                           glance_contexts.GlanceIPv6Context(),
                           context.WorkerConfigContext(),
                           glance_contexts.MultiStoreContext(),
+                          glance_contexts.MultiBackendContext(),
                           context.OSConfigFlagContext(
                               charm_flag='api-config-flags',
                               template_flag='api_config_flags'),
