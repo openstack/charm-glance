@@ -192,6 +192,141 @@ class TestGlanceContexts(CharmTestCase):
                          {'known_stores': "glance.store.filesystem.Store,"
                                           "glance.store.http.Store"})
 
+    def test_multi_backend_no_relations_no_data_dir(self):
+        self.relation_ids.return_value = []
+        self.is_relation_made.return_value = False
+        data_dir = ''
+        conf_dict = {
+            'filesystem-store-datadir': data_dir,
+        }
+        self.config.side_effect = lambda x: conf_dict.get(x)
+        self.assertEqual(
+            contexts.MultiBackendContext()(),
+            {
+                'enabled_backend_configs': {},
+                'enabled_backends': None,
+                'default_store_backend': None,
+            })
+
+    def test_multi_backend_no_relations(self):
+        self.relation_ids.return_value = []
+        self.is_relation_made.return_value = False
+        data_dir = '/some/data/dir'
+        conf_dict = {
+            'filesystem-store-datadir': data_dir,
+        }
+        self.config.side_effect = lambda x: conf_dict.get(x)
+        self.assertEqual(
+            contexts.MultiBackendContext()(),
+            {
+                'enabled_backend_configs': {
+                    'local': {
+                        'filesystem_store_datadir': data_dir,
+                        'store_description': 'Local filesystem store',
+                    }
+                },
+                'enabled_backends': 'local:file',
+                'default_store_backend': 'local',
+            })
+
+    def test_multi_backend_with_swift(self):
+        self.maxDiff = None
+        self.relation_ids.return_value = ["object-store:0"]
+        self.is_relation_made.return_value = False
+        data_dir = '/some/data/dir'
+        conf_dict = {
+            'filesystem-store-datadir': data_dir,
+        }
+        swift_conf = "/etc/glance/glance-swift.conf"
+        self.config.side_effect = lambda x: conf_dict.get(x)
+        self.assertEqual(
+            contexts.MultiBackendContext()(),
+            {
+                'enabled_backend_configs': {
+                    'local': {
+                        'filesystem_store_datadir': data_dir,
+                        'store_description': 'Local filesystem store',
+                    },
+                    'swift': {
+                        "default_swift_reference": "swift",
+                        "swift_store_config_file": swift_conf,
+                        "swift_store_create_container_on_put": "true",
+                    }
+                },
+                'enabled_backends': 'local:file, swift:swift',
+                'default_store_backend': 'swift',
+            })
+
+    def test_multi_backend_with_ceph_no_swift(self):
+        self.maxDiff = None
+        self.relation_ids.return_value = []
+        self.is_relation_made.return_value = True
+        service = 'glance'
+        self.service_name.return_value = service
+        data_dir = '/some/data/dir'
+        conf_dict = {
+            'filesystem-store-datadir': data_dir,
+            'rbd-pool-name': 'mypool',
+        }
+        self.config.side_effect = lambda x: conf_dict.get(x)
+        self.assertEqual(
+            contexts.MultiBackendContext()(),
+            {
+                'enabled_backend_configs': {
+                    'local': {
+                        'filesystem_store_datadir': data_dir,
+                        'store_description': 'Local filesystem store',
+                    },
+                    'ceph': {
+                        "rbd_store_chunk_size": 8,
+                        "rbd_store_pool": 'mypool',
+                        "rbd_store_user": service,
+                        "rados_connect_timeout": 0,
+                        "rbd_store_ceph_conf": "/etc/ceph/ceph.conf",
+                    }
+                },
+                'enabled_backends': 'local:file, ceph:rbd',
+                'default_store_backend': 'ceph',
+            })
+
+    def test_multi_backend_with_ceph_and_swift(self):
+        self.maxDiff = None
+        self.relation_ids.return_value = ["object-store:0"]
+        self.is_relation_made.return_value = True
+        service = 'glance'
+        self.service_name.return_value = service
+        data_dir = '/some/data/dir'
+        swift_conf = "/etc/glance/glance-swift.conf"
+        conf_dict = {
+            'filesystem-store-datadir': data_dir,
+            'rbd-pool-name': 'mypool',
+        }
+        self.config.side_effect = lambda x: conf_dict.get(x)
+        self.assertEqual(
+            contexts.MultiBackendContext()(),
+            {
+                'enabled_backend_configs': {
+                    'local': {
+                        'filesystem_store_datadir': data_dir,
+                        'store_description': 'Local filesystem store',
+                    },
+                    'ceph': {
+                        "rbd_store_chunk_size": 8,
+                        "rbd_store_pool": 'mypool',
+                        "rbd_store_user": service,
+                        "rados_connect_timeout": 0,
+                        "rbd_store_ceph_conf": "/etc/ceph/ceph.conf",
+                    },
+                    'swift': {
+                        "default_swift_reference": "swift",
+                        "swift_store_config_file": swift_conf,
+                        "swift_store_create_container_on_put": "true",
+                    }
+                },
+                'enabled_backends': 'local:file, ceph:rbd, swift:swift',
+                'default_store_backend': 'ceph',
+            })
+
     @patch('charmhelpers.contrib.openstack.context.relation_ids')
     @patch('charmhelpers.contrib.hahelpers.cluster.config_get')
     @patch('charmhelpers.contrib.openstack.context.https')
