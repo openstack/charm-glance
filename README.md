@@ -11,6 +11,78 @@ deployed via Juju charms, specifically: mysql, keystone and
 nova-cloud-controller. The following assumes these services have already been
 deployed.
 
+## Configuration
+
+This section covers common and/or important configuration options. See file
+`config.yaml` for the full list of options, along with their descriptions and
+default values. See the [Juju documentation][juju-docs-config-apps] for details
+on configuring applications.
+
+#### `openstack-origin`
+
+The `openstack-origin` option states the software sources. A common value is an
+OpenStack UCA release (e.g. 'cloud:xenial-queens' or 'cloud:bionic-ussuri').
+See [Ubuntu Cloud Archive][wiki-uca]. The underlying host's existing apt
+sources will be used if this option is not specified (this behaviour can be
+explicitly chosen by using the value of 'distro').
+
+#### `pool-type`
+
+The `pool-type` option dictates the Ceph storage pool type. See sections 'Ceph
+pool type' and 'Ceph backed storage' for more information.
+
+## Ceph pool type
+
+Ceph storage pools can be configured to ensure data resiliency either through
+replication or by erasure coding. This charm supports both types via the
+`pool-type` configuration option, which can take on the values of 'replicated'
+and 'erasure-coded'. The default value is 'replicated'.
+
+For this charm, the pool type will be associated with Glance images.
+
+> **Note**: Erasure-coded pools are supported starting with Ceph Luminous.
+
+### Replicated pools
+
+Replicated pools use a simple replication strategy in which each written object
+is copied, in full, to multiple OSDs within the cluster.
+
+The `ceph-osd-replication-count` option sets the replica count for any object
+stored within the 'glance' rbd pool. Increasing this value increases data
+resilience at the cost of consuming more real storage in the Ceph cluster. The
+default value is '3'.
+
+> **Important**: The `ceph-osd-replication-count` option must be set prior to
+  adding the relation to the ceph-mon (or ceph-proxy) application. Otherwise,
+  the pool's configuration will need to be set by interfacing with the cluster
+  directly.
+
+### Erasure coded pools
+
+Erasure coded pools use a technique that allows for the same resiliency as
+replicated pools, yet reduces the amount of space required. Written data is
+split into data chunks and error correction chunks, which are both distributed
+throughout the cluster.
+
+> **Note**: Erasure coded pools require more memory and CPU cycles than
+  replicated pools do.
+
+When using erasure coded pools for Glance images two pools will be created: a
+replicated pool (for storing RBD metadata) and an erasure coded pool (for
+storing the data written into the RBD). The `ceph-osd-replication-count`
+configuration option only applies to the metadata (replicated) pool.
+
+Erasure coded pools can be configured via options whose names begin with the
+`ec-` prefix.
+
+> **Important**: It is strongly recommended to tailor the `ec-profile-k` and
+  `ec-profile-m` options to the needs of the given environment. These latter
+  options have default values of '1' and '2' respectively, which result in the
+  same space requirements as those of a replicated pool.
+
+See [Ceph Erasure Coding][cdg-ceph-erasure-coding] in the [OpenStack Charms
+Deployment Guide][cdg] for more information.
+
 ## Local Storage
 
 In this configuration, Glance uses the local storage available on the server
@@ -169,3 +241,6 @@ For general charm questions refer to the [OpenStack Charm Guide][cg].
 [hacluster-charm]: https://jaas.ai/hacluster
 [cdg-ha-apps]: https://docs.openstack.org/project-deploy-guide/charm-deployment-guide/latest/app-ha.html#ha-applications
 [juju-docs-spaces]: https://juju.is/docs/spaces
+[wiki-uca]: https://wiki.ubuntu.com/OpenStack/CloudArchive
+[juju-docs-config-apps]: https://juju.is/docs/configuring-applications
+[cdg-ceph-erasure-coding]: https://docs.openstack.org/project-deploy-guide/charm-deployment-guide/latest/app-erasure-coding.html
