@@ -24,7 +24,7 @@ applications:
     to:
       - '0'
   keystone:
-    charm: cs:~openstack-charmers-next/keystone
+    charm: cs:~openstack-charmers/keystone
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
