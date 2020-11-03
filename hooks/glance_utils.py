@@ -82,6 +82,13 @@ from charmhelpers.contrib.openstack.utils import (
 from charmhelpers.core.decorators import (
     retry_on_exception,
 )
+from charmhelpers.contrib.storage.linux.ceph import (
+    CephBrokerRq,
+    is_request_complete,
+)
+from charmhelpers.contrib.openstack.context import (
+    CephBlueStoreCompressionContext,
+)
 
 from charmhelpers.core.unitdata import kv
 
@@ -494,7 +501,11 @@ def check_optional_config_and_relations(configs):
             pass
         except ValueError as e:
             return ('blocked', 'Invalid configuration: {}'.format(str(e)))
-
+        # ceph pkgs are only installed after the ceph relation is etablished
+        # so gate checking broker requests on ceph relation being completed.
+        if ('ceph' in configs.complete_contexts()
+                and not is_request_complete(get_ceph_request())):
+            return ('waiting', 'Ceph broker request incomplete')
     # return 'unknown' as the lowest priority to not clobber an existing
     # status.
     return "unknown", ""
@@ -701,3 +712,103 @@ def update_image_location_policy(configs=None):
             "'{}': '{}'".format(policy_key, policy_value), level=INFO)
 
     update_json_file(GLANCE_POLICY_FILE, new_policies)
+
+
+def get_ceph_request():
+    service = service_name()
+    if config('rbd-pool-name'):
+        pool_name = config('rbd-pool-name')
+    else:
+        pool_name = service
+
+    rq = CephBrokerRq()
+    weight = config('ceph-pool-weight')
+    replicas = config('ceph-osd-replication-count')
+    bluestore_compression = CephBlueStoreCompressionContext()
+
+    if config('pool-type') == 'erasure-coded':
+        # General EC plugin config
+        plugin = config('ec-profile-plugin')
+        technique = config('ec-profile-technique')
+        device_class = config('ec-profile-device-class')
+        metadata_pool_name = (
+            config('ec-rbd-metadata-pool') or
+            "{}-metadata".format(service)
+        )
+        bdm_k = config('ec-profile-k')
+        bdm_m = config('ec-profile-m')
+        # LRC plugin config
+        bdm_l = config('ec-profile-locality')
+        crush_locality = config('ec-profile-crush-locality')
+        # SHEC plugin config
+        bdm_c = config('ec-profile-durability-estimator')
+        # CLAY plugin config
+        bdm_d = config('ec-profile-helper-chunks')
+        scalar_mds = config('ec-profile-scalar-mds')
+        # Profile name
+        profile_name = (
+            config('ec-profile-name') or "{}-profile".format(service)
+        )
+        # Metadata sizing is approximately 1% of overall data weight
+        # but is in effect driven by the number of rbd's rather than
+        # their size - so it can be very lightweight.
+        metadata_weight = weight * 0.01
+        # Resize data pool weight to accomodate metadata weight
+        weight = weight - metadata_weight
+        # Create metadata pool
+        rq.add_op_create_pool(
+            name=metadata_pool_name, replica_count=replicas,
+            weight=metadata_weight, group='images', app_name='rbd'
+        )
+
+        # Create erasure profile
+        rq.add_op_create_erasure_profile(
+            name=profile_name,
+            k=bdm_k, m=bdm_m,
+            lrc_locality=bdm_l,
+            lrc_crush_locality=crush_locality,
+            shec_durability_estimator=bdm_c,
+            clay_helper_chunks=bdm_d,
+            clay_scalar_mds=scalar_mds,
+            device_class=device_class,
+            erasure_type=plugin,
+            erasure_technique=technique
+        )
+
+        # Create EC data pool
+
+        # NOTE(fnordahl): once we deprecate Python 3.5 support we can do
+        # the unpacking of the BlueStore compression arguments as part of
+        # the function arguments. Until then we need to build the dict
+        # prior to the function call.
+        kwargs = {
+            'name': pool_name,
+            'erasure_profile': profile_name,
+            'weight': weight,
+            'group': "images",
+            'app_name': "rbd",
+            'allow_ec_overwrites': True,
+        }
+        kwargs.update(bluestore_compression.get_kwargs())
+        rq.add_op_create_erasure_pool(**kwargs)
+    else:
+        # NOTE(fnordahl): once we deprecate Python 3.5 support we can do
+        # the unpacking of the BlueStore compression arguments as part of
+        # the function arguments. Until then we need to build the dict
+        # prior to the function call.
+        kwargs = {
+            'name': pool_name,
+            'replica_count': replicas,
+            'weight': weight,
+            'group': 'images',
+            'app_name': 'rbd',
+        }
+        kwargs.update(bluestore_compression.get_kwargs())
+        rq.add_op_create_replicated_pool(**kwargs)
+
+    if config('restrict-ceph-pools'):
+        rq.add_op_request_access_to_group(
+            name="images",
+            object_prefix_permissions={'class-read': ['rbd_children']},
+            permission='rwx')
+    return rq

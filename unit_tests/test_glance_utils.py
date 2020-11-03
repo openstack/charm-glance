@@ -62,7 +62,7 @@ class TestGlanceUtils(CharmTestCase):
 
     def setUp(self):
         super(TestGlanceUtils, self).setUp(utils, TO_PATCH)
-        self.config.side_effect = self.test_config.get_all
+        self.config.side_effect = self.test_config.get
 
     @patch('subprocess.check_call')
     def test_migrate_database(self, check_call):
@@ -498,3 +498,114 @@ class TestGlanceUtils(CharmTestCase):
             db_obj.get.assert_has_calls([call('policy_get_image_location'),
                                          call('policy_set_image_location'),
                                          call('policy_delete_image_location')])
+
+    @patch.object(utils, 'CephBlueStoreCompressionContext')
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_request_access_to_group')
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_create_replicated_pool')
+    def test_create_pool_op(self, mock_create_pool,
+                            mock_request_access,
+                            mock_bluestore_compression):
+        self.service_name.return_value = 'glance'
+        self.test_config.set('ceph-osd-replication-count', 3)
+        self.test_config.set('ceph-pool-weight', 6)
+        utils.get_ceph_request()
+        mock_create_pool.assert_called_once_with(
+            name='glance',
+            replica_count=3,
+            weight=6,
+            group='images',
+            app_name='rbd')
+        mock_request_access.assert_not_called()
+
+        self.test_config.set('restrict-ceph-pools', True)
+        utils.get_ceph_request()
+        mock_create_pool.assert_called_with(name='glance', replica_count=3,
+                                            weight=6, group='images',
+                                            app_name='rbd')
+        mock_request_access.assert_has_calls([
+            call(
+                name='images',
+                object_prefix_permissions={'class-read': ['rbd_children']},
+                permission='rwx'),
+        ])
+
+        # confirm operation with bluestore compression
+        mock_create_pool.reset_mock()
+        mock_bluestore_compression().get_kwargs.return_value = {
+            'compression_mode': 'fake',
+        }
+        utils.get_ceph_request()
+        mock_create_pool.assert_called_once_with(
+            name='glance',
+            replica_count=3,
+            weight=6,
+            group='images',
+            app_name='rbd',
+            compression_mode='fake')
+
+    @patch.object(utils, 'CephBlueStoreCompressionContext')
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_create_erasure_pool')
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_create_erasure_profile')
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_request_access_to_group')
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_create_pool')
+    def test_create_ec_pool_op(self, mock_create_pool,
+                               mock_request_access,
+                               mock_create_erasure_profile,
+                               mock_create_erasure_pool,
+                               mock_bluestore_compression):
+        self.service_name.return_value = 'glance'
+        self.test_config.set('ceph-osd-replication-count', 3)
+        self.test_config.set('ceph-pool-weight', 6)
+        self.test_config.set('pool-type', 'erasure-coded')
+        self.test_config.set('ec-profile-plugin', 'isa')
+        self.test_config.set('ec-profile-k', 6)
+        self.test_config.set('ec-profile-m', 2)
+        self.test_config.set('rbd-pool-name', 'glance')
+        utils.get_ceph_request()
+        mock_create_pool.assert_called_once_with(
+            name='glance-metadata',
+            replica_count=3,
+            weight=0.06,
+            group='images',
+            app_name='rbd')
+        mock_create_erasure_profile.assert_called_once_with(
+            name='glance-profile',
+            k=6, m=2,
+            lrc_locality=None,
+            lrc_crush_locality=None,
+            shec_durability_estimator=None,
+            clay_helper_chunks=None,
+            clay_scalar_mds=None,
+            device_class=None,
+            erasure_type='isa',
+            erasure_technique=None,
+        )
+        mock_create_erasure_pool.assert_called_once_with(
+            name='glance',
+            erasure_profile='glance-profile',
+            weight=5.94,
+            group='images',
+            app_name='rbd',
+            allow_ec_overwrites=True)
+        mock_request_access.assert_not_called()
+
+        # confirm operation with bluestore compression
+        mock_create_erasure_pool.reset_mock()
+        mock_bluestore_compression().get_kwargs.return_value = {
+            'compression_mode': 'fake',
+        }
+        utils.get_ceph_request()
+        mock_create_erasure_pool.assert_called_once_with(
+            name='glance',
+            erasure_profile='glance-profile',
+            weight=5.94,
+            group='images',
+            app_name='rbd',
+            allow_ec_overwrites=True,
+            compression_mode='fake')
