@@ -19,7 +19,6 @@ gate_bundles:
   - bionic-train
   - bionic-ussuri
   - ceph: focal-victoria
-dev_bundles:
   - ceph: groovy-victoria
 
 configure:
