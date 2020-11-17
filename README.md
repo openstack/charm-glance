@@ -1,15 +1,10 @@
 # Overview
 
-The glance charm provides the Glance image service for OpenStack. It is
-intended to be used alongside the other OpenStack components.
+The glance charm deploys [Glance][upstream-glance], the core OpenStack service
+that acts as the central repository for virtual machine (VM) images. The charm
+works alongside other Juju-deployed OpenStack services.
 
 # Usage
-
-Glance may be deployed in a number of ways. This charm focuses on 3 main
-configurations. All require the existence of the other core OpenStack services
-deployed via Juju charms, specifically: mysql, keystone and
-nova-cloud-controller. The following assumes these services have already been
-deployed.
 
 ## Configuration
 
@@ -21,7 +16,7 @@ on configuring applications.
 #### `openstack-origin`
 
 The `openstack-origin` option states the software sources. A common value is an
-OpenStack UCA release (e.g. 'cloud:xenial-queens' or 'cloud:bionic-ussuri').
+OpenStack UCA release (e.g. 'cloud:bionic-ussuri' or 'cloud:focal-victoria').
 See [Ubuntu Cloud Archive][wiki-uca]. The underlying host's existing apt
 sources will be used if this option is not specified (this behaviour can be
 explicitly chosen by using the value of 'distro').
@@ -30,6 +25,83 @@ explicitly chosen by using the value of 'distro').
 
 The `pool-type` option dictates the Ceph storage pool type. See sections 'Ceph
 pool type' and 'Ceph backed storage' for more information.
+
+## Deployment
+
+This section includes three different deployment scenarios, each of which
+requires these applications to be present: keystone, nova-cloud-controller,
+nova-compute, and a cloud database.
+
+The database application is determined by the series. Prior to focal
+[percona-cluster][percona-cluster-charm] is used, otherwise it is
+[mysql-innodb-cluster][mysql-innodb-cluster-charm]. In the example deployment
+below mysql-innodb-cluster has been chosen.
+
+### Ceph-backed storage
+
+Ceph is the recommended storage backend solution for Glance. The steps below
+assume a pre-existing Ceph cluster (see the [ceph-mon][ceph-mon-charm] and
+[ceph-osd][ceph-osd-charm] charms).
+
+Here, Glance is deployed to a container on machine '1' and related to the Ceph
+cluster via the ceph-mon charm:
+
+    juju deploy --to lxd:1 glance
+    juju add-relation glance:ceph ceph-mon:client
+
+Proceed with a group of commands common to all three scenarios:
+
+    juju add-relation glance:identity-service keystone:identity-service
+    juju add-relation glance:image-service nova-cloud-controller:image-service
+    juju add-relation glance:image-service nova-compute:image-service
+
+    juju deploy mysql-router glance-mysql-router
+    juju add-relation glance-mysql-router:db-router mysql-innodb-cluster:db-router
+    juju add-relation glance-mysql-router:shared-db glance:shared-db
+
+This configuration can be used to support Glance in HA/scale-out deployments.
+
+> **Note**: In this scenario Glance acts as a Ceph client, which requires
+  L3 network connectivity to Ceph monitors and OSDs. For MAAS-based deployments
+  this can be addressed with network spaces (see section 'Network spaces'
+  below).
+
+### Swift-backed storage
+
+Glance can use OpenStack Swift as its storage backend. The steps below assume a
+pre-existing Swift deployment (see the [swift-proxy][swift-proxy-charm] and
+[swift-storage][swift-storage-charm] charms).
+
+Here, Glance is deployed to a container on machine '1' and related to Swift
+via the swift-proxy charm:
+
+    juju deploy --to lxd:1 glance
+    juju add-relation glance:object-store swift-proxy:object-store
+
+Proceed with the common group of commands from the Ceph scenario.
+
+This configuration can be used to support Glance in HA/scale-out deployments.
+
+### Local storage
+
+Glance can simply use the storage available on the application unit's machine
+to store image data:
+
+    juju deploy --to lxd:1 glance
+
+Proceed with the common group of commands from the Ceph scenario.
+
+## Actions
+
+This section covers Juju [actions][juju-docs-actions] supported by the charm.
+Actions allow specific operations to be performed on a per-unit basis. To
+display action descriptions run `juju actions glance`. If the charm is not
+deployed then see file `actions.yaml`.
+
+* `openstack-upgrade`
+* `pause`
+* `resume`
+* `security-checklist`
 
 ## Ceph pool type
 
@@ -96,51 +168,6 @@ the compression behaviour.
 
 > **Note**: BlueStore compression is supported starting with Ceph Mimic.
 
-## Local Storage
-
-In this configuration, Glance uses the local storage available on the server
-to store image data:
-
-    juju deploy glance
-    juju add-relation glance keystone
-    juju add-relation glance mysql
-    juju add-relation glance nova-cloud-controller
-
-## Swift backed storage
-
-Glance can also use Swift Object storage for image storage. Swift is often
-deployed as part of an OpenStack cloud and provides increased resilience and
-scale when compared to using local disk storage. This configuration assumes
-that you have already deployed Swift using the swift-proxy and swift-storage
-charms:
-
-    juju deploy glance
-    juju add-relation glance keystone
-    juju add-relation glance mysql
-    juju add-relation glance nova-cloud-controller
-    juju add-relation glance swift-proxy
-
-This configuration can be used to support Glance in HA/Scale-out deployments.
-
-## Ceph backed storage
-
-In this configuration, Glance uses Ceph based object storage to provide
-scalable, resilient storage of images. This configuration assumes that you
-have already deployed Ceph using the ceph charm:
-
-    juju deploy glance
-    juju add-relation glance keystone
-    juju add-relation glance mysql
-    juju add-relation glance nova-cloud-controller
-    juju add-relation glance ceph-mon
-
-This configuration can also be used to support Glance in HA/Scale-out
-deployments.
-
-> **Note**: Glance acts as a Ceph client in this case which requires IP (L3)
-  connectivity to Ceph monitors and OSDs. For MAAS-based deployments this can
-  be addressed with network spaces (see section 'Network spaces' below).
-
 ## High availability
 
 When more than one unit is deployed with the [hacluster][hacluster-charm]
@@ -158,16 +185,16 @@ Deployment Guide][cdg] for details.
 
 ## Glance metering
 
-In order to do Glance metering with Ceilometer, an AMQP relation is required
-e.g.
+Glance metering can be achieved with Ceilometer. The
+[rabbitmq-server][rabbitmq-server-charm] and
+[ceilometer-agent][ceilometer-agent-charm] applications are required to be
+present.
 
-    juju deploy glance
-    juju deploy rabbitmq-server
-    juju deploy ceilometer-agent
-    ...
-    juju add-relation glance rabbitmq-server
-    juju add-relation glance ceilometer-agent
-    ...
+Assuming Glance is deployed, add two relations:
+
+    juju add-relation glance:amqp rabbitmq-server:amqp
+    juju add-relation glance:amqp ceilometer-agent:amqp
+    juju add-relation glance:juju-info ceilometer-agent:container
 
 ## Network spaces
 
@@ -236,8 +263,8 @@ Here are the essential commands (filenames are arbitrary):
     juju attach-resource glance policyd-override=overrides.zip
     juju config glance use-policyd-override=true
 
-See appendix [Policy overrides][cdg-appendix-n] in the [OpenStack Charms
-Deployment Guide][cdg] for a thorough treatment of this feature.
+See [Policy overrides][cdg-appendix-n] in the [OpenStack Charms Deployment
+Guide][cdg] for a thorough treatment of this feature.
 
 # Bugs
 
@@ -252,9 +279,19 @@ For general charm questions refer to the [OpenStack Charm Guide][cg].
 [cdg-appendix-n]: https://docs.openstack.org/project-deploy-guide/charm-deployment-guide/latest/app-policy-overrides.html
 [lp-bugs-charm-glance]: https://bugs.launchpad.net/charm-glance/+filebug
 [hacluster-charm]: https://jaas.ai/hacluster
+[ceph-mon-charm]: https://jaas.ai/ceph-mon
+[ceph-osd-charm]: https://jaas.ai/ceph-osd
+[swift-proxy-charm]: https://jaas.ai/swift-proxy
+[swift-storage-charm]: https://jaas.ai/swift-storage
+[percona-cluster-charm]: https://jaas.ai/percona-cluster
+[mysql-innodb-cluster-charm]: https://jaas.ai/mysql-innodb-cluster
+[rabbitmq-server-charm]: https://jaas.ai/rabbitmq-server
+[ceilometer-agent-charm]: https://jaas.ai/ceilometer-agent
 [cdg-ha-apps]: https://docs.openstack.org/project-deploy-guide/charm-deployment-guide/latest/app-ha.html#ha-applications
 [juju-docs-spaces]: https://juju.is/docs/spaces
 [wiki-uca]: https://wiki.ubuntu.com/OpenStack/CloudArchive
 [juju-docs-config-apps]: https://juju.is/docs/configuring-applications
 [cdg-ceph-erasure-coding]: https://docs.openstack.org/project-deploy-guide/charm-deployment-guide/latest/app-erasure-coding.html
 [ceph-bluestore-compression]: https://docs.ceph.com/en/latest/rados/configuration/bluestore-config-ref/#inline-compression
+[upstream-glance]: https://docs.openstack.org/glance/latest/
+[juju-docs-actions]: https://jaas.ai/docs/actions
