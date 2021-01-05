@@ -18,6 +18,7 @@ from functools import wraps
 
 import subprocess
 import json
+import operator
 import os
 import sys
 import re
@@ -33,7 +34,7 @@ from charmhelpers import deprecate
 
 from charmhelpers.contrib.network import ip
 
-from charmhelpers.core import unitdata
+from charmhelpers.core import decorators, unitdata
 
 from charmhelpers.core.hookenv import (
     WORKLOAD_STATES,
@@ -230,7 +231,7 @@ SWIFT_CODENAMES = OrderedDict([
     ('ussuri',
         ['2.24.0', '2.25.0']),
     ('victoria',
-        ['2.25.0']),
+        ['2.25.0', '2.26.0']),
 ])
 
 # >= Liberty version->codename mapping
@@ -1295,7 +1296,7 @@ def _check_listening_on_ports_list(ports):
     Returns a list of ports being listened to and a list of the
     booleans.
 
-    @param ports: LIST or port numbers.
+    @param ports: LIST of port numbers.
     @returns [(port_num, boolean), ...], [boolean]
     """
     ports_open = [port_has_listener('0.0.0.0', p) for p in ports]
@@ -1564,6 +1565,21 @@ def manage_payload_services(action, services=None, charm_func=None):
     return success, messages
 
 
+def make_wait_for_ports_barrier(ports, retry_count=5):
+    """Make a function to wait for port shutdowns.
+
+    Create a function which closes over the provided ports. The function will
+    retry probing ports until they are closed or the retry count has been reached.
+
+    """
+    @decorators.retry_on_predicate(retry_count, operator.not_, base_delay=0.1)
+    def retry_port_check():
+        _, ports_states = _check_listening_on_ports_list(ports)
+        juju_log("Probe ports {}, result: {}".format(ports, ports_states), level="DEBUG")
+        return any(ports_states)
+    return retry_port_check
+
+
 def pause_unit(assess_status_func, services=None, ports=None,
                charm_func=None):
     """Pause a unit by stopping the services and setting 'unit-paused'
@@ -1599,6 +1615,7 @@ def pause_unit(assess_status_func, services=None, ports=None,
         services=services,
         charm_func=charm_func)
     set_unit_paused()
+
     if assess_status_func:
         message = assess_status_func()
         if message:

@@ -33,6 +33,7 @@ INTERNAL = 'int'
 ADMIN = 'admin'
 ACCESS = 'access'
 
+# TODO: reconcile 'int' vs 'internal' binding names
 ADDRESS_MAP = {
     PUBLIC: {
         'binding': 'public',
@@ -57,6 +58,14 @@ ADDRESS_MAP = {
         'config': 'access-network',
         'fallback': 'private-address',
         'override': 'os-access-hostname',
+    },
+    # Note (thedac) bridge to begin the reconciliation between 'int' vs
+    # 'internal' binding names
+    'internal': {
+        'binding': 'internal',
+        'config': 'os-internal-network',
+        'fallback': 'private-address',
+        'override': 'os-internal-hostname',
     },
 }
 
@@ -195,3 +204,10 @@ def get_vip_in_network(network):
             if is_address_in_network(network, vip):
                 matching_vip = vip
     return matching_vip
+
+
+def get_default_api_bindings():
+    _default_bindings = []
+    for binding in [INTERNAL, ADMIN, PUBLIC]:
+        _default_bindings.append(ADDRESS_MAP[binding]['binding'])
+    return _default_bindings
