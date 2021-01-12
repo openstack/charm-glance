@@ -49,7 +49,6 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     relation_set,
-    unit_get,
     unit_private_ip,
     charm_name,
     DEBUG,
@@ -98,6 +97,7 @@ from charmhelpers.contrib.openstack.ip import (
     ADMIN,
     PUBLIC,
     ADDRESS_MAP,
+    local_address,
 )
 from charmhelpers.contrib.network.ip import (
     get_address_in_network,
@@ -247,7 +247,7 @@ class SharedDBContext(OSContextGenerator):
                 hostname_key = "hostname"
             access_hostname = get_address_in_network(
                 access_network,
-                unit_get('private-address'))
+                local_address(unit_get_fallback='private-address'))
             set_hostname = relation_get(attribute=hostname_key,
                                         unit=local_unit())
             if set_hostname != access_hostname:
@@ -1088,7 +1088,7 @@ class ApacheSSLContext(OSContextGenerator):
             # NOTE(jamespage): Fallback must always be private address
             #                  as this is used to bind services on the
             #                  local unit.
-            fallback = unit_get("private-address")
+            fallback = local_address(unit_get_fallback="private-address")
             if net_config:
                 addr = get_address_in_network(net_config,
                                               fallback)
@@ -1260,7 +1260,7 @@ class NeutronContext(OSContextGenerator):
         if is_clustered():
             host = config('vip')
         else:
-            host = unit_get('private-address')
+            host = local_address(unit_get_fallback='private-address')
 
         ctxt = {'network_manager': self.network_manager,
                 'neutron_url': '%s://%s:%s' % (proto, host, '9696')}

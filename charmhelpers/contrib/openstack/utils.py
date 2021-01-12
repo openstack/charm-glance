@@ -90,13 +90,16 @@ from charmhelpers.core.host import (
     service_start,
     restart_on_change_helper,
 )
+
 from charmhelpers.fetch import (
     apt_cache,
+    apt_install,
     import_key as fetch_import_key,
     add_source as fetch_add_source,
     SourceConfigError,
     GPGKeyError,
     get_upstream_version,
+    filter_installed_packages,
     filter_missing_packages,
     ubuntu_apt_pkg as apt,
 )
@@ -480,8 +483,13 @@ def get_swift_codename(version):
     return None
 
 
+@deprecate("moved to charmhelpers.contrib.openstack.utils.get_installed_os_version()", "2021-01", log=juju_log)
 def get_os_codename_package(package, fatal=True):
     '''Derive OpenStack release codename from an installed package.'''
+
+    codename = get_installed_os_version()
+    if codename:
+        return codename
 
     if snap_install_requested():
         cmd = ['snap', 'list', package]
@@ -568,6 +576,28 @@ def get_os_version_package(pkg, fatal=True):
                 return version
     # e = "Could not determine OpenStack version for package: %s" % pkg
     # error_out(e)
+
+
+def get_installed_os_version():
+    apt_install(filter_installed_packages(['openstack-release']), fatal=False)
+    print("OpenStack Release: {}".format(openstack_release()))
+    return openstack_release().get('OPENSTACK_CODENAME')
+
+
+@cached
+def openstack_release():
+    """Return /etc/os-release in a dict."""
+    d = {}
+    try:
+        with open('/etc/openstack-release', 'r') as lsb:
+            for l in lsb:
+                s = l.split('=')
+                if len(s) != 2:
+                    continue
+                d[s[0].strip()] = s[1].strip()
+    except FileNotFoundError:
+        pass
+    return d
 
 
 # Module local cache variable for the os_release.

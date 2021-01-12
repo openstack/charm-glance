@@ -129,7 +129,7 @@ class Cache(object):
             else:
                 data = line.split(None, 4)
                 status = data.pop(0)
-                if status != 'ii':
+                if status not in ('ii', 'hi'):
                     continue
                 pkg = {}
                 pkg.update({k.lower(): v for k, v in zip(headings, data)})

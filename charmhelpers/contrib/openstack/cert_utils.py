@@ -30,7 +30,6 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     remote_service_name,
-    unit_get,
     NoNetworkBinding,
     log,
     WARNING,
@@ -41,6 +40,7 @@ from charmhelpers.contrib.openstack.ip import (
     get_vip_in_network,
     ADDRESS_MAP,
     get_default_api_bindings,
+    local_address,
 )
 from charmhelpers.contrib.network.ip import (
     get_relation_ip,
@@ -81,7 +81,7 @@ class CertRequest(object):
 
     def add_hostname_cn(self):
         """Add a request for the hostname of the machine"""
-        ip = unit_get('private-address')
+        ip = local_address(unit_get_fallback='private-address')
         addresses = [ip]
         # If a vip is being used without os-hostname config or
         # network spaces then we need to ensure the local units
@@ -134,38 +134,46 @@ def get_certificate_request(json_encode=True, bindings=None):
     """
     if bindings:
         # Add default API bindings to bindings list
-        bindings = set(bindings + get_default_api_bindings())
+        bindings = list(bindings + get_default_api_bindings())
     else:
         # Use default API bindings
         bindings = get_default_api_bindings()
     req = CertRequest(json_encode=json_encode)
     req.add_hostname_cn()
     # Add os-hostname entries
-    _sans = get_certificate_sans()
+    _sans = get_certificate_sans(bindings=bindings)
 
     # Handle specific hostnames per binding
     for binding in bindings:
-        hostname_override = config(ADDRESS_MAP[binding]['override'])
         try:
-            net_addr = resolve_address(endpoint_type=binding)
-            ip = network_get_primary_address(
-                ADDRESS_MAP[binding]['binding'])
+            hostname_override = config(ADDRESS_MAP[binding]['override'])
+        except KeyError:
+            hostname_override = None
+        try:
+            try:
+                net_addr = resolve_address(endpoint_type=binding)
+            except KeyError:
+                net_addr = None
+            ip = network_get_primary_address(binding)
             addresses = [net_addr, ip]
             vip = get_vip_in_network(resolve_network_cidr(ip))
             if vip:
                 addresses.append(vip)
+
+            # Clear any Nones or duplicates
+            addresses = list(set([i for i in addresses if i]))
             # Add hostname certificate request
             if hostname_override:
                 req.add_entry(
                     binding,
                     hostname_override,
                     addresses)
-            # Remove hostname specific addresses from _sans
-            for addr in addresses:
-                try:
-                    _sans.remove(addr)
-                except (ValueError, KeyError):
-                    pass
+                # Remove hostname specific addresses from _sans
+                for addr in addresses:
+                    try:
+                        _sans.remove(addr)
+                    except (ValueError, KeyError):
+                        pass
 
         except NoNetworkBinding:
             log("Skipping request for certificate for ip in {} space, no "
@@ -179,11 +187,17 @@ def get_certificate_request(json_encode=True, bindings=None):
 
 def get_certificate_sans(bindings=None):
     """Get all possible IP addresses for certificate SANs.
+
+    :param bindings: List of bindings to check in addition to default api
+                     bindings.
+    :type bindings: list of strings
+    :returns: List of binding string names
+    :rtype: List[str]
     """
-    _sans = [unit_get('private-address')]
+    _sans = [local_address(unit_get_fallback='private-address')]
     if bindings:
         # Add default API bindings to bindings list
-        bindings = set(bindings + get_default_api_bindings())
+        bindings = list(bindings + get_default_api_bindings())
     else:
         # Use default API bindings
         bindings = get_default_api_bindings()
@@ -197,25 +211,39 @@ def get_certificate_sans(bindings=None):
             net_config = None
         # Using resolve_address is likely redundant. Keeping it here in
         # case there is an edge case it handles.
-        net_addr = resolve_address(endpoint_type=binding)
+        try:
+            net_addr = resolve_address(endpoint_type=binding)
+        except KeyError:
+            net_addr = None
         ip = get_relation_ip(binding, cidr_network=net_config)
         _sans = _sans + [net_addr, ip]
         vip = get_vip_in_network(resolve_network_cidr(ip))
         if vip:
             _sans.append(vip)
-    return set(_sans)
+    # Clear any Nones and duplicates
+    return list(set([i for i in _sans if i]))
 
 
-def create_ip_cert_links(ssl_dir, custom_hostname_link=None):
+def create_ip_cert_links(ssl_dir, custom_hostname_link=None, bindings=None):
     """Create symlinks for SAN records
 
     :param ssl_dir: str Directory to create symlinks in
     :param custom_hostname_link: str Additional link to be created
+    :param bindings: List of bindings to check in addition to default api
+                     bindings.
+    :type bindings: list of strings
     """
+
+    if bindings:
+        # Add default API bindings to bindings list
+        bindings = list(bindings + get_default_api_bindings())
+    else:
+        # Use default API bindings
+        bindings = get_default_api_bindings()
 
     # This includes the hostname cert and any specific bindng certs:
     # admin, internal, public
-    req = get_certificate_request(json_encode=False)["cert_requests"]
+    req = get_certificate_request(json_encode=False, bindings=bindings)["cert_requests"]
     # Specific certs
     for cert_req in req.keys():
         requested_cert = os.path.join(
@@ -232,7 +260,7 @@ def create_ip_cert_links(ssl_dir, custom_hostname_link=None):
                 os.symlink(requested_key, key)
 
     # Handle custom hostnames
-    hostname = get_hostname(unit_get('private-address'))
+    hostname = get_hostname(local_address(unit_get_fallback='private-address'))
     hostname_cert = os.path.join(
         ssl_dir,
         'cert_{}'.format(hostname))
@@ -306,7 +334,8 @@ def _manage_ca_certs(ca, cert_relation_id):
 
 
 def process_certificates(service_name, relation_id, unit,
-                         custom_hostname_link=None, user='root', group='root'):
+                         custom_hostname_link=None, user='root', group='root',
+                         bindings=None):
     """Process the certificates supplied down the relation
 
     :param service_name: str Name of service the certifcates are for.
@@ -317,9 +346,19 @@ def process_certificates(service_name, relation_id, unit,
     :type user: str
     :param group: (Optional) Group of certificate files. Defaults to 'root'
     :type group: str
+    :param bindings: List of bindings to check in addition to default api
+                     bindings.
+    :type bindings: list of strings
     :returns: True if certificates processed for local unit or False
     :rtype: bool
     """
+    if bindings:
+        # Add default API bindings to bindings list
+        bindings = list(bindings + get_default_api_bindings())
+    else:
+        # Use default API bindings
+        bindings = get_default_api_bindings()
+
     data = relation_get(rid=relation_id, unit=unit)
     ssl_dir = os.path.join('/etc/apache2/ssl/', service_name)
     mkdir(path=ssl_dir)
@@ -333,7 +372,8 @@ def process_certificates(service_name, relation_id, unit,
         install_certs(ssl_dir, certs, chain, user=user, group=group)
         create_ip_cert_links(
             ssl_dir,
-            custom_hostname_link=custom_hostname_link)
+            custom_hostname_link=custom_hostname_link,
+            bindings=bindings)
         return True
     return False
 
