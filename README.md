@@ -28,14 +28,14 @@ pool type' and 'Ceph backed storage' for more information.
 
 ## Deployment
 
-This section includes three different deployment scenarios, each of which
-requires these applications to be present: keystone, nova-cloud-controller,
-nova-compute, and a cloud database.
+This section includes four different deployment scenarios (with their
+respective backends). Each scenario requires these applications to be present:
+keystone, nova-cloud-controller, nova-compute, and a cloud database.
 
-The database application is determined by the series. Prior to focal
-[percona-cluster][percona-cluster-charm] is used, otherwise it is
-[mysql-innodb-cluster][mysql-innodb-cluster-charm]. In the example deployment
-below mysql-innodb-cluster has been chosen.
+> **Note**: The database application is determined by the series. Prior to focal
+  [percona-cluster][percona-cluster-charm] is used, otherwise it is
+  [mysql-innodb-cluster][mysql-innodb-cluster-charm]. In the example
+  deployments below mysql-innodb-cluster has been chosen.
 
 ### Ceph-backed storage
 
@@ -43,8 +43,8 @@ Ceph is the recommended storage backend solution for Glance. The steps below
 assume a pre-existing Ceph cluster (see the [ceph-mon][ceph-mon-charm] and
 [ceph-osd][ceph-osd-charm] charms).
 
-Here, Glance is deployed to a container on machine '1' and related to the Ceph
-cluster via the ceph-mon charm:
+Here, Glance is deployed to a new container on machine '1' and related to the
+Ceph cluster via the ceph-mon charm:
 
     juju deploy --to lxd:1 glance
     juju add-relation glance:ceph ceph-mon:client
@@ -66,13 +66,19 @@ This configuration can be used to support Glance in HA/scale-out deployments.
   this can be addressed with network spaces (see section 'Network spaces'
   below).
 
-### Swift-backed storage
+### Object storage-backed storage
 
-Glance can use OpenStack Swift as its storage backend. The steps below assume a
-pre-existing Swift deployment (see the [swift-proxy][swift-proxy-charm] and
-[swift-storage][swift-storage-charm] charms).
+Glance can use Object storage as its storage backend. OpenStack Swift and Ceph
+RADOS Gateway are supported, and both resulting configurations can be used to
+support Glance in HA/scale-out deployments.
 
-Here, Glance is deployed to a container on machine '1' and related to Swift
+#### Swift
+
+The steps below assume a pre-existing Swift deployment (see the
+[swift-proxy][swift-proxy-charm] and [swift-storage][swift-storage-charm]
+charms).
+
+Here, Glance is deployed to a new container on machine '1' and related to Swift
 via the swift-proxy charm:
 
     juju deploy --to lxd:1 glance
@@ -80,16 +86,42 @@ via the swift-proxy charm:
 
 Proceed with the common group of commands from the Ceph scenario.
 
-This configuration can be used to support Glance in HA/scale-out deployments.
+#### Ceph RADOS Gateway
+
+The steps below assume a pre-existing Ceph RADOS Gateway deployment (see the
+[ceph-radosgw][ceph-radosgw-charm]).
+
+Here, Glance is deployed to a new container on machine '1' and related to the
+ceph-radosgw application:
+
+    juju deploy --to lxd:1 glance
+    juju add-relation glance:object-store ceph-radosgw:object-store
+
+Proceed with the common group of commands from the Ceph scenario.
 
 ### Local storage
 
 Glance can simply use the storage available on the application unit's machine
-to store image data:
+to store image data. Here, Glance is deployed to a new container on machine
+'1':
 
     juju deploy --to lxd:1 glance
 
 Proceed with the common group of commands from the Ceph scenario.
+
+## Multiple backends
+
+If multiple storage backends are configured the cloud operator can specify, at
+image upload time, which backend will be used to store the image. This is done
+by using the `--store` option to the `glance` CLI client:
+
+    glance image-create --store <backend-name> ...
+
+Otherwise, the default backend is determined by the following precedence order
+of backend names: 'ceph', 'swift', and then 'local'.
+
+> **Important**: The backend name of 'swift' denotes both object storage
+  solutions (i.e. Swift and Ceph RADOS Gateway).
 
 ## Actions
 
@@ -281,6 +313,7 @@ For general charm questions refer to the [OpenStack Charm Guide][cg].
 [hacluster-charm]: https://jaas.ai/hacluster
 [ceph-mon-charm]: https://jaas.ai/ceph-mon
 [ceph-osd-charm]: https://jaas.ai/ceph-osd
+[ceph-radosgw-charm]: https://jaas.ai/ceph-radosgw
 [swift-proxy-charm]: https://jaas.ai/swift-proxy
 [swift-storage-charm]: https://jaas.ai/swift-storage
 [percona-cluster-charm]: https://jaas.ai/percona-cluster
