@@ -46,6 +46,7 @@ from glance_utils import (
     CHARM,
     GLANCE_REGISTRY_CONF,
     GLANCE_API_CONF,
+    GLANCE_SWIFT_CONF,
     HAPROXY_CONF,
     ceph_config_file,
     setup_ipv6,
@@ -294,6 +295,9 @@ def object_store_joined():
     [image_service_joined(rid) for rid in relation_ids('image-service')]
     update_image_location_policy(CONFIGS)
     CONFIGS.write(GLANCE_API_CONF)
+    cmp_release = CompareOpenStackReleases(os_release('glance-common'))
+    if cmp_release >= 'mitaka':
+        CONFIGS.write(GLANCE_SWIFT_CONF)
 
 
 @hooks.hook('ceph-relation-joined')

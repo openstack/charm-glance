@@ -294,9 +294,12 @@ class GlanceRelationTests(CharmTestCase):
         configs.complete_contexts.return_value = ['identity-service',
                                                   'object-store']
         configs.write = MagicMock()
+        self.os_release.return_value = 'victoria'
         relations.object_store_joined()
-        self.assertEqual([call('/etc/glance/glance-api.conf')],
-                         configs.write.call_args_list)
+        configs.write.assert_has_calls([
+            call('/etc/glance/glance-api.conf'),
+            call('/etc/glance/glance-swift.conf'),
+        ])
         self.assertTrue(mock_update_image_location_policy.called)
 
     @patch.object(relations, 'update_image_location_policy')
