@@ -24,6 +24,7 @@ machines:
   '12':
   '13':
   '14':
+  '15':
 
 applications:
 
@@ -56,6 +57,14 @@ applications:
       - '6'
       - '7'
       - '8'
+
+  ceph-radosgw:
+    charm: cs:~openstack-charmers-next/ceph-radosgw
+    num_units: 1
+    options:
+      source: *openstack-origin
+    to:
+      - '15'
 
   ceph-mon:
     charm: cs:~openstack-charmers-next/ceph-mon
@@ -120,3 +129,10 @@ relations:
 
   - - 'ceph-osd:mon'
     - 'ceph-mon:osd'
+
+  - - 'ceph-radosgw:mon'
+    - 'ceph-mon:radosgw'
+  - - 'ceph-radosgw:identity-service'
+    - 'keystone:identity-service'
+  - - 'ceph-radosgw:object-store'
+    - 'glance:object-store'
