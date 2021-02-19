@@ -8,18 +8,19 @@ smoke_bundles:
   - full_run: bionic-train
 gate_bundles:
   - ceph: focal-ussuri
-  - trusty-mitaka
   - xenial-mitaka
-  - xenial-ocata
-  - xenial-pike
-  - xenial-queens
   - bionic-queens
-  - bionic-rocky
   - bionic-stein
   - bionic-train
   - bionic-ussuri
   - ceph: focal-victoria
   - ceph: groovy-victoria
+dev_bundles:
+  - trusty-mitaka
+  - xenial-ocata
+  - xenial-pike
+  - xenial-queens
+  - bionic-rocky
 
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
