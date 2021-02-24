@@ -1,0 +1,33 @@
+- project:
+    templates:
+      - charm-unit-jobs
+    check:
+      jobs:
+      - ceph-focal-ussuri
+      - xenial-mitaka
+      - bionic-queens
+      - bionic-stein
+      - bionic-train
+      - bionic-ussuri
+      - ceph-focal-victoria
+      - ceph-groovy-victoria
+
+- job:
+    name: ceph-focal-ussuri
+    parent: func-target
+    dependencies: &smoke-jobs
+      - bionic-ussuri
+    vars:
+      tox_extra_args: ceph:focal-ussuri
+- job:
+    name: ceph-focal-victoria
+    parent: func-target
+    dependencies: *smoke-jobs
+    vars:
+      tox_extra_args: ceph:focal-victoria
+- job:
+    name: ceph-groovy-victoria
+    parent: func-target
+    dependencies: *smoke-jobs
+    vars:
+      tox_extra_args: ceph:groovy-victoria
