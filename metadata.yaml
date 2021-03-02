@@ -14,8 +14,8 @@ series:
 - xenial
 - bionic
 - focal
-- trusty
 - groovy
+- hirsute
 extra-bindings:
   public:
   admin:
