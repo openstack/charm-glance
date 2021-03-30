@@ -218,10 +218,10 @@ options:
     default:
     description: |
       The CPU core multiplier to use when configuring worker processes for
-      Glance. By default, the number of workers for each daemon is set to
-      twice the number of CPU cores a service unit has. When deployed in
-      a LXD container, this default value will be capped to 4 workers
-      unless this configuration option is set.
+      this service. By default, the number of workers for each daemon is
+      set to twice the number of CPU cores a service unit has. This default
+      value will be capped to 4 workers unless this configuration option
+      is set.
   expose-image-locations:
     type: boolean
     default: True
