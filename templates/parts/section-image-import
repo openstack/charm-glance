@@ -1,0 +1,7 @@
+{% if image_conversion -%}
+[image_import_opts]
+image_import_plugins = ['image_conversion']
+
+[image_conversion]
+output_format = raw
+{% endif -%}

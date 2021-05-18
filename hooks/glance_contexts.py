@@ -100,6 +100,15 @@ class GlancePolicyContext(OSContextGenerator):
         return ctxt
 
 
+class GlanceImageImportContext(OSContextGenerator):
+
+    def __call__(self):
+        ctxt = {}
+        if config('image-conversion'):
+            ctxt['image_conversion'] = config('image-conversion')
+        return ctxt
+
+
 class CephGlanceContext(OSContextGenerator):
     interfaces = ['ceph-glance']
 

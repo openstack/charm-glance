@@ -200,7 +200,8 @@ CONFIG_FILES = OrderedDict([
                               interface=['storage-backend'],
                               service=['glance-api'],
                               config_file=GLANCE_API_CONF),
-                          context.MemcacheContext()],
+                          context.MemcacheContext(),
+                          glance_contexts.GlanceImageImportContext()],
         'services': ['glance-api']
     }),
     (GLANCE_SWIFT_CONF, {
@@ -301,6 +302,9 @@ def determine_packages():
     if CompareOpenStackReleases(os_release(VERSION_PACKAGE)) >= 'rocky':
         packages = [p for p in packages if not p.startswith('python-')]
         packages.extend(PY3_PACKAGES)
+    if CompareOpenStackReleases(os_release(VERSION_PACKAGE)) >= 'stein':
+        # required for image-conversion
+        packages.extend(['qemu-utils'])
     return sorted(packages)
 
 

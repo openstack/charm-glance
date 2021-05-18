@@ -525,3 +525,9 @@ options:
     description: |
       Value of bluestore compression max blob size for solid state media on
       pools requested by this charm.
+  image-conversion:
+    type: boolean
+    default: False
+    description: |
+      Enable conversion of all images to raw format during image upload,
+      only supported on stein or newer.
