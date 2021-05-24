@@ -27,6 +27,7 @@ TO_PATCH = [
     'determine_apache_port',
     'determine_api_port',
     'os_release',
+    'juju_log',
 ]
 
 
@@ -166,6 +167,67 @@ class TestGlanceContexts(CharmTestCase):
             {'rbd_pool': "another-metadata",
              'rbd_user': service,
              'expose_image_locations': True})
+
+    def test_external_s3_not_configured(self):
+        config = {
+            's3-store-host': '',
+            's3-store-access-key': '',
+            's3-store-secret-key': '',
+            's3-store-bucket': ''}
+        self.config.side_effect = lambda x: config[x]
+        self.assertEqual(contexts.ExternalS3Context()(), {})
+
+    def test_external_s3_partially_configured(self):
+        config = {}
+        self.config.side_effect = lambda x: config[x]
+        config = {
+            's3-store-host': 'host',
+            's3-store-access-key': '',
+            's3-store-secret-key': '',
+            's3-store-bucket': ''}
+        self.assertEqual(contexts.ExternalS3Context()(), {})
+        config = {
+            's3-store-host': '',
+            's3-store-access-key': 'key',
+            's3-store-secret-key': '',
+            's3-store-bucket': ''}
+        self.assertEqual(contexts.ExternalS3Context()(), {})
+        config = {
+            's3-store-host': '',
+            's3-store-access-key': '',
+            's3-store-secret-key': 'key',
+            's3-store-bucket': ''}
+        self.assertEqual(contexts.ExternalS3Context()(), {})
+        config = {
+            's3-store-host': '',
+            's3-store-access-key': '',
+            's3-store-secret-key': '',
+            's3-store-bucket': 'bucket'}
+        self.assertEqual(contexts.ExternalS3Context()(), {})
+
+    def test_external_s3_configured(self):
+        host_name = 'http://my-object-storage.example.com:8080'
+        access_key = 'my-access-key'
+        secret_key = 'my-secret-key'
+        bucket = 'my-bucket'
+        config = {
+            's3-store-host': host_name,
+            's3-store-access-key': access_key,
+            's3-store-secret-key': secret_key,
+            's3-store-bucket': bucket}
+        self.config.side_effect = lambda x: config[x]
+        expected_ctx = {
+            's3_store_host': host_name,
+            's3_store_access_key': access_key,
+            's3_store_secret_key': secret_key,
+            's3_store_bucket': bucket
+        }
+
+        self.os_release.return_value = 'train'
+        self.assertEqual(contexts.ExternalS3Context()(), {})
+
+        self.os_release.return_value = 'ussuri'
+        self.assertEqual(contexts.ExternalS3Context()(), expected_ctx)
 
     def test_multistore_below_mitaka(self):
         self.os_release.return_value = 'liberty'
@@ -325,6 +387,43 @@ class TestGlanceContexts(CharmTestCase):
                 },
                 'enabled_backends': 'local:file, ceph:rbd, swift:swift',
                 'default_store_backend': 'ceph',
+            })
+
+    def test_multi_backend_with_external_s3(self):
+        self.maxDiff = None
+        self.os_release.return_value = 'ussuri'
+        self.relation_ids.return_value = []
+        self.is_relation_made.return_value = False
+        data_dir = '/some/data/dir'
+        s3_host = 'http://my-object-storage.example.com:8080'
+        s3_access_key = 'my-access-key'
+        s3_secret_key = 'my-secret-key'
+        s3_bucket = 'my-bucket'
+        conf_dict = {
+            'filesystem-store-datadir': data_dir,
+            's3-store-host': s3_host,
+            's3-store-access-key': s3_access_key,
+            's3-store-secret-key': s3_secret_key,
+            's3-store-bucket': s3_bucket,
+        }
+        self.config.side_effect = lambda x: conf_dict.get(x)
+        self.assertEqual(
+            contexts.MultiBackendContext()(),
+            {
+                'enabled_backend_configs': {
+                    'local': {
+                        'filesystem_store_datadir': data_dir,
+                        'store_description': 'Local filesystem store',
+                    },
+                    's3': {
+                        "s3_store_host": s3_host,
+                        "s3_store_access_key": s3_access_key,
+                        "s3_store_secret_key": s3_secret_key,
+                        "s3_store_bucket": s3_bucket,
+                    }
+                },
+                'enabled_backends': 'local:file, s3:s3',
+                'default_store_backend': 's3',
             })
 
     @patch('charmhelpers.contrib.openstack.context.relation_ids')

@@ -68,9 +68,9 @@ This configuration can be used to support Glance in HA/scale-out deployments.
 
 ### Object storage-backed storage
 
-Glance can use Object storage as its storage backend. OpenStack Swift and Ceph
-RADOS Gateway are supported, and both resulting configurations can be used to
-support Glance in HA/scale-out deployments.
+Glance can use Object storage as its storage backend. OpenStack Swift, Ceph
+RADOS Gateway, and external S3 are supported, and all resulting configurations
+can be used to support Glance in HA/scale-out deployments.
 
 #### Swift
 
@@ -99,6 +99,21 @@ ceph-radosgw application:
 
 Proceed with the common group of commands from the Ceph scenario.
 
+#### External S3
+
+This S3 backend is supported for Ussuri release or later in the charm.
+
+The step below assumes an external and pre-existing S3 compatible server
+available.
+
+S3 server information can be passed via charm config options.
+
+    juju config glance \
+        s3-store-host='http://my-object-storage.example.com:8080' \
+        s3-store-access-key='ACCESS_KEY' \
+        s3-store-secret-key='SECRET_KEY' \
+        s3-store-bucket='BUCKET_NAME'
+
 ### Local storage
 
 Glance can simply use the storage available on the application unit's machine
@@ -118,7 +133,7 @@ by using the `--store` option to the `glance` CLI client:
     glance image-create --store <backend-name> ...
 
 Otherwise, the default backend is determined by the following precedence order
-of backend names: 'ceph', 'swift', and then 'local'.
+of backend names: 'ceph', 'swift', 's3', and then 'local'.
 
 > **Important**: The backend name of 'swift' denotes both object storage
   solutions (i.e. Swift and Ceph RADOS Gateway).

@@ -531,3 +531,29 @@ options:
     description: |
       Enable conversion of all images to raw format during image upload,
       only supported on stein or newer.
+  s3-store-host:
+    type: string
+    default:
+    description: |
+      Location where S3 server is listening.  Can be a DNS name or an IP
+      address. The value must start with the schema (http:// or
+      https://). e.g., https://s3.ap-northeast-1.amazonaws.com or
+      http://my-object-storage.example.com:8080
+      .
+      NOTE: The S3 backend can be enabled only for Ussuri or later
+      releases with this charm.
+  s3-store-access-key:
+    type: string
+    default:
+    description: |
+      Access key for authenticating to the S3 storage server.
+  s3-store-secret-key:
+    type: string
+    default:
+    description: |
+      Secret key for authenticating to the S3 storage server.
+  s3-store-bucket:
+    type: string
+    default:
+    description: |
+      Bucket name where the glance images will be stored in the S3 server.

@@ -154,6 +154,67 @@ class ObjectStoreContext(OSContextGenerator):
         }
 
 
+class ExternalS3Context(OSContextGenerator):
+    required_config_keys = (
+        "s3-store-host",
+        "s3-store-access-key",
+        "s3-store-secret-key",
+        "s3-store-bucket",
+    )
+
+    def __init__(self):
+        self.required_values = [
+            config(key) for key in self.required_config_keys
+        ]
+
+    def __call__(self):
+        try:
+            self.validate()
+        except ValueError:
+            # ValueError will be handled in assess_status and the charm status
+            # will be blocked there. We will return the empty context here not
+            # to block the template rendering itself.
+            return {}
+
+        if config("s3-store-host"):
+            ctxt = {
+                "s3_store_host": config("s3-store-host"),
+                "s3_store_access_key": config("s3-store-access-key"),
+                "s3_store_secret_key": config("s3-store-secret-key"),
+                "s3_store_bucket": config("s3-store-bucket"),
+            }
+            return ctxt
+
+        return {}
+
+    def validate(self):
+        if all(self.required_values):
+            # The S3 backend was once removed in Newton development cycle and
+            # added back in Ussuri cycle in Glance upstream. As we rely on
+            # python3-boto3 in the charm, don't enable the backend before
+            # Ussuri release.
+            _release = os_release("glance-common")
+            if not CompareOpenStackReleases(_release) >= "ussuri":
+                juju_log(
+                    "Not enabling S3 backend: The charm supports S3 backed "
+                    "only for Ussuri or later releases. Your release is "
+                    "{}".format(_release),
+                    level=ERROR,
+                )
+                raise ValueError("{} is not supported".format(_release))
+        elif any(self.required_values):
+            juju_log(
+                "Unable to use S3 backend without all required S3 options "
+                "defined. Missing keys: {}".format(
+                    " ".join(
+                        (k for k in self.required_config_keys if not config(k))
+                    )
+                ),
+                level=ERROR,
+            )
+            raise ValueError("Missing necessary config options")
+
+
 class CinderStoreContext(OSContextGenerator):
     interfaces = ['cinder-volume-service', 'storage-backend']
 
@@ -199,6 +260,12 @@ class MultiBackendContext(OSContextGenerator):
         }
         return ctx
 
+    def _get_s3_config(self):
+        s3_ctx = ExternalS3Context()()
+        if not s3_ctx:
+            return
+        return s3_ctx
+
     def __call__(self):
         ctxt = {
             "enabled_backend_configs": {},
@@ -226,6 +293,13 @@ class MultiBackendContext(OSContextGenerator):
             ctxt["enabled_backend_configs"]["swift"] = swift_ctx
             if not ctxt["default_store_backend"]:
                 ctxt["default_store_backend"] = "swift"
+
+        s3_ctx = self._get_s3_config()
+        if s3_ctx:
+            backends.append("s3:s3")
+            ctxt["enabled_backend_configs"]["s3"] = s3_ctx
+            if not ctxt["default_store_backend"]:
+                ctxt["default_store_backend"] = "s3"
 
         if local_fs and not ctxt["default_store_backend"]:
             ctxt["default_store_backend"] = "local"

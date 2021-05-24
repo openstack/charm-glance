@@ -107,6 +107,7 @@ PY3_PACKAGES = [
     "python3-cinderclient",
     "python3-os-brick",
     "python3-oslo.rootwrap",
+    "python3-boto3",
 ]
 
 VERSION_PACKAGE = 'glance-common'
@@ -510,6 +511,13 @@ def check_optional_config_and_relations(configs):
         if ('ceph' in configs.complete_contexts()
                 and not is_request_complete(get_ceph_request())):
             return ('waiting', 'Ceph broker request incomplete')
+
+    try:
+        ext_s3 = glance_contexts.ExternalS3Context()
+        ext_s3.validate()
+    except ValueError as e:
+        return ('blocked', 'Invalid external S3 config: {}'.format(str(e)))
+
     # return 'unknown' as the lowest priority to not clobber an existing
     # status.
     return "unknown", ""
