@@ -106,9 +106,12 @@ This S3 backend is supported for Ussuri release or later in the charm.
 The step below assumes an external and pre-existing S3 compatible server
 available.
 
-S3 server information can be passed via charm config options.
+S3 server information can be passed via charm config options, and you
+must set `expose-image-locations` as false not to expose S3 credentials
+through Glance API.
 
     juju config glance \
+        expose-image-locations=false \
         s3-store-host='http://my-object-storage.example.com:8080' \
         s3-store-access-key='ACCESS_KEY' \
         s3-store-secret-key='SECRET_KEY' \

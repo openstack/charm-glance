@@ -541,7 +541,8 @@ options:
       http://my-object-storage.example.com:8080
       .
       NOTE: The S3 backend can be enabled only for Ussuri or later
-      releases with this charm.
+      releases with this charm. You must set expose-image-locations as
+      false not to expose S3 credentials through Glance API.
   s3-store-access-key:
     type: string
     default:
