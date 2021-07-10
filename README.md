@@ -104,18 +104,17 @@ Proceed with the common group of commands from the Ceph scenario.
 The step below assumes an external and pre-existing S3 compatible server
 available.
 
-S3 server information can be passed via charm config options, and you
-must set `expose-image-locations` as false not to expose S3 credentials
-through Glance API.
+S3 server information can be passed via charm config options:
 
     juju config glance \
-        expose-image-locations=false \
         s3-store-host='http://my-object-storage.example.com:8080' \
         s3-store-access-key='ACCESS_KEY' \
         s3-store-secret-key='SECRET_KEY' \
         s3-store-bucket='BUCKET_NAME'
 
 > **Note**: The S3 backend is supported starting with OpenStack Ussuri.
+  Enabling S3 backend overrides `expose-image-locations` as false not to
+  expose S3 credentials through Glance API.
 
 ### Local storage
 

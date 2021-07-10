@@ -211,12 +211,14 @@ class TestGlanceContexts(CharmTestCase):
         secret_key = 'my-secret-key'
         bucket = 'my-bucket'
         config = {
+            'expose-image-locations': True,
             's3-store-host': host_name,
             's3-store-access-key': access_key,
             's3-store-secret-key': secret_key,
             's3-store-bucket': bucket}
         self.config.side_effect = lambda x: config[x]
         expected_ctx = {
+            'expose_image_locations': False,
             's3_store_host': host_name,
             's3_store_access_key': access_key,
             's3_store_secret_key': secret_key,
@@ -400,6 +402,7 @@ class TestGlanceContexts(CharmTestCase):
         s3_secret_key = 'my-secret-key'
         s3_bucket = 'my-bucket'
         conf_dict = {
+            'expose-image-locations': True,
             'filesystem-store-datadir': data_dir,
             's3-store-host': s3_host,
             's3-store-access-key': s3_access_key,
