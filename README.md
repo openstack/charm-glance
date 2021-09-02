@@ -89,7 +89,7 @@ Proceed with the common group of commands from the Ceph scenario.
 #### Ceph RADOS Gateway
 
 The steps below assume a pre-existing Ceph RADOS Gateway deployment (see the
-[ceph-radosgw][ceph-radosgw-charm]).
+[ceph-radosgw][ceph-radosgw-charm] charm).
 
 Here, Glance is deployed to a new container on machine '1' and related to the
 ceph-radosgw application:
@@ -100,8 +100,6 @@ ceph-radosgw application:
 Proceed with the common group of commands from the Ceph scenario.
 
 #### External S3
-
-This S3 backend is supported for Ussuri release or later in the charm.
 
 The step below assumes an external and pre-existing S3 compatible server
 available.
@@ -117,6 +115,8 @@ through Glance API.
         s3-store-secret-key='SECRET_KEY' \
         s3-store-bucket='BUCKET_NAME'
 
+> **Note**: The S3 backend is supported starting with OpenStack Ussuri.
+
 ### Local storage
 
 Glance can simply use the storage available on the application unit's machine
@@ -129,24 +129,32 @@ Proceed with the common group of commands from the Ceph scenario.
 
 ## Multiple backends
 
-If multiple storage backends are configured the cloud operator can specify, at
-image upload time, which backend will be used to store the image. This is done
-by using the `--store` option to the `glance` CLI client:
+Multiple storage backend support allows for one backend of each type:
+
+* Ceph
+* Swift (includes Ceph RADOS Gateway)
+* S3
+* local
+
+With multiple backends configured, the cloud operator can specify, at image
+upload time, which backend will be used to store the image. This is done by
+using the `--store` option to the `glance` CLI client:
 
     glance image-create --store <backend-name> ...
 
-Otherwise, the default backend is determined by the following precedence order
-of backend names: 'ceph', 'swift', 's3', and then 'local'.
+The default order of precedence is given by the following backend names:
+'ceph', 'swift', 's3', and then 'local'.
 
 > **Important**: The backend name of 'swift' denotes both object storage
-  solutions (i.e. Swift and Ceph RADOS Gateway).
+  solutions: Swift and Ceph RADOS Gateway. Only one of these solutions can
+  therefore be used.
 
 ## Actions
 
 This section covers Juju [actions][juju-docs-actions] supported by the charm.
 Actions allow specific operations to be performed on a per-unit basis. To
-display action descriptions run `juju actions glance`. If the charm is not
-deployed then see file `actions.yaml`.
+display action descriptions run `juju actions --schema glance`. If the charm is
+not deployed then see file `actions.yaml`.
 
 * `openstack-upgrade`
 * `pause`
@@ -316,11 +324,17 @@ Here are the essential commands (filenames are arbitrary):
 See [Policy overrides][cdg-appendix-n] in the [OpenStack Charms Deployment
 Guide][cdg] for a thorough treatment of this feature.
 
+# Documentation
+
+The OpenStack Charms project maintains two documentation guides:
+
+* [OpenStack Charm Guide][cg]: for project information, including development
+  and support notes
+* [OpenStack Charms Deployment Guide][cdg]: for charm usage information
+
 # Bugs
 
 Please report bugs on [Launchpad][lp-bugs-charm-glance].
-
-For general charm questions refer to the [OpenStack Charm Guide][cg].
 
 <!-- LINKS -->
 
