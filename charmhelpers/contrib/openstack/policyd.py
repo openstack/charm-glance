@@ -334,7 +334,7 @@ def maybe_do_policyd_overrides(openstack_release,
         restart_handler()
 
 
-@charmhelpers.deprecate("Use maybe_do_poliyd_overrrides instead")
+@charmhelpers.deprecate("Use maybe_do_policyd_overrides instead")
 def maybe_do_policyd_overrides_on_config_changed(*args, **kwargs):
     """This function is designed to be called from the config changed hook.
 

@@ -264,7 +264,7 @@ def version_compare(a, b):
     else:
         raise RuntimeError('Unable to compare "{}" and "{}", according to '
                            'our logic they are neither greater, equal nor '
-                           'less than each other.')
+                           'less than each other.'.format(a, b))
 
 
 class PkgVersion():

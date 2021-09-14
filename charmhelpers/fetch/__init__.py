@@ -106,6 +106,8 @@ if __platform__ == "ubuntu":
     apt_pkg = fetch.ubuntu_apt_pkg
     get_apt_dpkg_env = fetch.get_apt_dpkg_env
     get_installed_version = fetch.get_installed_version
+    OPENSTACK_RELEASES = fetch.OPENSTACK_RELEASES
+    UBUNTU_OPENSTACK_RELEASE = fetch.UBUNTU_OPENSTACK_RELEASE
 elif __platform__ == "centos":
     yum_search = fetch.yum_search
 

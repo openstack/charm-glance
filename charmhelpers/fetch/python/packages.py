@@ -142,8 +142,10 @@ def pip_create_virtualenv(path=None):
     """Create an isolated Python environment."""
     if six.PY2:
         apt_install('python-virtualenv')
+        extra_flags = []
     else:
-        apt_install('python3-virtualenv')
+        apt_install(['python3-virtualenv', 'virtualenv'])
+        extra_flags = ['--python=python3']
 
     if path:
         venv_path = path
@@ -151,4 +153,4 @@ def pip_create_virtualenv(path=None):
         venv_path = os.path.join(charm_dir(), 'venv')
 
     if not os.path.exists(venv_path):
-        subprocess.check_call(['virtualenv', venv_path])
+        subprocess.check_call(['virtualenv', venv_path] + extra_flags)
