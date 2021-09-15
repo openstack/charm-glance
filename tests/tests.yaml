@@ -37,7 +37,6 @@ configure:
     - zaza.openstack.charm_tests.glance.setup.add_cirros_alt_image
     - zaza.openstack.charm_tests.keystone.setup.add_demo_user
     - zaza.openstack.charm_tests.keystone.setup.add_tempest_roles
-    - zaza.openstack.charm_tests.tempest.setup.render_tempest_config_keystone_v3
 
 tests:
   - ceph:
@@ -50,7 +49,7 @@ tests:
   - zaza.openstack.charm_tests.glance.tests.GlanceTest
   - zaza.openstack.charm_tests.policyd.tests.GlanceTests
   - full_run:
-    - zaza.openstack.charm_tests.tempest.tests.TempestTest
+    - zaza.openstack.charm_tests.tempest.tests.TempestTestWithKeystoneV3
     - zaza.openstack.charm_tests.glance.tests.GlanceTest
     - zaza.openstack.charm_tests.policyd.tests.GlanceTests
 
