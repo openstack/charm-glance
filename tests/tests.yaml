@@ -14,13 +14,16 @@ gate_bundles:
   - bionic-ussuri
   - ceph: focal-ussuri
   - ceph: focal-victoria
+  - ceph: focal-wallaby
   - ceph: groovy-victoria
+
 dev_bundles:
   - trusty-mitaka
   - xenial-ocata
   - xenial-pike
   - xenial-queens
   - bionic-rocky
+  - ceph: hirsute-wallaby
 
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
@@ -35,6 +38,7 @@ configure:
     - zaza.openstack.charm_tests.keystone.setup.add_demo_user
     - zaza.openstack.charm_tests.keystone.setup.add_tempest_roles
     - zaza.openstack.charm_tests.tempest.setup.render_tempest_config_keystone_v3
+
 tests:
   - ceph:
     - zaza.openstack.charm_tests.glance.tests.GlanceTest
@@ -49,6 +53,7 @@ tests:
     - zaza.openstack.charm_tests.tempest.tests.TempestTest
     - zaza.openstack.charm_tests.glance.tests.GlanceTest
     - zaza.openstack.charm_tests.policyd.tests.GlanceTests
+
 tests_options:
   tempest:
     full_run:
@@ -56,4 +61,4 @@ tests_options:
   policyd:
     service: glance
   force_deploy:
-    - groovy-victoria
+    - hirsute-wallaby
