@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -313,9 +313,9 @@ def filter_missing_packages(packages):
 def apt_cache(*_, **__):
     """Shim returning an object simulating the apt_pkg Cache.
 
-    :param _: Accept arguments for compability, not used.
+    :param _: Accept arguments for compatibility, not used.
     :type _: any
-    :param __: Accept keyword arguments for compability, not used.
+    :param __: Accept keyword arguments for compatibility, not used.
     :type __: any
     :returns:Object used to interrogate the system apt and dpkg databases.
     :rtype:ubuntu_apt_pkg.Cache
@@ -350,7 +350,7 @@ def apt_install(packages, options=None, fatal=False, quiet=False):
     :param fatal: Whether the command's output should be checked and
                   retried.
     :type fatal: bool
-    :param quiet: if True (default), supress log message to stdout/stderr
+    :param quiet: if True (default), suppress log message to stdout/stderr
     :type quiet: bool
     :raises: subprocess.CalledProcessError
     """
@@ -464,7 +464,7 @@ def import_key(key):
     A Radix64 format keyid is also supported for backwards
     compatibility. In this case Ubuntu keyserver will be
     queried for a key via HTTPS by its keyid. This method
-    is less preferrable because https proxy servers may
+    is less preferable because https proxy servers may
     require traffic decryption which is equivalent to a
     man-in-the-middle attack (a proxy server impersonates
     keyserver TLS certificates and has to be explicitly
@@ -663,7 +663,7 @@ def add_source(source, key=None, fail_invalid=False):
     id may also be used, but be aware that only insecure protocols are
     available to retrieve the actual public key from a public keyserver
     placing your Juju environment at risk. ppa and cloud archive keys
-    are securely added automtically, so sould not be provided.
+    are securely added automatically, so should not be provided.
 
     @param fail_invalid: (boolean) if True, then the function raises a
     SourceConfigError is there is no matching installation source.
@@ -720,7 +720,7 @@ def _add_proposed():
     Uses get_distrib_codename to determine the correct stanza for
     the deb line.
 
-    For intel architecutres PROPOSED_POCKET is used for the release, but for
+    For Intel architectures PROPOSED_POCKET is used for the release, but for
     other architectures PROPOSED_PORTS_POCKET is used for the release.
     """
     release = get_distrib_codename()
@@ -881,7 +881,7 @@ def __add_bare_helper(openstack_release, pocket_format, final_function):
             .format(ubuntu_version))
     except AssertionError:
         raise SourceConfigError(
-            'Invalid OpenStack release specificed: {} for ubuntu version {}'
+            'Invalid OpenStack release specified: {} for Ubuntu version {}'
             .format(openstack_release, ubuntu_version))
     final_function()
 

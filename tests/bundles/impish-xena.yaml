@@ -1,7 +1,7 @@
 variables:
   openstack-origin: &openstack-origin distro
 
-series: groovy
+series: impish
 
 comment:
 - 'machines section to decide order of deployment. database sooner = faster'

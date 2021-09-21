@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -660,7 +660,7 @@ def import_key(keyid):
 def get_source_and_pgp_key(source_and_key):
     """Look for a pgp key ID or ascii-armor key in the given input.
 
-    :param source_and_key: Sting, "source_spec|keyid" where '|keyid' is
+    :param source_and_key: String, "source_spec|keyid" where '|keyid' is
         optional.
     :returns (source_spec, key_id OR None) as a tuple.  Returns None for key_id
         if there was no '|' in the source_and_key string.
@@ -680,7 +680,7 @@ def configure_installation_source(source_plus_key):
     The functionality is provided by charmhelpers.fetch.add_source()
     The difference between the two functions is that add_source() signature
     requires the key to be passed directly, whereas this function passes an
-    optional key by appending '|<key>' to the end of the source specificiation
+    optional key by appending '|<key>' to the end of the source specification
     'source'.
 
     Another difference from add_source() is that the function calls sys.exit(1)
@@ -767,7 +767,7 @@ def get_endpoint_notifications(service_names, rel_name='identity-service'):
 
 
 def endpoint_changed(service_name, rel_name='identity-service'):
-    """Whether a new notification has been recieved for an endpoint.
+    """Whether a new notification has been received for an endpoint.
 
     :param service_name: Service name eg nova, neutron, placement etc
     :type service_name: str
@@ -793,7 +793,7 @@ def endpoint_changed(service_name, rel_name='identity-service'):
 
 
 def save_endpoint_changed_triggers(service_names, rel_name='identity-service'):
-    """Save the enpoint triggers in  db so it can be tracked if they changed.
+    """Save the endpoint triggers in  db so it can be tracked if they changed.
 
     :param service_names: List of service name.
     :type service_name: List
@@ -1461,9 +1461,9 @@ def remote_restart(rel_name, remote_service=None):
     if remote_service:
         trigger['remote-service'] = remote_service
     for rid in relation_ids(rel_name):
-        # This subordinate can be related to two seperate services using
+        # This subordinate can be related to two separate services using
         # different subordinate relations so only issue the restart if
-        # the principle is conencted down the relation we think it is
+        # the principle is connected down the relation we think it is
         if related_units(relid=rid):
             relation_set(relation_id=rid,
                          relation_settings=trigger,
@@ -1580,7 +1580,7 @@ def manage_payload_services(action, services=None, charm_func=None):
     """Run an action against all services.
 
     An optional charm_func() can be called. It should raise an Exception to
-    indicate that the function failed. If it was succesfull it should return
+    indicate that the function failed. If it was successful it should return
     None or an optional message.
 
     The signature for charm_func is:
@@ -1839,7 +1839,7 @@ def pausable_restart_on_change(restart_map, stopstart=False,
     :param post_svc_restart_f: A function run after a service has
                                restarted.
     :type post_svc_restart_f: Callable[[str], None]
-    :param pre_restarts_wait_f: A function callled before any restarts.
+    :param pre_restarts_wait_f: A function called before any restarts.
     :type pre_restarts_wait_f: Callable[None, None]
     :returns: decorator to use a restart_on_change with pausability
     :rtype: decorator

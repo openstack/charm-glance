@@ -15,7 +15,8 @@ gate_bundles:
   - ceph: focal-ussuri
   - ceph: focal-victoria
   - ceph: focal-wallaby
-  - ceph: groovy-victoria
+  - ceph: focal-xena
+  - ceph: impish-xena
 
 dev_bundles:
   - trusty-mitaka

@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -1367,7 +1367,7 @@ class NeutronPortContext(OSContextGenerator):
         mac_regex = re.compile(r'([0-9A-F]{2}[:-]){5}([0-9A-F]{2})', re.I)
         for entry in ports:
             if re.match(mac_regex, entry):
-                # NIC is in known NICs and does NOT hace an IP address
+                # NIC is in known NICs and does NOT have an IP address
                 if entry in hwaddr_to_nic and not hwaddr_to_ip[entry]:
                     # If the nic is part of a bridge then don't use it
                     if is_bridge_member(hwaddr_to_nic[entry]):
@@ -2700,7 +2700,7 @@ class OVSDPDKDeviceContext(OSContextGenerator):
 
 
 class BridgePortInterfaceMap(object):
-    """Build a map of bridge ports and interaces from charm configuration.
+    """Build a map of bridge ports and interfaces from charm configuration.
 
     NOTE: the handling of this detail in the charm is pre-deprecated.
 
@@ -3149,7 +3149,7 @@ class SRIOVContext(OSContextGenerator):
             actual = min(int(requested), int(device.sriov_totalvfs))
             if actual < int(requested):
                 log('Requested VFs ({}) too high for device {}. Falling back '
-                    'to value supprted by device: {}'
+                    'to value supported by device: {}'
                     .format(requested, device.interface_name,
                             device.sriov_totalvfs),
                     level=WARNING)

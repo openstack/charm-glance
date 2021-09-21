@@ -1,4 +1,4 @@
-# Copyright 2014-2015 Canonical Limited.
+# Copyright 2014-2021 Canonical Limited.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -205,7 +205,7 @@ def plugins(fetch_handlers=None):
                 classname)
             plugin_list.append(handler_class())
         except NotImplementedError:
-            # Skip missing plugins so that they can be ommitted from
+            # Skip missing plugins so that they can be omitted from
             # installation if desired
             log("FetchHandler {} not found, skipping plugin".format(
                 handler_name))
