@@ -202,7 +202,8 @@ CONFIG_FILES = OrderedDict([
                               service=['glance-api'],
                               config_file=GLANCE_API_CONF),
                           context.MemcacheContext(),
-                          glance_contexts.GlanceImageImportContext()],
+                          glance_contexts.GlanceImageImportContext(),
+                          glance_contexts.ExternalS3Context()],
         'services': ['glance-api']
     }),
     (GLANCE_SWIFT_CONF, {

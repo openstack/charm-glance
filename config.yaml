@@ -226,9 +226,14 @@ options:
     type: boolean
     default: True
     description: |
-      Expose underlying image locations via the API when using Ceph for image
-      storage. Only disable this option if you do not wish to use
-      copy-on-write clones of RAW format images with Ceph in Cinder and Nova.
+      Expose underlying image locations via the API. Enabling this is
+      useful especially when using Ceph for image storage. Only disable
+      this option if you do not wish to use copy-on-write clones of RAW
+      format images with Ceph in Cinder and Nova.
+      .
+      NOTE: When S3 backend is enabled, this value will be ignored. The
+      charm will not expose the image location for all backends not to
+      expose S3 credentials.
   restrict-image-location-operations:
     type: boolean
     default: False
@@ -541,8 +546,9 @@ options:
       http://my-object-storage.example.com:8080
       .
       NOTE: The S3 backend can be enabled only for Ussuri or later
-      releases with this charm. You must set expose-image-locations as
-      false not to expose S3 credentials through Glance API.
+      releases with this charm. Enabling S3 backend will override
+      expose-image-locations as false not to expose S3 credentials
+      through Glance API.
   s3-store-access-key:
     type: string
     default:

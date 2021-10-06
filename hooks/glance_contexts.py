@@ -24,7 +24,8 @@ from charmhelpers.core.hookenv import (
     service_name,
     config,
     log as juju_log,
-    ERROR
+    ERROR,
+    WARNING
 )
 
 from charmhelpers.contrib.openstack.context import (
@@ -162,11 +163,6 @@ class ExternalS3Context(OSContextGenerator):
         "s3-store-bucket",
     )
 
-    def __init__(self):
-        self.required_values = [
-            config(key) for key in self.required_config_keys
-        ]
-
     def __call__(self):
         try:
             self.validate()
@@ -183,12 +179,19 @@ class ExternalS3Context(OSContextGenerator):
                 "s3_store_secret_key": config("s3-store-secret-key"),
                 "s3_store_bucket": config("s3-store-bucket"),
             }
+            if config("expose-image-locations"):
+                juju_log("Forcibly overriding expose_image_locations "
+                         "not to expose S3 credentials", level=WARNING)
+                ctxt["expose_image_locations"] = False
             return ctxt
 
         return {}
 
     def validate(self):
-        if all(self.required_values):
+        required_values = [
+            config(key) for key in self.required_config_keys
+        ]
+        if all(required_values):
             # The S3 backend was once removed in Newton development cycle and
             # added back in Ussuri cycle in Glance upstream. As we rely on
             # python3-boto3 in the charm, don't enable the backend before
@@ -202,7 +205,7 @@ class ExternalS3Context(OSContextGenerator):
                     level=ERROR,
                 )
                 raise ValueError("{} is not supported".format(_release))
-        elif any(self.required_values):
+        elif any(required_values):
             juju_log(
                 "Unable to use S3 backend without all required S3 options "
                 "defined. Missing keys: {}".format(
@@ -264,7 +267,13 @@ class MultiBackendContext(OSContextGenerator):
         s3_ctx = ExternalS3Context()()
         if not s3_ctx:
             return
-        return s3_ctx
+        ctx = {
+            "s3_store_host": s3_ctx["s3_store_host"],
+            "s3_store_access_key": s3_ctx["s3_store_access_key"],
+            "s3_store_secret_key": s3_ctx["s3_store_secret_key"],
+            "s3_store_bucket": s3_ctx["s3_store_bucket"],
+        }
+        return ctx
 
     def __call__(self):
         ctxt = {
