@@ -29,12 +29,14 @@ machines:
 applications:
 
   keystone-mysql-router:
-    charm: cs:~openstack-charmers-next/mysql-router
+    charm: cs:~openstack-charmers/mysql-router
+    channel: candidate
   glance-mysql-router:
-    charm: cs:~openstack-charmers-next/mysql-router
+    charm: cs:~openstack-charmers/mysql-router
+    channel: candidate
 
   mysql-innodb-cluster:
-    charm: cs:~openstack-charmers-next/mysql-innodb-cluster
+    charm: cs:~openstack-charmers/mysql-innodb-cluster
     num_units: 3
     options:
       source: *openstack-origin
@@ -42,9 +44,10 @@ applications:
       - '0'
       - '1'
       - '2'
+    channel: candidate
 
   ceph-osd:
-    charm: cs:~openstack-charmers-next/ceph-osd
+    charm: cs:~openstack-charmers/ceph-osd
     num_units: 6
     storage:
       osd-devices: '10G'
@@ -57,17 +60,19 @@ applications:
       - '6'
       - '7'
       - '8'
+    channel: candidate
 
   ceph-radosgw:
-    charm: cs:~openstack-charmers-next/ceph-radosgw
+    charm: cs:~openstack-charmers/ceph-radosgw
     num_units: 1
     options:
       source: *openstack-origin
     to:
       - '15'
+    channel: candidate
 
   ceph-mon:
-    charm: cs:~openstack-charmers-next/ceph-mon
+    charm: cs:~openstack-charmers/ceph-mon
     num_units: 3
     options:
       source: *openstack-origin
@@ -76,27 +81,30 @@ applications:
       - '9'
       - '10'
       - '11'
+    channel: candidate
 
   rabbitmq-server:
-    charm: cs:~openstack-charmers-next/rabbitmq-server
+    charm: cs:~openstack-charmers/rabbitmq-server
     num_units: 1
     options:
       source: *openstack-origin
     to:
       - '12'
+    channel: candidate
 
   keystone:
     expose: True
-    charm: cs:~openstack-charmers-next/keystone
+    charm: cs:~openstack-charmers/keystone
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     to:
       - '13'
+    channel: candidate
 
   glance:
     expose: True
-    charm: cs:~openstack-charmers-next/glance
+    charm: cs:~openstack-charmers/glance
     num_units: 1
     options:
       openstack-origin: *openstack-origin
@@ -106,6 +114,7 @@ applications:
       ec-profile-plugin: jerasure
     to:
       - '14'
+    channel: candidate
 
 relations:
   - - 'keystone:shared-db'
