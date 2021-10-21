@@ -78,9 +78,11 @@ from charmhelpers.core.hookenv import (
 )
 
 from charmhelpers.core.host import (
+    is_container,
     # restart_on_change,
     service_reload,
     service_restart,
+    service_start,
     service_stop,
 )
 from charmhelpers.fetch import (
@@ -187,6 +189,12 @@ def install_hook():
         os_release('glance-common'),
         'glance',
         restart_handler=lambda: service_restart('glance-api'))
+
+    # Make sure iscsid has a unique InitiatorName by starting iscsid
+    # and invoking /lib/open-iscsi/startup-checks.sh indirectly as
+    # ExecStartPre script of it
+    if not is_container():
+        service_start('iscsid')
 
 
 @hooks.hook('shared-db-relation-joined')
@@ -493,6 +501,12 @@ def upgrade_charm():
         os_release('glance-common'),
         'glance',
         restart_handler=lambda: service_restart('glance-api'))
+
+    # Make sure iscsid has a unique InitiatorName by starting iscsid
+    # and invoking /lib/open-iscsi/startup-checks.sh indirectly as
+    # ExecStartPre script of it
+    if not is_container():
+        service_start('iscsid')
 
 
 @hooks.hook('ha-relation-joined')

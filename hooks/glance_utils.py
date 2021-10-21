@@ -44,6 +44,7 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     CompareHostReleases,
+    is_container,
     lsb_release,
     mkdir,
     service_stop,
@@ -518,6 +519,11 @@ def check_optional_config_and_relations(configs):
         ext_s3.validate()
     except ValueError as e:
         return ('blocked', 'Invalid external S3 config: {}'.format(str(e)))
+
+    if relation_ids('cinder-volume-service') and is_container():
+        return (
+            'blocked',
+            'Glance with cinder storage backend is not supported on container')
 
     # return 'unknown' as the lowest priority to not clobber an existing
     # status.

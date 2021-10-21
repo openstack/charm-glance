@@ -31,7 +31,8 @@ from charmhelpers.core.hookenv import (
 from charmhelpers.contrib.openstack.context import (
     OSContextGenerator,
     ApacheSSLContext as SSLContext,
-    BindHostContext
+    BindHostContext,
+    VolumeAPIContext,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -275,6 +276,13 @@ class MultiBackendContext(OSContextGenerator):
         }
         return ctx
 
+    def _get_cinder_config(self):
+        cinder_ctx = CinderStoreContext()()
+        if not cinder_ctx or cinder_ctx.get("cinder_store", False) is False:
+            return
+
+        return cinder_ctx
+
     def __call__(self):
         ctxt = {
             "enabled_backend_configs": {},
@@ -310,11 +318,54 @@ class MultiBackendContext(OSContextGenerator):
             if not ctxt["default_store_backend"]:
                 ctxt["default_store_backend"] = "s3"
 
+        cinder_ctx = self._get_cinder_config()
+        if cinder_ctx:
+            cinder_volume_types = config('cinder-volume-types')
+            volume_types_str = cinder_volume_types or 'cinder'
+            volume_types = volume_types_str.split(',')
+            default_backend = volume_types[0]
+            for volume_type in volume_types:
+                backends.append(volume_type+':cinder')
+
+            # Add backend cinder_volume_type if cinder-volume-types configured
+            # In case cinder-volume-types not configured in charm, glance-api
+            # backend cinder_volume_type should be left blank so that glance
+            # creates volume in cinder without specifying any volume type.
+            if cinder_volume_types:
+                for volume_type in volume_types:
+                    ctxt['enabled_backend_configs'][volume_type] = {
+                        'cinder_volume_type': volume_type,
+                        'cinder_http_retries': config('cinder-http-retries'),
+                        'cinder_state_transition_timeout': config(
+                            'cinder-state-transition-timeout'),
+                    }
+            else:
+                # default cinder volume type cinder
+                ctxt['enabled_backend_configs']['cinder'] = {
+                    'cinder_http_retries': config('cinder-http-retries'),
+                    'cinder_state_transition_timeout': config(
+                        'cinder-state-transition-timeout'),
+                }
+
+            # Add internal endpoints if use-internal-endpoints set to true
+            if config('use-internal-endpoints'):
+                vol_api_ctxt = VolumeAPIContext('glance-common')()
+                volume_catalog_info = vol_api_ctxt['volume_catalog_info']
+                for volume_type in volume_types:
+                    if 'volume_type' not in ctxt['enabled_backend_configs']:
+                        ctxt['enabled_backend_configs'][volume_type] = {}
+                    ctxt['enabled_backend_configs'][volume_type].update(
+                        {'cinder_catalog_info': volume_catalog_info})
+
+            if not ctxt["default_store_backend"]:
+                ctxt["default_store_backend"] = default_backend
+
         if local_fs and not ctxt["default_store_backend"]:
             ctxt["default_store_backend"] = "local"
 
         if len(backends) > 0:
             ctxt["enabled_backends"] = ", ".join(backends)
+
         return ctxt
 
 

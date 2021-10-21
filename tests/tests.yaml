@@ -30,6 +30,7 @@ tests:
     - zaza.openstack.charm_tests.glance.tests.GlanceTest
     - zaza.openstack.charm_tests.glance.tests.GlanceCephRGWBackendTest
     - zaza.openstack.charm_tests.glance.tests.GlanceExternalS3Test
+    - zaza.openstack.charm_tests.glance.tests.GlanceCinderBackendTest
     - zaza.openstack.charm_tests.policyd.tests.GlanceTests
     - zaza.openstack.charm_tests.ceph.tests.CheckPoolTypes
     - zaza.openstack.charm_tests.ceph.tests.BlueStoreCompressionCharmOperation

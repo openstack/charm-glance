@@ -28,7 +28,7 @@ pool type' and 'Ceph backed storage' for more information.
 
 ## Deployment
 
-This section includes four different deployment scenarios (with their
+This section includes five different deployment scenarios (with their
 respective backends). Each scenario requires these applications to be present:
 keystone, nova-cloud-controller, nova-compute, and a cloud database.
 
@@ -49,7 +49,7 @@ Ceph cluster via the ceph-mon charm:
     juju deploy --to lxd:1 glance
     juju add-relation glance:ceph ceph-mon:client
 
-Proceed with a group of commands common to all three scenarios:
+Proceed with a group of commands common to all four scenarios:
 
     juju add-relation glance:identity-service keystone:identity-service
     juju add-relation glance:image-service nova-cloud-controller:image-service
@@ -116,6 +116,25 @@ S3 server information can be passed via charm config options:
   Enabling S3 backend overrides `expose-image-locations` as false not to
   expose S3 credentials through Glance API.
 
+### Cinder LVM-backed storage
+
+Glance can also use Cinder LVM-backed storage as its storage backend, the
+configuration option cinder-volume-types can be used to specify the volume
+types in Cinder. The steps below assume a pre-existing Cinder LVM-backed
+deployment (see the [cinder][cinder-charm] and [cinder-lvm][cinder-lvm-charm]
+charms).
+
+Here, Glance is deployed to machine '1' and related to Cinder:
+
+    juju deploy --to 1 glance
+    juju add-relation cinder:image-service glance:image-service
+    juju add-relation cinder:cinder-volume-service glance:cinder-volume-service
+
+Proceed with the common group of commands from the Ceph scenario.
+
+> **Note**: To support Cinder LVM-backed storage, Glance unit should be deployed
+  on a baremetal machine or a virtual machine.
+
 ### Local storage
 
 Glance can simply use the storage available on the application unit's machine
@@ -133,6 +152,7 @@ Multiple storage backend support allows for one backend of each type:
 * Ceph
 * Swift (includes Ceph RADOS Gateway)
 * S3
+* Cinder
 * local
 
 With multiple backends configured, the cloud operator can specify, at image
@@ -142,7 +162,7 @@ using the `--store` option to the `glance` CLI client:
     glance image-create --store <backend-name> ...
 
 The default order of precedence is given by the following backend names:
-'ceph', 'swift', 's3', and then 'local'.
+'ceph', 'swift', 's3', 'cinder', and then 'local'.
 
 > **Important**: The backend name of 'swift' denotes both object storage
   solutions: Swift and Ceph RADOS Gateway. Only one of these solutions can
@@ -359,3 +379,5 @@ Please report bugs on [Launchpad][lp-bugs-charm-glance].
 [ceph-bluestore-compression]: https://docs.ceph.com/en/latest/rados/configuration/bluestore-config-ref/#inline-compression
 [upstream-glance]: https://docs.openstack.org/glance/latest/
 [juju-docs-actions]: https://jaas.ai/docs/actions
+[cinder-charm]: https://jaas.ai/cinder
+[cinder-lvm-charm]: https://jaas.ai/cinder-lvm
