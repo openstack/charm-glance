@@ -30,7 +30,6 @@ applications:
       openstack-origin: cloud:trusty-mitaka
     to:
       - '1'
-    channel: candidate
   glance:
     charm: ../../../glance
     num_units: 1

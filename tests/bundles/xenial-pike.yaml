@@ -20,7 +20,6 @@ applications:
     num_units: 1
     to:
       - '0'
-    channel: candidate
   keystone:
     charm: cs:~openstack-charmers/keystone
     num_units: 1
@@ -28,7 +27,6 @@ applications:
       openstack-origin: cloud:xenial-pike
     to:
       - '1'
-    channel: candidate
   glance:
     charm: ../../../glance
     num_units: 1
