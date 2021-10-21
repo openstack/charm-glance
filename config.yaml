@@ -213,6 +213,24 @@ options:
       Device class from CRUSH map to use for placement groups for
       erasure profile - valid values: ssd, hdd or nvme (or leave
       unset to not use a device class).
+  cinder-volume-types:
+    type: string
+    default:
+    description: |
+      Comma separated list of cinder volume_types that can be configured
+      as cinder storage backends. The first one in the list will be
+      configured as the default backend.
+  cinder-http-retries:
+    type: int
+    default: 3
+    description: |
+      Number of cinderclient retries on failed http calls.
+  cinder-state-transition-timeout:
+    type: int
+    default: 30
+    description: |
+      Time period of time in seconds to wait for a cinder volume transition
+      to complete.
   worker-multiplier:
     type: float
     default:

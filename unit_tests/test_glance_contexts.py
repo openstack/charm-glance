@@ -294,8 +294,15 @@ class TestGlanceContexts(CharmTestCase):
             })
 
     def test_multi_backend_with_swift(self):
+        # return relation_ids only for swift but not for cinder
+        def _relation_ids(*args, **kwargs):
+            if args[0] == 'object-store':
+                return ["object-store:0"]
+
+            return []
+
         self.maxDiff = None
-        self.relation_ids.return_value = ["object-store:0"]
+        self.relation_ids.side_effect = _relation_ids
         self.is_relation_made.return_value = False
         data_dir = '/some/data/dir'
         conf_dict = {
@@ -319,6 +326,78 @@ class TestGlanceContexts(CharmTestCase):
                 },
                 'enabled_backends': 'local:file, swift:swift',
                 'default_store_backend': 'swift',
+            })
+
+    def test_multi_backend_with_cinder(self):
+        # return relation_ids only for cinder but not for swift
+        def _relation_ids(*args, **kwargs):
+            if args[0] == 'cinder-volume-service':
+                return ["cinder-volume-service:0"]
+
+            return []
+
+        self.maxDiff = None
+        self.relation_ids.side_effect = _relation_ids
+        self.is_relation_made.return_value = False
+        data_dir = '/some/data/dir'
+        conf_dict = {
+            'filesystem-store-datadir': data_dir,
+            'cinder-http-retries': 3,
+            'cinder-state-transition-timeout': 30,
+        }
+        self.config.side_effect = lambda x: conf_dict.get(x)
+        self.assertEqual(
+            contexts.MultiBackendContext()(),
+            {
+                'enabled_backend_configs': {
+                    'local': {
+                        'filesystem_store_datadir': data_dir,
+                        'store_description': 'Local filesystem store',
+                    },
+                    'cinder': {
+                        'cinder_http_retries': 3,
+                        'cinder_state_transition_timeout': 30,
+                    }
+                },
+                'enabled_backends': 'local:file, cinder:cinder',
+                'default_store_backend': 'cinder',
+            })
+
+    def test_multi_backend_with_cinder_volume_types_defined(self):
+        # return relation_ids only for cinder but not for swift
+        def _relation_ids(*args, **kwargs):
+            if args[0] == 'cinder-volume-service':
+                return ["cinder-volume-service:0"]
+
+            return []
+
+        self.maxDiff = None
+        self.relation_ids.side_effect = _relation_ids
+        self.is_relation_made.return_value = False
+        data_dir = '/some/data/dir'
+        conf_dict = {
+            'filesystem-store-datadir': data_dir,
+            'cinder-volume-types': 'volume-type-test',
+            'cinder-http-retries': 3,
+            'cinder-state-transition-timeout': 30,
+        }
+        self.config.side_effect = lambda x: conf_dict.get(x)
+        self.assertEqual(
+            contexts.MultiBackendContext()(),
+            {
+                'enabled_backend_configs': {
+                    'local': {
+                        'filesystem_store_datadir': data_dir,
+                        'store_description': 'Local filesystem store',
+                    },
+                    'volume-type-test': {
+                        'cinder_volume_type': 'volume-type-test',
+                        'cinder_http_retries': 3,
+                        'cinder_state_transition_timeout': 30,
+                    }
+                },
+                'enabled_backends': 'local:file, volume-type-test:cinder',
+                'default_store_backend': 'volume-type-test',
             })
 
     def test_multi_backend_with_ceph_no_swift(self):
@@ -354,8 +433,15 @@ class TestGlanceContexts(CharmTestCase):
             })
 
     def test_multi_backend_with_ceph_and_swift(self):
+        # return relation_ids only for swift but not for cinder
+        def _relation_ids(*args, **kwargs):
+            if args[0] == 'object-store':
+                return ["object-store:0"]
+
+            return []
+
         self.maxDiff = None
-        self.relation_ids.return_value = ["object-store:0"]
+        self.relation_ids.side_effect = _relation_ids
         self.is_relation_made.return_value = True
         service = 'glance'
         self.service_name.return_value = service
@@ -388,6 +474,51 @@ class TestGlanceContexts(CharmTestCase):
                     }
                 },
                 'enabled_backends': 'local:file, ceph:rbd, swift:swift',
+                'default_store_backend': 'ceph',
+            })
+
+    def test_multi_backend_with_ceph_and_cinder(self):
+        # return relation_ids only for cinder but not for swift
+        def _relation_ids(*args, **kwargs):
+            if args[0] == 'cinder-volume-service':
+                return ["cinder-volume-service:0"]
+
+            return []
+
+        self.maxDiff = None
+        self.relation_ids.side_effect = _relation_ids
+        self.is_relation_made.return_value = True
+        service = 'glance'
+        self.service_name.return_value = service
+        data_dir = '/some/data/dir'
+        conf_dict = {
+            'filesystem-store-datadir': data_dir,
+            'rbd-pool-name': 'mypool',
+            'cinder-http-retries': 3,
+            'cinder-state-transition-timeout': 30,
+        }
+        self.config.side_effect = lambda x: conf_dict.get(x)
+        self.assertEqual(
+            contexts.MultiBackendContext()(),
+            {
+                'enabled_backend_configs': {
+                    'local': {
+                        'filesystem_store_datadir': data_dir,
+                        'store_description': 'Local filesystem store',
+                    },
+                    'ceph': {
+                        "rbd_store_chunk_size": 8,
+                        "rbd_store_pool": 'mypool',
+                        "rbd_store_user": service,
+                        "rados_connect_timeout": 0,
+                        "rbd_store_ceph_conf": "/etc/ceph/ceph.conf",
+                    },
+                    'cinder': {
+                        'cinder_http_retries': 3,
+                        'cinder_state_transition_timeout': 30,
+                    }
+                },
+                'enabled_backends': 'local:file, ceph:rbd, cinder:cinder',
                 'default_store_backend': 'ceph',
             })
 

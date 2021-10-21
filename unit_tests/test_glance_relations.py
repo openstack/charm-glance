@@ -72,6 +72,7 @@ TO_PATCH = [
     'service_reload',
     'service_stop',
     'service_restart',
+    'service_start',
     # charmhelpers.contrib.openstack.utils
     'configure_installation_source',
     'is_db_initialised',
