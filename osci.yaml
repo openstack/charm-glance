@@ -11,10 +11,13 @@
       - bionic-ussuri
       - ceph-focal-victoria
       - ceph-focal-wallaby
-      - ceph-focal-xena:
+      - ceph-focal-xena
+      - ceph-focal-yoga:
           voting: false
       - ceph-hirsute-wallaby
       - ceph-impish-xena:
+          voting: false
+      - ceph-jammy-yoga:
           voting: false
 
 - job:
@@ -43,6 +46,12 @@
     vars:
       tox_extra_args: ceph:focal-xena
 - job:
+    name: ceph-focal-yoga
+    parent: func-target
+    dependencies: *smoke-jobs
+    vars:
+      tox_extra_args: ceph:focal-yoga
+- job:
     name: ceph-hirsute-wallaby
     parent: func-target
     dependencies: *smoke-jobs
@@ -54,3 +63,9 @@
     dependencies: *smoke-jobs
     vars:
       tox_extra_args: ceph:impish-xena
+- job:
+    name: ceph-jammy-yoga
+    parent: func-target
+    dependencies: *smoke-jobs
+    vars:
+      tox_extra_args: ceph:jammy-yoga

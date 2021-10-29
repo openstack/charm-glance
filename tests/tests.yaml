@@ -5,26 +5,29 @@ comment:
   - 'we do testing on Ceph by default from focal-ussuri and onwards'
 
 smoke_bundles:
-  - full_run: bionic-train
+  - full_run: focal-ussuri
 gate_bundles:
-  - xenial-mitaka
   - bionic-queens
   - bionic-stein
-  - bionic-train
   - bionic-ussuri
   - ceph: focal-ussuri
   - ceph: focal-victoria
   - ceph: focal-wallaby
   - ceph: focal-xena
+  - ceph: hirsute-wallaby
   - ceph: impish-xena
 
 dev_bundles:
   - trusty-mitaka
+  - xenial-mitaka
   - xenial-ocata
   - xenial-pike
   - xenial-queens
   - bionic-rocky
-  - ceph: hirsute-wallaby
+  - bionic-train
+  - full_run: bionic-train
+  - ceph: focal-yoga
+  - ceph: jammy-yoga
 
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
@@ -62,3 +65,5 @@ tests_options:
     service: glance
   force_deploy:
     - hirsute-wallaby
+    - impish-xena
+    - jammy-yoga
