@@ -4,7 +4,6 @@
     check:
       jobs:
       - ceph-focal-ussuri
-      - xenial-mitaka
       - bionic-queens
       - bionic-stein
       - bionic-train

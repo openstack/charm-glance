@@ -18,11 +18,6 @@ gate_bundles:
   - ceph: impish-xena
 
 dev_bundles:
-  - trusty-mitaka
-  - xenial-mitaka
-  - xenial-ocata
-  - xenial-pike
-  - xenial-queens
   - bionic-rocky
   - bionic-train
   - full_run: bionic-train
