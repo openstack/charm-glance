@@ -1,6 +1,6 @@
 - project:
     templates:
-      - charm-unit-jobs
+      - charm-yoga-unit-jobs
     check:
       jobs:
       - ceph-focal-ussuri
