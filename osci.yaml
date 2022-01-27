@@ -1,70 +1,44 @@
 - project:
     templates:
-      - charm-yoga-unit-jobs
+      - charm-unit-jobs-py38
+      - charm-unit-jobs-py39
     check:
       jobs:
-      - ceph-focal-ussuri
-      - bionic-queens
-      - bionic-stein
-      - bionic-train
-      - bionic-ussuri
-      - ceph-focal-victoria
-      - ceph-focal-wallaby
       - ceph-focal-xena
       - ceph-focal-yoga:
           voting: false
-      - ceph-hirsute-wallaby
       - ceph-impish-xena:
           voting: false
       - ceph-jammy-yoga:
           voting: false
 
 - job:
-    name: ceph-focal-ussuri
-    parent: func-target
-    dependencies: &smoke-jobs
-      - bionic-ussuri
-    vars:
-      tox_extra_args: ceph:focal-ussuri
-- job:
-    name: ceph-focal-victoria
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:focal-victoria
-- job:
-    name: ceph-focal-wallaby
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:focal-wallaby
-- job:
     name: ceph-focal-xena
     parent: func-target
-    dependencies: *smoke-jobs
+    dependencies:
+      - osci-lint
+      - tox-py38
+      - tox-py39
     vars:
       tox_extra_args: ceph:focal-xena
 - job:
     name: ceph-focal-yoga
     parent: func-target
-    dependencies: *smoke-jobs
+    dependencies:
+      - ceph-focal-xena
     vars:
       tox_extra_args: ceph:focal-yoga
 - job:
-    name: ceph-hirsute-wallaby
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:hirsute-wallaby
-- job:
     name: ceph-impish-xena
     parent: func-target
-    dependencies: *smoke-jobs
+    dependencies:
+      - ceph-focal-xena
     vars:
       tox_extra_args: ceph:impish-xena
 - job:
     name: ceph-jammy-yoga
     parent: func-target
-    dependencies: *smoke-jobs
+    dependencies:
+      - ceph-focal-xena
     vars:
       tox_extra_args: ceph:jammy-yoga

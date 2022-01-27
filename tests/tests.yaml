@@ -2,35 +2,22 @@ charm_name: glance
 
 comment:
   - 'the glance configure job validates operation of identity-service relation'
-  - 'we do testing on Ceph by default from focal-ussuri and onwards'
 
 smoke_bundles:
-  - full_run: focal-ussuri
+  - focal-xena
+
 gate_bundles:
-  - bionic-queens
-  - bionic-stein
-  - bionic-ussuri
-  - ceph: focal-ussuri
-  - ceph: focal-victoria
-  - ceph: focal-wallaby
-  - ceph: focal-xena
-  - ceph: hirsute-wallaby
-  - ceph: impish-xena
+  - focal-xena
+  - impish-xena
 
 dev_bundles:
-  - bionic-rocky
-  - bionic-train
-  - full_run: bionic-train
-  - ceph: focal-yoga
-  - ceph: jammy-yoga
+  - focal-yoga
+  - jammy-yoga
 
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
+  - zaza.openstack.charm_tests.glance.setup.configure_external_s3_backend
   - zaza.openstack.charm_tests.keystone.setup.add_demo_user
-  - ceph:
-    - zaza.openstack.charm_tests.glance.setup.add_lts_image
-    - zaza.openstack.charm_tests.glance.setup.configure_external_s3_backend
-    - zaza.openstack.charm_tests.keystone.setup.add_demo_user
   - full_run:
     - zaza.openstack.charm_tests.glance.setup.add_cirros_image
     - zaza.openstack.charm_tests.glance.setup.add_cirros_alt_image
@@ -38,15 +25,12 @@ configure:
     - zaza.openstack.charm_tests.keystone.setup.add_tempest_roles
 
 tests:
-  - ceph:
-    - zaza.openstack.charm_tests.glance.tests.GlanceTest
-    - zaza.openstack.charm_tests.glance.tests.GlanceCephRGWBackendTest
-    - zaza.openstack.charm_tests.glance.tests.GlanceExternalS3Test
-    - zaza.openstack.charm_tests.policyd.tests.GlanceTests
-    - zaza.openstack.charm_tests.ceph.tests.CheckPoolTypes
-    - zaza.openstack.charm_tests.ceph.tests.BlueStoreCompressionCharmOperation
   - zaza.openstack.charm_tests.glance.tests.GlanceTest
+  - zaza.openstack.charm_tests.glance.tests.GlanceCephRGWBackendTest
+  - zaza.openstack.charm_tests.glance.tests.GlanceExternalS3Test
   - zaza.openstack.charm_tests.policyd.tests.GlanceTests
+  - zaza.openstack.charm_tests.ceph.tests.CheckPoolTypes
+  - zaza.openstack.charm_tests.ceph.tests.BlueStoreCompressionCharmOperation
   - full_run:
     - zaza.openstack.charm_tests.tempest.tests.TempestTestWithKeystoneV3
     - zaza.openstack.charm_tests.glance.tests.GlanceTest
@@ -59,6 +43,5 @@ tests_options:
   policyd:
     service: glance
   force_deploy:
-    - hirsute-wallaby
     - impish-xena
     - jammy-yoga

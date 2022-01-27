@@ -29,12 +29,14 @@ machines:
 applications:
 
   keystone-mysql-router:
-    charm: cs:~openstack-charmers-next/mysql-router
+    charm: ch:mysql-router
+    channel: latest/edge
   glance-mysql-router:
-    charm: cs:~openstack-charmers-next/mysql-router
+    charm: ch:mysql-router
+    channel: latest/edge
 
   mysql-innodb-cluster:
-    charm: cs:~openstack-charmers-next/mysql-innodb-cluster
+    charm: ch:mysql-innodb-cluster
     num_units: 3
     options:
       source: *openstack-origin
@@ -42,9 +44,10 @@ applications:
       - '0'
       - '1'
       - '2'
+    channel: latest/edge
 
   ceph-osd:
-    charm: cs:~openstack-charmers-next/ceph-osd
+    charm: ch:ceph-osd
     num_units: 6
     storage:
       osd-devices: '10G'
@@ -57,17 +60,19 @@ applications:
       - '6'
       - '7'
       - '8'
+    channel: latest/edge
 
   ceph-radosgw:
-    charm: cs:~openstack-charmers-next/ceph-radosgw
+    charm: ch:ceph-radosgw
     num_units: 1
     options:
       source: *openstack-origin
     to:
       - '15'
+    channel: latest/edge
 
   ceph-mon:
-    charm: cs:~openstack-charmers-next/ceph-mon
+    charm: ch:ceph-mon
     num_units: 3
     options:
       source: *openstack-origin
@@ -76,27 +81,30 @@ applications:
       - '9'
       - '10'
       - '11'
+    channel: latest/edge
 
   rabbitmq-server:
-    charm: cs:~openstack-charmers-next/rabbitmq-server
+    charm: ch:rabbitmq-server
     num_units: 1
     options:
       source: *openstack-origin
     to:
       - '12'
+    channel: latest/edge
 
   keystone:
     expose: True
-    charm: cs:~openstack-charmers-next/keystone
+    charm: ch:keystone
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     to:
       - '13'
+    channel: latest/edge
 
   glance:
     expose: True
-    charm: cs:~openstack-charmers-next/glance
+    charm: ../../../glance
     num_units: 1
     options:
       openstack-origin: *openstack-origin
