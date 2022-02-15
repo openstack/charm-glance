@@ -108,7 +108,7 @@ applications:
 
   glance:
     expose: True
-    charm: ../../../glance
+    charm: ../../glance.charm
     num_units: 1
     options:
       openstack-origin: *openstack-origin

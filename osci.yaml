@@ -11,11 +11,16 @@
           voting: false
       - ceph-jammy-yoga:
           voting: false
+    vars:
+      needs_charm_build: true
+      charm_build_name: glance
+      build_type: charmcraft
 
 - job:
     name: ceph-focal-xena
     parent: func-target
     dependencies:
+      - charm-build
       - osci-lint
       - tox-py38
       - tox-py39

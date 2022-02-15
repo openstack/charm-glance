@@ -4,6 +4,7 @@ tags
 .tox
 .testrepository
 *.sw[nop]
+*.charm
 *.pyc
 .unit-state.db
 tests/*.img
