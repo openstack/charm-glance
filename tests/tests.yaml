@@ -2,29 +2,16 @@ charm_name: glance
 
 comment:
   - 'the glance configure job validates operation of identity-service relation'
-  - 'we do testing on Ceph by default from focal-ussuri and onwards'
 
 smoke_bundles:
-  - full_run: bionic-train
+  - ceph: focal-xena
+
 gate_bundles:
-  - xenial-mitaka
-  - bionic-queens
-  - bionic-stein
-  - bionic-train
-  - bionic-ussuri
-  - ceph: focal-ussuri
-  - ceph: focal-victoria
   - ceph: focal-wallaby
   - ceph: focal-xena
   - ceph: impish-xena
 
-dev_bundles:
-  - trusty-mitaka
-  - xenial-ocata
-  - xenial-pike
-  - xenial-queens
-  - bionic-rocky
-  - ceph: hirsute-wallaby
+dev_bundles: {}
 
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
@@ -60,5 +47,3 @@ tests_options:
       smoke: True
   policyd:
     service: glance
-  force_deploy:
-    - hirsute-wallaby
