@@ -4,10 +4,7 @@
     check:
       jobs:
       - ceph-focal-wallaby
-      - ceph-focal-xena:
-          voting: false
-      - ceph-impish-xena:
-          voting: false
+      - ceph-focal-xena
     vars:
       needs_charm_build: true
       charm_build_name: glance
@@ -31,12 +28,3 @@
       - tox-py38
     vars:
       tox_extra_args: ceph:focal-xena
-- job:
-    name: ceph-impish-xena
-    parent: func-target
-    dependencies:
-      - charm-build
-      - osci-lint
-      - tox-py38
-    vars:
-      tox_extra_args: ceph:impish-xena

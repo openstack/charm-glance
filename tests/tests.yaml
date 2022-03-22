@@ -9,9 +9,8 @@ smoke_bundles:
 gate_bundles:
   - ceph: focal-wallaby
   - ceph: focal-xena
-  - ceph: impish-xena
 
-dev_bundles: {}
+dev_bundles: []
 
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image

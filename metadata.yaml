@@ -12,7 +12,6 @@ tags:
 - misc
 series:
 - focal
-- impish
 extra-bindings:
   public:
   admin:
