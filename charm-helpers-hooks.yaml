@@ -6,6 +6,7 @@ include:
     - cli
     - fetch
     - contrib.openstack|inc=*
+    - contrib.hardware.pci
     - contrib.hahelpers
     - contrib.storage.linux
     - payload

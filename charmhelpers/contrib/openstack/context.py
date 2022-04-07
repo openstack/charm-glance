@@ -118,12 +118,7 @@ from charmhelpers.contrib.openstack.utils import (
 )
 from charmhelpers.core.unitdata import kv
 
-try:
-    from sriov_netplan_shim import pci
-except ImportError:
-    # The use of the function and contexts that require the pci module is
-    # optional.
-    pass
+from charmhelpers.contrib.hardware import pci
 
 try:
     import psutil
@@ -3129,7 +3124,7 @@ class SRIOVContext(OSContextGenerator):
         """Determine number of Virtual Functions (VFs) configured for device.
 
         :param device: Object describing a PCI Network interface card (NIC)/
-        :type device: sriov_netplan_shim.pci.PCINetDevice
+        :type device: contrib.hardware.pci.PCINetDevice
         :param sriov_numvfs: Number of VFs requested for blanket configuration.
         :type sriov_numvfs: int
         :returns: Number of VFs to configure for device

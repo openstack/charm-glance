@@ -789,6 +789,9 @@ def enabled_manager_modules():
     :rtype: List[str]
     """
     cmd = ['ceph', 'mgr', 'module', 'ls']
+    quincy_or_later = cmp_pkgrevno('ceph-common', '17.1.0') >= 0
+    if quincy_or_later:
+        cmd.append('--format=json')
     try:
         modules = check_output(cmd).decode('utf-8')
     except CalledProcessError as e:
