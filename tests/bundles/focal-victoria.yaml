@@ -1,3 +1,5 @@
+local_overlay_enabled: False
+
 variables:
   openstack-origin: &openstack-origin cloud:focal-victoria
 
@@ -29,12 +31,14 @@ machines:
 applications:
 
   keystone-mysql-router:
-    charm: cs:~openstack-charmers/mysql-router
+    charm: ch:mysql-router
+    channel: 8.0/edge
   glance-mysql-router:
-    charm: cs:~openstack-charmers/mysql-router
+    charm: ch:mysql-router
+    channel: 8.0/edge
 
   mysql-innodb-cluster:
-    charm: cs:~openstack-charmers/mysql-innodb-cluster
+    charm: ch:mysql-innodb-cluster
     num_units: 3
     options:
       source: *openstack-origin
@@ -42,9 +46,10 @@ applications:
       - '0'
       - '1'
       - '2'
+    channel: 8.0/edge
 
   ceph-osd:
-    charm: cs:~openstack-charmers/ceph-osd
+    charm: ch:ceph-osd
     num_units: 6
     storage:
       osd-devices: '10G'
@@ -57,17 +62,19 @@ applications:
       - '6'
       - '7'
       - '8'
+    channel: pacific/edge
 
   ceph-radosgw:
-    charm: cs:~openstack-charmers/ceph-radosgw
+    charm: ch:ceph-radosgw
     num_units: 1
     options:
       source: *openstack-origin
     to:
       - '15'
+    channel: pacific/edge
 
   ceph-mon:
-    charm: cs:~openstack-charmers/ceph-mon
+    charm: ch:ceph-mon
     num_units: 3
     options:
       source: *openstack-origin
@@ -76,27 +83,30 @@ applications:
       - '9'
       - '10'
       - '11'
+    channel: pacific/edge
 
   rabbitmq-server:
-    charm: cs:~openstack-charmers/rabbitmq-server
+    charm: ch:rabbitmq-server
     num_units: 1
     options:
       source: *openstack-origin
     to:
       - '12'
+    channel: 3.8/edge
 
   keystone:
     expose: True
-    charm: cs:~openstack-charmers/keystone
+    charm: ch:keystone
     num_units: 1
     options:
       openstack-origin: *openstack-origin
     to:
       - '13'
+    channel: wallaby/edge
 
   glance:
     expose: True
-    charm: cs:~openstack-charmers/glance
+    charm: ../../glance.charm
     num_units: 1
     options:
       openstack-origin: *openstack-origin
