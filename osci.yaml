@@ -1,50 +1,9 @@
 - project:
     templates:
-      - charm-unit-jobs-py38
       - charm-unit-jobs-py310
-    check:
-      jobs:
-      - ceph-focal-xena
-      - ceph-focal-yoga:
-          voting: false
-      - ceph-impish-xena:
-          voting: false
-      - ceph-jammy-yoga:
-          voting: false
+      - charm-zed-functional-jobs
     vars:
       needs_charm_build: true
       charm_build_name: glance
       build_type: charmcraft
-
-- job:
-    name: ceph-focal-xena
-    parent: func-target
-    dependencies:
-      - charm-build
-      - osci-lint
-      - tox-py38
-      - name: tox-py310
-        soft: true
-    vars:
-      tox_extra_args: ceph:focal-xena
-- job:
-    name: ceph-focal-yoga
-    parent: func-target
-    dependencies:
-      - ceph-focal-xena
-    vars:
-      tox_extra_args: ceph:focal-yoga
-- job:
-    name: ceph-impish-xena
-    parent: func-target
-    dependencies:
-      - ceph-focal-xena
-    vars:
-      tox_extra_args: ceph:impish-xena
-- job:
-    name: ceph-jammy-yoga
-    parent: func-target
-    dependencies:
-      - ceph-focal-xena
-    vars:
-      tox_extra_args: ceph:jammy-yoga
+      charmcraft_channel: 2.0/stable

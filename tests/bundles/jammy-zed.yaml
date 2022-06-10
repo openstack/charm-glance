@@ -1,7 +1,7 @@
 variables:
-  openstack-origin: &openstack-origin cloud:focal-xena
+  openstack-origin: &openstack-origin cloud:jammy-zed
 
-series: focal
+series: jammy
 
 comment:
 - 'machines section to decide order of deployment. database sooner = faster'
@@ -134,7 +134,7 @@ applications:
     channel: latest/edge
 
   cinder-lvm:
-    charm: ch:/cinder-lvm
+    charm: ch:cinder-lvm
     options:
       block-device: '/tmp/vol1|4G'
       alias: zaza-lvm

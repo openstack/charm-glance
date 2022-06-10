@@ -277,7 +277,7 @@ def service_resume(service_name, init_dir="/etc/init",
     return started
 
 
-def service(action, service_name, **kwargs):
+def service(action, service_name=None, **kwargs):
     """Control a system service.
 
     :param action: the action to take on the service
@@ -286,7 +286,9 @@ def service(action, service_name, **kwargs):
                     the form of key=value.
     """
     if init_is_systemd(service_name=service_name):
-        cmd = ['systemctl', action, service_name]
+        cmd = ['systemctl', action]
+        if service_name is not None:
+            cmd.append(service_name)
     else:
         cmd = ['service', service_name, action]
         for key, value in kwargs.items():

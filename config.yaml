@@ -14,7 +14,7 @@ options:
       Setting this to True will allow supporting services to log to syslog.
   openstack-origin:
     type: string
-    default: yoga
+    default: zed
     description: |
       Repository from which to install. May be one of the following:
       distro (default), ppa:somecustom/ppa, a deb url sources entry,
