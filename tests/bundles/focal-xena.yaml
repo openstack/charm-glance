@@ -33,13 +33,13 @@ applications:
 
   keystone-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
   glance-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
   cinder-mysql-router:
     charm: ch:mysql-router
-    channel: 8.0.19/edge
+    channel: 8.0/edge
 
   mysql-innodb-cluster:
     charm: ch:mysql-innodb-cluster
@@ -50,7 +50,7 @@ applications:
       - '0'
       - '1'
       - '2'
-    channel: 8.0.19/edge
+    channel: 8.0/edge
 
   ceph-osd:
     charm: ch:ceph-osd
