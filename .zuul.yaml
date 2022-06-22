@@ -1,5 +1,5 @@
 - project:
     templates:
-      - python35-charm-jobs
-      - openstack-python3-ussuri-jobs
+      # note that this requires tox-py36 and tox-py37 targets
+      - openstack-python3-train-jobs
       - openstack-cover-jobs

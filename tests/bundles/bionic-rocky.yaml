@@ -1,3 +1,5 @@
+local_overlay_enabled: False
+
 series: bionic
 
 comment:
@@ -16,19 +18,21 @@ relations:
 
 applications:
   mysql:
-    charm: cs:~openstack-charmers/percona-cluster
+    charm: ch:percona-cluster
     num_units: 1
     to:
     - '0'
+    channel: 5.7/edge
   keystone:
-    charm: cs:~openstack-charmers/keystone
+    charm: ch:keystone
     num_units: 1
     options:
       openstack-origin: cloud:bionic-rocky
     to:
     - '1'
+    channel: train/edge
   glance:
-    charm: ../../../glance
+    charm: ../../glance.charm
     num_units: 1
     options:
       openstack-origin: cloud:bionic-rocky

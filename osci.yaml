@@ -1,56 +1,11 @@
 - project:
     templates:
-      - charm-unit-jobs
-    check:
-      jobs:
-      - ceph-focal-ussuri
-      - xenial-mitaka
-      - bionic-queens
-      - bionic-stein
-      - bionic-train
-      - bionic-ussuri
-      - ceph-focal-victoria
-      - ceph-focal-wallaby
-      - ceph-focal-xena:
-          voting: false
-      - ceph-hirsute-wallaby
-      - ceph-impish-xena:
-          voting: false
-
-- job:
-    name: ceph-focal-ussuri
-    parent: func-target
-    dependencies: &smoke-jobs
-      - bionic-ussuri
+      - charm-unit-jobs-py36
+      - charm-queens-functional-jobs
+      - charm-rocky-functional-jobs
+      - charm-stein-functional-jobs
+      - charm-train-functional-jobs
     vars:
-      tox_extra_args: ceph:focal-ussuri
-- job:
-    name: ceph-focal-victoria
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:focal-victoria
-- job:
-    name: ceph-focal-wallaby
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:focal-wallaby
-- job:
-    name: ceph-focal-xena
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:focal-xena
-- job:
-    name: ceph-hirsute-wallaby
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:hirsute-wallaby
-- job:
-    name: ceph-impish-xena
-    parent: func-target
-    dependencies: *smoke-jobs
-    vars:
-      tox_extra_args: ceph:impish-xena
+      needs_charm_build: true
+      charm_build_name: glance
+      build_type: charmcraft

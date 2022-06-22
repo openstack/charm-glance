@@ -11,12 +11,7 @@ tags:
 - storage
 - misc
 series:
-- xenial
 - bionic
-- focal
-- groovy
-- hirsute
-- impish
 extra-bindings:
   public:
   admin:
