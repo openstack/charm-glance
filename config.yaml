@@ -554,7 +554,7 @@ options:
     description: |
       Enable conversion of all images to raw format during image import,
       only supported on stein or newer. This only works on imported images
-      (for example using 'glance image-create-via-import') Does not work
+      (for example using 'openstack image create --import') Does not work
       on regular image uploads (like 'openstack image create')
   s3-store-host:
     type: string
