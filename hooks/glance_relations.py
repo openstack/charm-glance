@@ -180,6 +180,10 @@ def install_hook():
 
     status_set('maintenance', 'Installing apt packages')
     apt_update(fatal=True)
+    # (ajkavanagh) LP: #1989538
+    # Tactical fix to force openstack-release to match the configured
+    # installation source; note that it comes after apt_update().
+    apt_install(['openstack-release'], fatal=False, quiet=True)
     apt_install(determine_packages(), fatal=True)
 
     for service in SERVICES:
