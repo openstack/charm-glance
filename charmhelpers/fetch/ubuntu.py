@@ -230,6 +230,10 @@ CLOUD_ARCHIVE_POCKETS = {
     'zed/proposed': 'jammy-proposed/zed',
     'jammy-zed/proposed': 'jammy-proposed/zed',
     'jammy-proposed/zed': 'jammy-proposed/zed',
+
+    # OVN
+    'focal-ovn-22.03': 'focal-updates/ovn-22.03',
+    'focal-ovn-22.03/proposed': 'focal-proposed/ovn-22.03',
 }
 
 
@@ -363,6 +367,9 @@ def apt_install(packages, options=None, fatal=False, quiet=False):
     :type quiet: bool
     :raises: subprocess.CalledProcessError
     """
+    if not packages:
+        log("Nothing to install", level=DEBUG)
+        return
     if options is None:
         options = ['--option=Dpkg::Options::=--force-confold']
 
@@ -687,6 +694,7 @@ def add_source(source, key=None, fail_invalid=False):
         (r"^cloud-archive:(.*)$", _add_apt_repository),
         (r"^((?:deb |http:|https:|ppa:).*)$", _add_apt_repository),
         (r"^cloud:(.*)-(.*)\/staging$", _add_cloud_staging),
+        (r"^cloud:(.*)-(ovn-.*)$", _add_cloud_distro_check),
         (r"^cloud:(.*)-(.*)$", _add_cloud_distro_check),
         (r"^cloud:(.*)$", _add_cloud_pocket),
         (r"^snap:.*-(.*)-(.*)$", _add_cloud_distro_check),
@@ -750,6 +758,11 @@ def _add_apt_repository(spec):
                       )
 
 
+def __write_sources_list_d_actual_pocket(file, actual_pocket):
+    with open('/etc/apt/sources.list.d/{}'.format(file), 'w') as apt:
+        apt.write(CLOUD_ARCHIVE.format(actual_pocket))
+
+
 def _add_cloud_pocket(pocket):
     """Add a cloud pocket as /etc/apt/sources.d/cloud-archive.list
 
@@ -769,8 +782,9 @@ def _add_cloud_pocket(pocket):
             'Unsupported cloud: source option %s' %
             pocket)
     actual_pocket = CLOUD_ARCHIVE_POCKETS[pocket]
-    with open('/etc/apt/sources.list.d/cloud-archive.list', 'w') as apt:
-        apt.write(CLOUD_ARCHIVE.format(actual_pocket))
+    __write_sources_list_d_actual_pocket(
+        'cloud-archive{}.list'.format('' if 'ovn' not in pocket else '-ovn'),
+        actual_pocket)
 
 
 def _add_cloud_staging(cloud_archive_release, openstack_release):
