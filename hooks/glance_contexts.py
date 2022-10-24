@@ -38,6 +38,7 @@ from charmhelpers.contrib.openstack.context import (
 from charmhelpers.contrib.hahelpers.cluster import (
     determine_apache_port,
     determine_api_port,
+    https,
 )
 
 from charmhelpers.contrib.openstack.utils import (
@@ -402,14 +403,24 @@ class HAProxyContext(OSContextGenerator):
         specific to this charm.
         Also used to extend glance-api.conf context with correct bind_port
         '''
+        service = 'glance_api'
         haproxy_port = 9292
         apache_port = determine_apache_port(9292, singlenode_mode=True)
         api_port = determine_api_port(9292, singlenode_mode=True)
 
+        backend_options = {
+            service: [{
+                'option': 'httpchk GET /healthcheck',
+                'http-check': 'expect status 200',
+            }]
+        }
+
         ctxt = {
-            'service_ports': {'glance_api': [haproxy_port, apache_port]},
+            'service_ports': {service: [haproxy_port, apache_port]},
             'bind_port': api_port,
         }
+        ctxt['backend_options'] = backend_options
+        ctxt['https'] = https()
         return ctxt
 
 

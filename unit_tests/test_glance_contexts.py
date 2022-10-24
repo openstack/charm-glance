@@ -24,8 +24,6 @@ TO_PATCH = [
     'relation_ids',
     'is_relation_made',
     'service_name',
-    'determine_apache_port',
-    'determine_api_port',
     'os_release',
     'juju_log',
 ]
@@ -604,3 +602,28 @@ class TestGlanceContexts(CharmTestCase):
         ctxt = contexts.GlanceIPv6Context()
         self.assertEqual(ctxt(), {'bind_host': '0.0.0.0',
                                   'registry_host': '0.0.0.0'})
+
+    @patch('charmhelpers.contrib.hahelpers.cluster.https')
+    @patch('glance_contexts.https')
+    def test_ctxt(self, mock_https, mock_ch_https):
+        bind_port = 9282
+        for https_mode in [False, True]:
+            mock_https.return_value = https_mode
+            mock_ch_https.return_value = https_mode
+            if https_mode:
+                bind_port = 9272
+            haproxy_context = contexts.HAProxyContext()
+            expected = {
+                "service_ports": {"glance_api": [9292, 9282]},
+                "bind_port": bind_port,
+                "backend_options": {
+                    "glance_api": [
+                        {
+                            'option': 'httpchk GET /healthcheck',
+                            'http-check': 'expect status 200',
+                        }
+                    ]
+                },
+                "https": https_mode,
+            }
+            self.assertEqual(expected, haproxy_context())
