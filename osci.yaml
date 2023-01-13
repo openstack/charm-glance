@@ -6,4 +6,4 @@
       needs_charm_build: true
       charm_build_name: glance
       build_type: charmcraft
-      charmcraft_channel: 2.0/stable
+      charmcraft_channel: 2.1/stable
