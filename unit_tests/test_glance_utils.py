@@ -142,6 +142,12 @@ class TestGlanceUtils(CharmTestCase):
             )
         configs.register.assert_has_calls(calls, any_order=True)
 
+    def test_register_configs_stein(self):
+        self.os_release.return_value = 'stein'
+        self.relation_ids.return_value = False
+        configs = utils.register_configs()
+        self.assertNotIn(utils.GLANCE_REGISTRY_CONF, configs.templates)
+
     def test_restart_map_rocky(self):
         self.enable_memcache.return_value = True
         self.config.side_effect = None
@@ -260,6 +266,16 @@ class TestGlanceUtils(CharmTestCase):
         self.apt_autoremove.assert_called_with(purge=True, fatal=True)
         configs.set_release.assert_called_with(openstack_release='rocky')
         self.assertTrue(migrate.called)
+
+    @patch('os.rename')
+    @patch('os.path.exists')
+    @patch.object(utils, 'migrate_database')
+    def test_openstack_backup_stein(self, migrate, exists, rename):
+        exists.return_value = True
+        self.os_release.return_value = 'stein'
+        utils.backup_deprecated_configurations()
+        rename.assert_called_with(utils.GLANCE_REGISTRY_CONF,
+                                  utils.GLANCE_REGISTRY_CONF + '.old')
 
     @patch.object(utils, 'migrate_database')
     def test_openstack_upgrade_not_leader(self, migrate):

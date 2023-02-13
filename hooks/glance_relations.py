@@ -35,6 +35,7 @@ from subprocess import (
 )
 
 from glance_utils import (
+    backup_deprecated_configurations,
     do_openstack_upgrade,
     migrate_database,
     register_configs,
@@ -488,6 +489,7 @@ def upgrade_charm():
     resolve_CONFIGS()
     apt_install(filter_installed_packages(determine_packages()), fatal=True)
     packages_removed = remove_old_packages()
+    backup_deprecated_configurations()
     reinstall_paste_ini(force_reinstall=packages_removed)
     configure_https()
     update_nrpe_config()

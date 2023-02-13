@@ -98,6 +98,7 @@ TO_PATCH = [
     'determine_packages',
     'remove_old_packages',
     'services',
+    'backup_deprecated_configurations',
     # other
     'call',
     'check_call',
@@ -571,6 +572,7 @@ class GlanceRelationTests(CharmTestCase):
         self.assertTrue(self.reinstall_paste_ini.called)
         self.assertTrue(mock_update_image_location_policy.called)
         self.assertTrue(self.remove_old_packages.called)
+        self.assertTrue(self.backup_deprecated_configurations.called)
 
     @patch.object(relations, 'update_image_location_policy')
     @patch.object(relations, 'CONFIGS')

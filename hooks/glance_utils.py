@@ -651,6 +651,22 @@ def reinstall_paste_ini(force_reinstall=False):
         db.flush()
 
 
+def backup_deprecated_configurations():
+    """Backup deprecated configurations
+
+    Do not keep deprecated configurations files as they
+    can create configuration issues.
+
+    See LP#1979090"""
+    release = os_release('glance-common')
+    cmp_release = CompareOpenStackReleases(release)
+
+    # Glance registry removed in S release
+    if cmp_release >= "stein":
+        if os.path.exists(GLANCE_REGISTRY_CONF):
+            os.rename(GLANCE_REGISTRY_CONF, GLANCE_REGISTRY_CONF + ".old")
+
+
 def is_api_ready(configs):
     return (not incomplete_relation_data(configs, REQUIRED_INTERFACES))
 
