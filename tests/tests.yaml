@@ -4,15 +4,15 @@ comment:
   - 'the glance configure job validates operation of identity-service relation'
 
 smoke_bundles:
-  - jammy-yoga
+  - jammy-zed
 
 gate_bundles:
-  - jammy-yoga
+  - jammy-zed
 
 dev_bundles:
-  - jammy-yoga
-  - jammy-zed
+  - jammy-antelope
   - kinetic-zed
+  - lunar-antelope
 
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
@@ -45,3 +45,4 @@ tests_options:
     service: glance
   force_deploy:
     - kinetic-zed
+    - lunar-antelope
