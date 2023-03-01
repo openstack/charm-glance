@@ -1,7 +1,13 @@
-{% if image_conversion -%}
+{% if image_import_plugins|length > 0 -%}
 [image_import_opts]
-image_import_plugins = ['image_conversion']
-
+image_import_plugins = {{ image_import_plugins }}
+{% if 'image_conversion' in image_import_plugins %}
 [image_conversion]
 output_format = raw
+{% endif %}
+{% if 'inject_image_metadata' in image_import_plugins -%}
+[inject_metadata_properties]
+ignore_user_roles = ""
+inject = {{ custom_import_properties }}
 {% endif -%}
+{% endif %}
