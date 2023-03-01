@@ -106,9 +106,43 @@ class GlanceImageImportContext(OSContextGenerator):
 
     def __call__(self):
         ctxt = {}
+        ctxt['image_import_plugins'] = []
         if config('image-conversion'):
-            ctxt['image_conversion'] = config('image-conversion')
+            ctxt['image_import_plugins'].append('image_conversion')
+
+        if config('custom-import-properties'):
+            try:
+                self.validate_custom_import_properties()
+                ctxt['image_import_plugins'].append('inject_image_metadata')
+                ctxt['custom_import_properties'] = (
+                    config('custom-import-properties')
+                )
+            except (ValueError):
+                juju_log('Unable to validate custom-import-properties ({}), '
+                         'see config.yaml for information about valid '
+                         'formatting'
+                         .format(config('custom-import-properties')),
+                         level=ERROR)
+                raise
         return ctxt
+
+    def validate_custom_import_properties(self):
+        """Check the format of 'custom-import-properties' config parameter,
+        it should be a string of comma delimited key:value pairs
+        """
+        props = config('custom-import-properties')
+        if not isinstance(props, str):
+            raise ValueError('not a string')
+        # Empty string is valid
+        if props == '':
+            return
+        # Check key value pairs
+        props_list = props.split(',')
+        for prop in props_list:
+            if ":" not in prop:
+                raise ValueError('value not found for property: {}'
+                                 .format(prop))
+        return
 
 
 class CephGlanceContext(OSContextGenerator):

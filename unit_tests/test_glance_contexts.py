@@ -77,6 +77,34 @@ class TestGlanceContexts(CharmTestCase):
                              "/var/lib/glance/images/",
                           'image_size_cap': 1099511627776})
 
+    def test_glance_image_import_context(self):
+        config = {
+            'image-conversion': True,
+            'custom-import-properties': 'p1:v1,prop2:rng1:rng2'}
+        self.config.side_effect = lambda x: config[x]
+        self.assertEqual(contexts.GlanceImageImportContext()(),
+                         {'image_import_plugins': [
+                             'image_conversion',
+                             'inject_image_metadata'],
+                          'custom_import_properties':
+                          'p1:v1,prop2:rng1:rng2'})
+        config = {
+            'image-conversion': False,
+            'custom-import-properties': ''}
+        self.config.side_effect = lambda x: config[x]
+        self.assertEqual(contexts.GlanceImageImportContext()(),
+                         {'image_import_plugins': []})
+
+        config = {
+            'image-conversion': False,
+            'custom-import-properties': 'prop-noval'}
+        self.assertRaises(ValueError)
+
+        config = {
+            'image-conversion': False,
+            'custom-import-properties': 10}
+        self.assertRaises(ValueError)
+
     def test_swift_not_related(self):
         self.relation_ids.return_value = []
         self.assertEqual(contexts.ObjectStoreContext()(), {})
