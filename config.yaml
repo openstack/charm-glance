@@ -552,8 +552,20 @@ options:
     type: boolean
     default: False
     description: |
-      Enable conversion of all images to raw format during image upload,
-      only supported on stein or newer.
+      Enable conversion of all images to raw format during image import,
+      only supported on stein or newer. This only works on imported images
+      (for example using 'openstack image create --import') Does not work
+      on regular image uploads (like 'openstack image create')
+  custom-import-properties:
+    type: string
+    default:
+    description: |
+      Set custom image properties when images are imported using the
+      interoperable image import process. Properties and their value are
+      delimited by commas, and values with colons and spaces are possible.
+      The properties specified here will be added to the glance-api
+      configuration file without being validated.
+      Example: 'prop1:val1,prop2:val-2,prop3:val:with:colons'
   s3-store-host:
     type: string
     default:
