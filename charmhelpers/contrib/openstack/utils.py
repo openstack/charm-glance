@@ -957,7 +957,7 @@ def os_requires_version(ostack_release, pkg):
     def wrap(f):
         @wraps(f)
         def wrapped_f(*args):
-            if os_release(pkg) < ostack_release:
+            if CompareOpenStackReleases(os_release(pkg)) < ostack_release:
                 raise Exception("This hook is not supported on releases"
                                 " before %s" % ostack_release)
             f(*args)
