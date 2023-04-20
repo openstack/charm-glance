@@ -31,13 +31,13 @@ applications:
 
   keystone-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0/edge
   glance-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0/edge
   cinder-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0/edge
 
   mysql-innodb-cluster:
     charm: ch:mysql-innodb-cluster
@@ -46,7 +46,7 @@ applications:
       - '0'
       - '1'
       - '2'
-    channel: latest/edge
+    channel: 8.0/edge
 
   ceph-osd:
     charm: ch:ceph-osd
@@ -62,7 +62,7 @@ applications:
       - '6'
       - '7'
       - '8'
-    channel: latest/edge
+    channel: quincy/edge
 
   ceph-radosgw:
     charm: ch:ceph-radosgw
@@ -71,7 +71,7 @@ applications:
       source: *openstack-origin
     to:
       - '15'
-    channel: latest/edge
+    channel: quincy/edge
 
   ceph-mon:
     charm: ch:ceph-mon
@@ -83,14 +83,14 @@ applications:
       - '9'
       - '10'
       - '11'
-    channel: latest/edge
+    channel: quincy/edge
 
   rabbitmq-server:
     charm: ch:rabbitmq-server
     num_units: 1
     to:
       - '12'
-    channel: latest/edge
+    channel: 3.9/edge
 
   keystone:
     expose: True
@@ -100,7 +100,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '13'
-    channel: latest/edge
+    channel: 2023.1/edge
 
   glance:
     expose: True
@@ -127,7 +127,7 @@ applications:
       block-device: None
     to:
       - '16'
-    channel: latest/edge
+    channel: 2023.1/edge
 
   cinder-lvm:
     charm: ch:cinder-lvm
@@ -138,7 +138,7 @@ applications:
       ephemeral-unmount: /mnt
       allocation-type: auto
       config-flags: target_helper=lioadm
-    channel: latest/edge
+    channel: 2023.1/edge
 
 relations:
   - - 'keystone:shared-db'
