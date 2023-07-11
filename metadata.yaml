@@ -6,6 +6,7 @@ description: |
   and an image delivery service. These services are used in conjunction
   by Nova to deliver images from object stores, such as OpenStack's Swift
   service, to Nova's compute nodes.
+docs: https://discourse.charmhub.io/t/glance-docs-index/10553
 tags:
 - openstack
 - storage
