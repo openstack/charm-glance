@@ -1,7 +1,7 @@
 variables:
-  openstack-origin: &openstack-origin cloud:jammy-zed
+  openstack-origin: &openstack-origin distro
 
-series: jammy
+series: mantic
 
 comment:
 - 'machines section to decide order of deployment. database sooner = faster'

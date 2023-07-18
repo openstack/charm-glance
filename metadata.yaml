@@ -13,8 +13,8 @@ tags:
 - misc
 series:
 - jammy
-- kinetic
 - lunar
+- mantic
 extra-bindings:
   public:
   admin:

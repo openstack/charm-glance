@@ -4,14 +4,15 @@ comment:
   - 'the glance configure job validates operation of identity-service relation'
 
 smoke_bundles:
-  - jammy-zed
+  - jammy-antelope
 
 gate_bundles:
-  - jammy-zed
+  - jammy-antelope
 
 dev_bundles:
-  - jammy-antelope
+  - jammy-bobcat
   - lunar-antelope
+  - mantic-bobcat
 
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
@@ -44,3 +45,4 @@ tests_options:
     service: glance
   force_deploy:
     - lunar-antelope
+    - mantic-bobcat
