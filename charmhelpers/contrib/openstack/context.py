@@ -450,6 +450,7 @@ class IdentityServiceContext(OSContextGenerator):
                 int_host = format_ipv6_addr(int_host) or int_host
                 svc_protocol = rdata.get('service_protocol') or 'http'
                 auth_protocol = rdata.get('auth_protocol') or 'http'
+                admin_role = rdata.get('admin_role') or 'Admin'
                 int_protocol = rdata.get('internal_protocol') or 'http'
                 api_version = rdata.get('api_version') or '2.0'
                 ctxt.update({'service_port': rdata.get('service_port'),
@@ -461,6 +462,7 @@ class IdentityServiceContext(OSContextGenerator):
                              'admin_tenant_name': rdata.get('service_tenant'),
                              'admin_user': rdata.get('service_username'),
                              'admin_password': rdata.get('service_password'),
+                             'admin_role': admin_role,
                              'service_protocol': svc_protocol,
                              'auth_protocol': auth_protocol,
                              'internal_protocol': int_protocol,
@@ -2560,14 +2562,18 @@ class OVSDPDKDeviceContext(OSContextGenerator):
         :rtype: List[int]
         """
         cores = []
-        ranges = cpulist.split(',')
-        for cpu_range in ranges:
-            if "-" in cpu_range:
-                cpu_min_max = cpu_range.split('-')
-                cores += range(int(cpu_min_max[0]),
-                               int(cpu_min_max[1]) + 1)
-            else:
-                cores.append(int(cpu_range))
+        if cpulist and re.match(r"^[0-9,\-^]*$", cpulist):
+            ranges = cpulist.split(',')
+            for cpu_range in ranges:
+                if "-" in cpu_range:
+                    cpu_min_max = cpu_range.split('-')
+                    cores += range(int(cpu_min_max[0]),
+                                   int(cpu_min_max[1]) + 1)
+                elif "^" in cpu_range:
+                    cpu_rm = cpu_range.split('^')
+                    cores.remove(int(cpu_rm[1]))
+                else:
+                    cores.append(int(cpu_range))
         return cores
 
     def _numa_node_cores(self):
@@ -2586,36 +2592,32 @@ class OVSDPDKDeviceContext(OSContextGenerator):
 
     def cpu_mask(self):
         """Get hex formatted CPU mask
-
         The mask is based on using the first config:dpdk-socket-cores
         cores of each NUMA node in the unit.
         :returns: hex formatted CPU mask
         :rtype: str
         """
-        return self.cpu_masks()['dpdk_lcore_mask']
-
-    def cpu_masks(self):
-        """Get hex formatted CPU masks
-
-        The mask is based on using the first config:dpdk-socket-cores
-        cores of each NUMA node in the unit, followed by the
-        next config:pmd-socket-cores
-
-        :returns: Dict of hex formatted CPU masks
-        :rtype: Dict[str, str]
-        """
-        num_lcores = config('dpdk-socket-cores')
-        pmd_cores = config('pmd-socket-cores')
-        lcore_mask = 0
-        pmd_mask = 0
+        num_cores = config('dpdk-socket-cores')
+        mask = 0
         for cores in self._numa_node_cores().values():
-            for core in cores[:num_lcores]:
-                lcore_mask = lcore_mask | 1 << core
-            for core in cores[num_lcores:][:pmd_cores]:
-                pmd_mask = pmd_mask | 1 << core
-        return {
-            'pmd_cpu_mask': format(pmd_mask, '#04x'),
-            'dpdk_lcore_mask': format(lcore_mask, '#04x')}
+            for core in cores[:num_cores]:
+                mask = mask | 1 << core
+        return format(mask, '#04x')
+
+    @classmethod
+    def pmd_cpu_mask(cls):
+        """Get hex formatted pmd CPU mask
+
+        The mask is based on config:pmd-cpu-set.
+        :returns: hex formatted CPU mask
+        :rtype: str
+        """
+        mask = 0
+        cpu_list = cls._parse_cpu_list(config('pmd-cpu-set'))
+        if cpu_list:
+            for core in cpu_list:
+                mask = mask | 1 << core
+        return format(mask, '#x')
 
     def socket_memory(self):
         """Formatted list of socket memory configuration per socket.
@@ -2694,6 +2696,7 @@ class OVSDPDKDeviceContext(OSContextGenerator):
             ctxt['device_whitelist'] = self.device_whitelist()
             ctxt['socket_memory'] = self.socket_memory()
             ctxt['cpu_mask'] = self.cpu_mask()
+            ctxt['pmd_cpu_mask'] = self.pmd_cpu_mask()
         return ctxt
 
 

@@ -952,7 +952,7 @@ def pwgen(length=None):
     random_generator = random.SystemRandom()
     random_chars = [
         random_generator.choice(alphanumeric_chars) for _ in range(length)]
-    return(''.join(random_chars))
+    return ''.join(random_chars)
 
 
 def is_phy_iface(interface):

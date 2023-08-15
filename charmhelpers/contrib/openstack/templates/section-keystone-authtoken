@@ -12,4 +12,6 @@ signing_dir = {{ signing_dir }}
 {% if service_type -%}
 service_type = {{ service_type }}
 {% endif -%}
+service_token_roles = {{ admin_role }}
+service_token_roles_required = True
 {% endif -%}

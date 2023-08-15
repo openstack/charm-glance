@@ -1323,7 +1323,7 @@ def _check_listening_on_services_ports(services, test=False):
     @param test: default=False, if False, test for closed, otherwise open.
     @returns OrderedDict(service: [port-not-open, ...]...), [boolean]
     """
-    test = not(not(test))  # ensure test is True or False
+    test = not (not (test))  # ensure test is True or False
     all_ports = list(itertools.chain(*services.values()))
     ports_states = [port_has_listener('0.0.0.0', p) for p in all_ports]
     map_ports = OrderedDict()
@@ -1579,7 +1579,7 @@ def is_unit_paused_set():
         with unitdata.HookData()() as t:
             kv = t[0]
             # transform something truth-y into a Boolean.
-            return not(not(kv.get('unit-paused')))
+            return not (not (kv.get('unit-paused')))
     except Exception:
         return False
 
@@ -2177,7 +2177,7 @@ def is_unit_upgrading_set():
         with unitdata.HookData()() as t:
             kv = t[0]
             # transform something truth-y into a Boolean.
-            return not(not(kv.get('unit-upgrading')))
+            return not (not (kv.get('unit-upgrading')))
     except Exception:
         return False
 
