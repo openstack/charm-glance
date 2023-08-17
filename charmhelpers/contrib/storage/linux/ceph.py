@@ -813,8 +813,10 @@ def get_mon_map(service):
              ceph command fails.
     """
     try:
+        octopus_or_later = cmp_pkgrevno('ceph-common', '15.0.0') >= 0
+        mon_status_cmd = 'quorum_status' if octopus_or_later else 'mon_status'
         mon_status = check_output(['ceph', '--id', service,
-                                   'mon_status', '--format=json'])
+                                   mon_status_cmd, '--format=json'])
         if six.PY3:
             mon_status = mon_status.decode('UTF-8')
         try:
