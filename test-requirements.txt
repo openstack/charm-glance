@@ -27,3 +27,5 @@ git+https://github.com/openstack-charmers/zaza-openstack-tests.git@stable/zed#eg
 git+https://opendev.org/openstack/tempest.git#egg=tempest
 
 croniter            # needed for charm-rabbitmq-server unit tests
+
+jsonschema<4.18.0   # jsonschema 4.18.0 depends on Rust (via rpds-py)

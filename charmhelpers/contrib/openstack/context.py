@@ -469,66 +469,80 @@ class IdentityServiceContext(OSContextGenerator):
                 # forwards compat with application data
                 # bag driven approach to relation.
                 _adata = relation_get(rid=rid, app=remote_service_name(rid))
+                adata = {}
+                # if no app data bag presented - fallback
+                # to legacy unit based relation data
+                rdata = relation_get(rid=rid, unit=unit)
                 if _adata:
                     # New app data bag uses - instead of _
                     # in key names - remap for compat with
                     # existing relation data keys
                     for key, value in _adata.items():
                         if key == 'api-version':
-                            rdata[key.replace('-', '_')] = value.strip('v')
+                            adata[key.replace('-', '_')] = value.strip('v')
                         else:
-                            rdata[key.replace('-', '_')] = value
+                            adata[key.replace('-', '_')] = value
                     # Re-map some keys for backwards compatibility
                     for target, source in self._forward_compat_remaps.items():
-                        rdata[target] = _adata.get(source)
-                else:
-                    # No app data bag presented - fallback
-                    # to legacy unit based relation data
-                    rdata = relation_get(rid=rid, unit=unit)
-                serv_host = rdata.get('service_host')
+                        adata[target] = _adata.get(source)
+                # Now preferentially get data from the app data bag, but if
+                # it's not available, get it from the legacy based relation
+                # data.
+
+                def _resolve(key):
+                    return adata.get(key) or rdata.get(key)
+
+                serv_host = _resolve('service_host')
                 serv_host = format_ipv6_addr(serv_host) or serv_host
-                auth_host = rdata.get('auth_host')
+                auth_host = _resolve('auth_host')
                 auth_host = format_ipv6_addr(auth_host) or auth_host
-                int_host = rdata.get('internal_host')
+                int_host = _resolve('internal_host',)
                 int_host = format_ipv6_addr(int_host) or int_host
-                svc_protocol = rdata.get('service_protocol') or 'http'
-                auth_protocol = rdata.get('auth_protocol') or 'http'
-                int_protocol = rdata.get('internal_protocol') or 'http'
-                api_version = rdata.get('api_version') or '2.0'
-                ctxt.update({'service_port': rdata.get('service_port'),
+                svc_protocol = _resolve('service_protocol') or 'http'
+                auth_protocol = _resolve('auth_protocol') or 'http'
+                admin_role = _resolve('admin_role') or 'Admin'
+                int_protocol = _resolve('internal_protocol') or 'http'
+                api_version = _resolve('api_version') or '2.0'
+                ctxt.update({'service_port': _resolve('service_port'),
                              'service_host': serv_host,
                              'auth_host': auth_host,
-                             'auth_port': rdata.get('auth_port'),
+                             'auth_port': _resolve('auth_port'),
                              'internal_host': int_host,
-                             'internal_port': rdata.get('internal_port'),
-                             'admin_tenant_name': rdata.get('service_tenant'),
-                             'admin_user': rdata.get('service_username'),
-                             'admin_password': rdata.get('service_password'),
+                             'internal_port': _resolve('internal_port'),
+                             'admin_tenant_name': _resolve('service_tenant'),
+                             'admin_user': _resolve('service_username'),
+                             'admin_password': _resolve('service_password'),
+                             'admin_role': admin_role,
                              'service_protocol': svc_protocol,
                              'auth_protocol': auth_protocol,
                              'internal_protocol': int_protocol,
                              'api_version': api_version})
 
-                if rdata.get('service_type'):
-                    ctxt['service_type'] = rdata.get('service_type')
+                service_type = _resolve('service_type')
+                if service_type:
+                    ctxt['service_type'] = service_type
 
                 if float(api_version) > 2:
                     ctxt.update({
-                        'admin_domain_name': rdata.get('service_domain'),
-                        'service_project_id': rdata.get('service_tenant_id'),
-                        'service_domain_id': rdata.get('service_domain_id')})
+                        'admin_domain_name': _resolve('service_domain'),
+                        'service_project_id': _resolve('service_tenant_id'),
+                        'service_domain_id': _resolve('service_domain_id')})
 
                 # NOTE:
                 # keystone-k8s operator presents full URLS
                 # for all three endpoints - public and internal are
                 # externally addressable for machine based charm
-                if 'public_auth_url' in rdata:
+                public_auth_url = _resolve('public_auth_url')
+                # if 'public_auth_url' in rdata:
+                if public_auth_url:
                     ctxt.update({
-                        'public_auth_url': rdata.get('public_auth_url'),
+                        'public_auth_url': public_auth_url,
                     })
-                if 'internal_auth_url' in rdata:
+                internal_auth_url = _resolve('internal_auth_url')
+                # if 'internal_auth_url' in rdata:
+                if internal_auth_url:
                     ctxt.update({
-                        'internal_auth_url': rdata.get('internal_auth_url'),
+                        'internal_auth_url': internal_auth_url,
                     })
 
                 # we keep all veriables in ctxt for compatibility and
@@ -543,8 +557,8 @@ class IdentityServiceContext(OSContextGenerator):
                     # NOTE(jamespage) this is required for >= icehouse
                     # so a missing value just indicates keystone needs
                     # upgrading
-                    ctxt['admin_tenant_id'] = rdata.get('service_tenant_id')
-                    ctxt['admin_domain_id'] = rdata.get('service_domain_id')
+                    ctxt['admin_tenant_id'] = _resolve('service_tenant_id')
+                    ctxt['admin_domain_id'] = _resolve('service_domain_id')
                     return ctxt
 
         return {}
