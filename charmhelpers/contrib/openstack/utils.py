@@ -1320,7 +1320,7 @@ def _check_listening_on_services_ports(services, test=False):
     @param test: default=False, if False, test for closed, otherwise open.
     @returns OrderedDict(service: [port-not-open, ...]...), [boolean]
     """
-    test = not(not(test))  # ensure test is True or False
+    test = not (not (test))  # ensure test is True or False
     all_ports = list(itertools.chain(*services.values()))
     ports_states = [port_has_listener('0.0.0.0', p) for p in all_ports]
     map_ports = OrderedDict()
@@ -1544,7 +1544,7 @@ def is_unit_paused_set():
         with unitdata.HookData()() as t:
             kv = t[0]
             # transform something truth-y into a Boolean.
-            return not(not(kv.get('unit-paused')))
+            return not (not (kv.get('unit-paused')))
     except Exception:
         return False
 
@@ -2143,7 +2143,7 @@ def is_unit_upgrading_set():
         with unitdata.HookData()() as t:
             kv = t[0]
             # transform something truth-y into a Boolean.
-            return not(not(kv.get('unit-upgrading')))
+            return not (not (kv.get('unit-upgrading')))
     except Exception:
         return False
 
@@ -2597,6 +2597,23 @@ def get_subordinate_release_packages(os_release, package_type='deb'):
                         container.add(pkg)
                 break
     return SubordinatePackages(install, purge)
+
+
+def get_subordinate_services():
+    """Iterate over subordinate relations and get service information.
+
+    In a similar fashion as with get_subordinate_release_packages(),
+    principle charms can retrieve a list of services advertised by their
+    subordinate charms. This is useful to know about subordinate services when
+    pausing, resuming or upgrading a principle unit.
+
+    :returns: Name of all services advertised by all subordinates
+    :rtype: Set[str]
+    """
+    services = set()
+    for rdata in container_scoped_relation_get('services'):
+        services |= set(json.loads(rdata or '[]'))
+    return services
 
 
 os_restart_on_change = partial(

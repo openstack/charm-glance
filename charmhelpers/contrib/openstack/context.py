@@ -434,6 +434,9 @@ class IdentityServiceContext(OSContextGenerator):
             ('password', ctxt.get('admin_password', '')),
             ('signing_dir', ctxt.get('signing_dir', '')),))
 
+        if ctxt.get('service_type'):
+            c.update((('service_type', ctxt.get('service_type')),))
+
         return c
 
     def __call__(self):
@@ -460,6 +463,7 @@ class IdentityServiceContext(OSContextGenerator):
                 int_host = format_ipv6_addr(int_host) or int_host
                 svc_protocol = rdata.get('service_protocol') or 'http'
                 auth_protocol = rdata.get('auth_protocol') or 'http'
+                admin_role = rdata.get('admin_role') or 'Admin'
                 int_protocol = rdata.get('internal_protocol') or 'http'
                 api_version = rdata.get('api_version') or '2.0'
                 ctxt.update({'service_port': rdata.get('service_port'),
@@ -471,10 +475,14 @@ class IdentityServiceContext(OSContextGenerator):
                              'admin_tenant_name': rdata.get('service_tenant'),
                              'admin_user': rdata.get('service_username'),
                              'admin_password': rdata.get('service_password'),
+                             'admin_role': admin_role,
                              'service_protocol': svc_protocol,
                              'auth_protocol': auth_protocol,
                              'internal_protocol': int_protocol,
                              'api_version': api_version})
+
+                if rdata.get('service_type'):
+                    ctxt['service_type'] = rdata.get('service_type')
 
                 if float(api_version) > 2:
                     ctxt.update({
@@ -546,6 +554,9 @@ class IdentityCredentialsContext(IdentityServiceContext):
                     'auth_protocol': auth_protocol,
                     'api_version': api_version
                 })
+
+                if rdata.get('service_type'):
+                    ctxt['service_type'] = rdata.get('service_type')
 
                 if float(api_version) > 2:
                     ctxt.update({'admin_domain_name':
