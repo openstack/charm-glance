@@ -585,7 +585,6 @@ def get_installed_os_version():
     return openstack_release().get('OPENSTACK_CODENAME')
 
 
-@cached
 def openstack_release():
     """Return /etc/os-release in a dict."""
     d = {}

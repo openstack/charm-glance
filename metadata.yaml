@@ -13,7 +13,6 @@ tags:
 - misc
 series:
 - jammy
-- lunar
 - mantic
 extra-bindings:
   public:
