@@ -353,10 +353,6 @@ class TestGlanceUtils(CharmTestCase):
             call(utils.GLANCE_REGISTRY_PASTE),
             call(utils.GLANCE_API_PASTE),
         ])
-        _os.remove.assert_has_calls([
-            call(utils.GLANCE_REGISTRY_PASTE),
-            call(utils.GLANCE_API_PASTE),
-        ])
         self.assertTrue(test_kv.get(utils.PASTE_INI_MARKER))
         self.assertTrue(test_kv.flushed)
 
@@ -422,6 +418,32 @@ class TestGlanceUtils(CharmTestCase):
         kv.return_value = test_kv
         utils.reinstall_paste_ini()
         self.assertTrue(self.apt_install.called)
+
+    @patch.object(utils, 'os_release')
+    @patch.object(utils, 'os')
+    @patch.object(utils, 'kv')
+    def test_reinstall_paste_ini_rocky_restore(self, kv, _os, mock_os_release):
+        """Ensure that paste.ini files are restored"""
+        mock_os_release.return_value = 'rocky'
+        _os.path.exists.return_value = True
+        test_kv = SimpleKV()
+        test_kv.set(utils.PASTE_INI_MARKER, False)
+        kv.return_value = test_kv
+
+        self.apt_install.reset_mock()
+        utils.reinstall_paste_ini()
+
+        self.apt_install.assert_called_with(
+            packages=['glance-common'],
+            options=utils.REINSTALL_OPTIONS,
+            fatal=True
+        )
+        reg_paste_backup = f'{utils.GLANCE_REGISTRY_PASTE}.charm.upgrade'
+        api_paste_backup = f'{utils.GLANCE_API_PASTE}.charm.upgrade'
+        _os.remove.assert_has_calls([
+            call(reg_paste_backup),
+            call(api_paste_backup),
+        ])
 
     def _test_is_api_ready(self, tgt):
         fake_config = MagicMock()
