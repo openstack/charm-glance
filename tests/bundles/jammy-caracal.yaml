@@ -1,7 +1,7 @@
 variables:
-  openstack-origin: &openstack-origin distro
+  openstack-origin: &openstack-origin cloud:jammy-caracal
 
-series: mantic
+series: jammy
 
 comment:
 - 'machines section to decide order of deployment. database sooner = faster'
@@ -62,7 +62,7 @@ applications:
       - '6'
       - '7'
       - '8'
-    channel: latest/edge
+    channel: reef/edge
 
   ceph-radosgw:
     charm: ch:ceph-radosgw
@@ -71,7 +71,7 @@ applications:
       source: *openstack-origin
     to:
       - '15'
-    channel: latest/edge
+    channel: reef/edge
 
   ceph-mon:
     charm: ch:ceph-mon
@@ -83,7 +83,7 @@ applications:
       - '9'
       - '10'
       - '11'
-    channel: latest/edge
+    channel: reef/edge
 
   rabbitmq-server:
     charm: ch:rabbitmq-server
@@ -100,7 +100,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '13'
-    channel: latest/edge
+    channel: 2024.1/edge
 
   glance:
     expose: True
@@ -127,7 +127,7 @@ applications:
       block-device: None
     to:
       - '16'
-    channel: latest/edge
+    channel: 2024.1/edge
 
   cinder-lvm:
     charm: ch:cinder-lvm
@@ -138,7 +138,7 @@ applications:
       ephemeral-unmount: /mnt
       allocation-type: auto
       config-flags: target_helper=lioadm
-    channel: latest/edge
+    channel: 2024.1/edge
 
 relations:
   - - 'keystone:shared-db'

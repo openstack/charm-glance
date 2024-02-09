@@ -4,25 +4,22 @@ comment:
   - 'the glance configure job validates operation of identity-service relation'
 
 smoke_bundles:
-  - jammy-antelope
-
+  - jammy-caracal
 gate_bundles:
   - jammy-antelope
-
-dev_bundles:
   - jammy-bobcat
-  - lunar-antelope
-  - mantic-bobcat
-
+  - jammy-caracal
+dev_bundles:
+  - noble-caracal
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
   - zaza.openstack.charm_tests.glance.setup.configure_external_s3_backend
   - zaza.openstack.charm_tests.keystone.setup.add_demo_user
   - full_run:
-    - zaza.openstack.charm_tests.glance.setup.add_cirros_image
-    - zaza.openstack.charm_tests.glance.setup.add_cirros_alt_image
-    - zaza.openstack.charm_tests.keystone.setup.add_demo_user
-    - zaza.openstack.charm_tests.keystone.setup.add_tempest_roles
+      - zaza.openstack.charm_tests.glance.setup.add_cirros_image
+      - zaza.openstack.charm_tests.glance.setup.add_cirros_alt_image
+      - zaza.openstack.charm_tests.keystone.setup.add_demo_user
+      - zaza.openstack.charm_tests.keystone.setup.add_tempest_roles
 
 tests:
   - zaza.openstack.charm_tests.glance.tests.GlanceTest
@@ -33,16 +30,15 @@ tests:
   - zaza.openstack.charm_tests.ceph.tests.CheckPoolTypes
   - zaza.openstack.charm_tests.ceph.tests.BlueStoreCompressionCharmOperation
   - full_run:
-    - zaza.openstack.charm_tests.tempest.tests.TempestTestWithKeystoneV3
-    - zaza.openstack.charm_tests.glance.tests.GlanceTest
-    - zaza.openstack.charm_tests.policyd.tests.GlanceTests
+      - zaza.openstack.charm_tests.tempest.tests.TempestTestWithKeystoneV3
+      - zaza.openstack.charm_tests.glance.tests.GlanceTest
+      - zaza.openstack.charm_tests.policyd.tests.GlanceTests
 
 tests_options:
   tempest:
     full_run:
-      smoke: True
+      smoke: true
   policyd:
     service: glance
   force_deploy:
-    - lunar-antelope
-    - mantic-bobcat
+    - noble-caracal

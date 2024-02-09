@@ -8,13 +8,11 @@ description: |
   service, to Nova's compute nodes.
 docs: https://discourse.charmhub.io/t/glance-docs-index/10553
 tags:
-- openstack
-- storage
-- misc
+  - openstack
+  - storage
+  - misc
 series:
-- jammy
-- lunar
-- mantic
+  - jammy
 extra-bindings:
   public:
   admin:

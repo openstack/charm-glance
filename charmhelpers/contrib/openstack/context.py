@@ -545,7 +545,7 @@ class IdentityServiceContext(OSContextGenerator):
                         'internal_auth_url': internal_auth_url,
                     })
 
-                # we keep all veriables in ctxt for compatibility and
+                # we keep all variables in ctxt for compatibility and
                 # add nested dictionary for keystone_authtoken generic
                 # templating
                 if keystonemiddleware_os_release:
@@ -557,6 +557,7 @@ class IdentityServiceContext(OSContextGenerator):
                     # NOTE(jamespage) this is required for >= icehouse
                     # so a missing value just indicates keystone needs
                     # upgrading
+                    ctxt['admin_user_id'] = _resolve('service_user_id')
                     ctxt['admin_tenant_id'] = _resolve('service_tenant_id')
                     ctxt['admin_domain_id'] = _resolve('service_domain_id')
                     return ctxt
