@@ -33,6 +33,7 @@ from charmhelpers.contrib.openstack.context import (
     ApacheSSLContext as SSLContext,
     BindHostContext,
     VolumeAPIContext,
+    IdentityServiceContext,
 )
 
 from charmhelpers.contrib.hahelpers.cluster import (
@@ -367,6 +368,7 @@ class MultiBackendContext(OSContextGenerator):
             # backend cinder_volume_type should be left blank so that glance
             # creates volume in cinder without specifying any volume type.
             if cinder_volume_types:
+                keystone_ctx = IdentityServiceContext()()
                 for volume_type in volume_types:
                     ctxt['enabled_backend_configs'][volume_type] = {
                         'cinder_volume_type': volume_type,
@@ -374,6 +376,17 @@ class MultiBackendContext(OSContextGenerator):
                         'cinder_state_transition_timeout': config(
                             'cinder-state-transition-timeout'),
                     }
+                    if keystone_ctx:
+                        ctxt['enabled_backend_configs'][volume_type].update({
+                            'cinder_store_user_name': keystone_ctx.get(
+                                'admin_user'),
+                            'cinder_store_password': keystone_ctx.get(
+                                'admin_password'),
+                            'cinder_store_project_name': keystone_ctx.get(
+                                'admin_tenant_name'),
+                            'cinder_store_auth_address': keystone_ctx.get(
+                                'keystone_authtoken').get('auth_url'),
+                        })
             else:
                 # default cinder volume type cinder
                 ctxt['enabled_backend_configs']['cinder'] = {
