@@ -202,6 +202,21 @@ class OSContextGenerator(object):
             return self.related
 
 
+class KeystoneAuditMiddleware(OSContextGenerator):
+    def __init__(self, service: str) -> None:
+        self.service_name = service
+
+    def __call__(self):
+        """Return context dictionary containing configuration status of
+        audit-middleware and the charm service name.
+        """
+        ctxt = {
+            'audit_middleware': config('audit-middleware') or False,
+            'service_name': self.service_name
+        }
+        return ctxt
+
+
 class SharedDBContext(OSContextGenerator):
     interfaces = ['shared-db']
 

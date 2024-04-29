@@ -62,7 +62,7 @@ applications:
       - '6'
       - '7'
       - '8'
-    channel: reef/edge
+    channel: squid/edge
 
   ceph-radosgw:
     charm: ch:ceph-radosgw
@@ -71,7 +71,7 @@ applications:
       source: *openstack-origin
     to:
       - '15'
-    channel: reef/edge
+    channel: squid/edge
 
   ceph-mon:
     charm: ch:ceph-mon
@@ -83,7 +83,7 @@ applications:
       - '9'
       - '10'
       - '11'
-    channel: reef/edge
+    channel: squid/edge
 
   rabbitmq-server:
     charm: ch:rabbitmq-server
