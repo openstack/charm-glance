@@ -153,6 +153,7 @@ class TestGlanceUtils(CharmTestCase):
             (utils.GLANCE_API_CONF, ['glance-api']),
             (utils.GLANCE_SWIFT_CONF, ['glance-api']),
             (utils.GLANCE_POLICY_FILE, ['glance-api', 'glance-registry']),
+            (utils.GLANCE_API_PASTE, ['glance-api']),
             (utils.ceph_config_file(), ['glance-api', 'glance-registry']),
             (utils.HAPROXY_CONF, ['haproxy']),
             (utils.HTTPS_APACHE_CONF, ['apache2']),
@@ -175,6 +176,31 @@ class TestGlanceUtils(CharmTestCase):
             (utils.GLANCE_API_CONF, ['glance-api']),
             (utils.GLANCE_SWIFT_CONF, ['glance-api']),
             (utils.GLANCE_POLICY_FILE, ['glance-api']),
+            (utils.GLANCE_API_PASTE, ['glance-api']),
+            (utils.ceph_config_file(), ['glance-api']),
+            (utils.HAPROXY_CONF, ['haproxy']),
+            (utils.HTTPS_APACHE_CONF, ['apache2']),
+            (utils.HTTPS_APACHE_24_CONF, ['apache2']),
+            (utils.APACHE_PORTS_CONF, ['apache2']),
+            (utils.MEMCACHED_CONF, ['memcached']),
+        ])
+        self.assertEqual(ex_map, utils.restart_map())
+        self.enable_memcache.return_value = False
+        del ex_map[utils.MEMCACHED_CONF]
+        self.assertEqual(ex_map, utils.restart_map())
+
+    def test_restart_map_yoga(self):
+        self.enable_memcache.return_value = True
+        self.config.side_effect = None
+        self.service_name.return_value = 'glance'
+        self.os_release.return_value = 'yoga'
+
+        ex_map = OrderedDict([
+            (utils.GLANCE_API_CONF, ['glance-api']),
+            (utils.GLANCE_SWIFT_CONF, ['glance-api']),
+            (utils.GLANCE_POLICY_FILE, ['glance-api']),
+            (utils.GLANCE_AUDIT_MAP, ['glance-api']),
+            (utils.GLANCE_API_PASTE, ['glance-api']),
             (utils.ceph_config_file(), ['glance-api']),
             (utils.HAPROXY_CONF, ['haproxy']),
             (utils.HTTPS_APACHE_CONF, ['apache2']),
@@ -199,6 +225,7 @@ class TestGlanceUtils(CharmTestCase):
             (utils.GLANCE_API_CONF, ['glance-api']),
             (utils.GLANCE_SWIFT_CONF, ['glance-api']),
             (utils.GLANCE_POLICY_FILE, ['glance-api']),
+            (utils.GLANCE_API_PASTE, ['glance-api']),
             (utils.ceph_config_file(), ['glance-api']),
             (utils.HAPROXY_CONF, ['haproxy']),
             (utils.HTTPS_APACHE_CONF, ['apache2']),

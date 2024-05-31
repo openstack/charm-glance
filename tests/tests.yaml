@@ -29,6 +29,7 @@ tests:
   - zaza.openstack.charm_tests.glance.tests.GlanceCephRGWBackendTest
   - zaza.openstack.charm_tests.glance.tests.GlanceExternalS3Test
   - zaza.openstack.charm_tests.glance.tests.GlanceCinderBackendTest
+  - zaza.openstack.charm_tests.audit.tests.KeystoneAuditMiddlewareTest
   - zaza.openstack.charm_tests.policyd.tests.GlanceTests
   - zaza.openstack.charm_tests.ceph.tests.CheckPoolTypes
   - zaza.openstack.charm_tests.ceph.tests.BlueStoreCompressionCharmOperation
@@ -38,6 +39,8 @@ tests:
     - zaza.openstack.charm_tests.policyd.tests.GlanceTests
 
 tests_options:
+  audit-middleware:
+    service: glance
   tempest:
     full_run:
       smoke: True
