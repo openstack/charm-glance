@@ -12,6 +12,11 @@ options:
     default: False
     description: |
       Setting this to True will allow supporting services to log to syslog.
+  audit-middleware:
+    type: boolean
+    default: False
+    description: |
+      Enable Keystone auditing middleware for logging API calls.
   openstack-origin:
     type: string
     default: zed

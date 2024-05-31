@@ -121,13 +121,13 @@ SERVICES = [
 CHARM = "glance"
 
 GLANCE_CONF_DIR = "/etc/glance"
+GLANCE_AUDIT_MAP = "%s/api_audit_map.conf" % GLANCE_CONF_DIR
 GLANCE_REGISTRY_CONF = "%s/glance-registry.conf" % GLANCE_CONF_DIR
 GLANCE_API_CONF = "%s/glance-api.conf" % GLANCE_CONF_DIR
 GLANCE_SWIFT_CONF = "%s/glance-swift.conf" % GLANCE_CONF_DIR
 GLANCE_REGISTRY_PASTE = os.path.join(GLANCE_CONF_DIR,
                                      'glance-registry-paste.ini')
-GLANCE_API_PASTE = os.path.join(GLANCE_CONF_DIR,
-                                'glance-api-paste.ini')
+GLANCE_API_PASTE = os.path.join(GLANCE_CONF_DIR, 'api-paste.ini')
 GLANCE_POLICY_FILE = os.path.join(GLANCE_CONF_DIR, "policy.json")
 # NOTE(ajkavanagh): from Ussuri, glance switched to policy-in-code; this is the
 # policy.yaml file (as there is not packaged policy.json or .yaml) that is used
@@ -204,6 +204,7 @@ CONFIG_FILES = OrderedDict([
                               config_file=GLANCE_API_CONF),
                           context.MemcacheContext(),
                           glance_contexts.GlanceImageImportContext(),
+                          context.KeystoneAuditMiddleware(service=CHARM),
                           glance_contexts.ExternalS3Context()],
         'services': ['glance-api']
     }),
@@ -217,6 +218,14 @@ CONFIG_FILES = OrderedDict([
     (GLANCE_POLICY_FILE, {
         'hook_contexts': [],
         'services': ['glance-api', 'glance-registry']
+    }),
+    (GLANCE_AUDIT_MAP, {
+        'hook_contexts': [context.KeystoneAuditMiddleware(service=CHARM)],
+        'services': ['glance-api']
+    }),
+    (GLANCE_API_PASTE, {
+        'hook_contexts': [context.KeystoneAuditMiddleware(service=CHARM)],
+        'services': ['glance-api']
     }),
     (ceph_config_file(), {
         'hook_contexts': [context.CephContext()],
@@ -257,7 +266,9 @@ def register_configs():
 
     confs = [GLANCE_REGISTRY_CONF,
              GLANCE_API_CONF,
-             HAPROXY_CONF]
+             HAPROXY_CONF,
+             GLANCE_API_PASTE,
+             GLANCE_AUDIT_MAP]
 
     if relation_ids('ceph'):
         mkdir(os.path.dirname(ceph_config_file()))
@@ -403,6 +414,8 @@ def restart_map():
     cmp_release = CompareOpenStackReleases(os_release('glance-common'))
 
     for f, ctxt in CONFIG_FILES.items():
+        if f == GLANCE_AUDIT_MAP and cmp_release < 'yoga':
+            continue
         svcs = []
         for svc in ctxt['services']:
             if cmp_release >= 'stein' and svc == 'glance-registry':
