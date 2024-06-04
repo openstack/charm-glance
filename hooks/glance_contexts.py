@@ -399,7 +399,7 @@ class MultiBackendContext(OSContextGenerator):
                 vol_api_ctxt = VolumeAPIContext('glance-common')()
                 volume_catalog_info = vol_api_ctxt['volume_catalog_info']
                 for volume_type in volume_types:
-                    if 'volume_type' not in ctxt['enabled_backend_configs']:
+                    if volume_type not in ctxt['enabled_backend_configs']:
                         ctxt['enabled_backend_configs'][volume_type] = {}
                     ctxt['enabled_backend_configs'][volume_type].update(
                         {'cinder_catalog_info': volume_catalog_info})
