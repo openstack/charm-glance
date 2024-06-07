@@ -391,7 +391,9 @@ class TestGlanceContexts(CharmTestCase):
                 'default_store_backend': 'cinder',
             })
 
-    def test_multi_backend_with_cinder_volume_types_defined(self):
+    @patch('charmhelpers.contrib.openstack.'
+           'context.IdentityServiceContext.__call__')
+    def test_multi_backend_with_cinder_volume_types_defined(self, keystone):
         # return relation_ids only for cinder but not for swift
         def _relation_ids(*args, **kwargs):
             if args[0] == 'cinder-volume-service':
@@ -401,6 +403,12 @@ class TestGlanceContexts(CharmTestCase):
 
         self.maxDiff = None
         self.relation_ids.side_effect = _relation_ids
+        keystone.return_value = {
+            'admin_user': 'user',
+            'admin_password': 'password',
+            'admin_tenant_name': 'services',
+            'keystone_authtoken': {'auth_url': 'http://10.0.0.1:35357/v3'},
+        }
         self.is_relation_made.return_value = False
         data_dir = '/some/data/dir'
         conf_dict = {
@@ -422,6 +430,11 @@ class TestGlanceContexts(CharmTestCase):
                         'cinder_volume_type': 'volume-type-test',
                         'cinder_http_retries': 3,
                         'cinder_state_transition_timeout': 30,
+                        'cinder_store_user_name': 'user',
+                        'cinder_store_password': 'password',
+                        'cinder_store_project_name': 'services',
+                        'cinder_store_auth_address':
+                            'http://10.0.0.1:35357/v3',
                     }
                 },
                 'enabled_backends': 'local:file, volume-type-test:cinder',
