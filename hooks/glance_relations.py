@@ -487,6 +487,7 @@ def cluster_changed():
 @harden()
 def upgrade_charm():
     resolve_CONFIGS()
+    apt_update()
     apt_install(filter_installed_packages(determine_packages()), fatal=True)
     packages_removed = remove_old_packages()
     backup_deprecated_configurations()
