@@ -636,7 +636,7 @@ def reinstall_paste_ini(force_reinstall=False):
         for paste_file in [GLANCE_REGISTRY_PASTE,
                            GLANCE_API_PASTE]:
             if os.path.exists(paste_file):
-                os.remove(paste_file)
+                os.replace(paste_file, f'{paste_file}.charm.upgrade')
         # glance-registry is deprecated at queens but still
         # installed.
         if cmp_release < 'rocky':
@@ -647,6 +647,15 @@ def reinstall_paste_ini(force_reinstall=False):
         apt_install(packages=pkg_list,
                     options=REINSTALL_OPTIONS,
                     fatal=True)
+        # LP: #2042792 Restore original paste files
+        for paste_file in [GLANCE_REGISTRY_PASTE,
+                           GLANCE_API_PASTE]:
+            if not os.path.exists(paste_file):
+                if os.path.exists(f'{paste_file}.charm.upgrade'):
+                    os.replace(f'{paste_file}.charm.upgrade', paste_file)
+            else:
+                if os.path.exists(f'{paste_file}.charm.upgrade'):
+                    os.remove(f'{paste_file}.charm.upgrade')
         db.set(PASTE_INI_MARKER, True)
         db.flush()
 
