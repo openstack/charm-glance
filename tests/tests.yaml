@@ -4,11 +4,9 @@ comment:
   - 'the glance configure job validates operation of identity-service relation'
 
 smoke_bundles:
-  - jammy-caracal
+  - noble-caracal
 gate_bundles:
-  - jammy-antelope
-  - jammy-bobcat
-  - jammy-caracal
+  - noble-caracal
 dev_bundles:
   - noble-caracal
 configure:

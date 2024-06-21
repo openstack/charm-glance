@@ -19,7 +19,7 @@ options:
       Enable Keystone auditing middleware for logging API calls.
   openstack-origin:
     type: string
-    default: bobcat
+    default: caracal
     description: |
       Repository from which to install. May be one of the following:
       distro (default), ppa:somecustom/ppa, a deb url sources entry,
