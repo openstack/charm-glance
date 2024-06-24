@@ -945,10 +945,14 @@ def _run_with_retries(cmd, max_retries=CMD_RETRY_COUNT, retry_exitcodes=(1,),
         try:
             result = subprocess.check_call(cmd, env=env, **kwargs)
         except subprocess.CalledProcessError as e:
-            retry_count = retry_count + 1
-            if retry_count > max_retries:
-                raise
             result = e.returncode
+            if result not in retry_results:
+                # a non-retriable exitcode was produced
+                raise
+            retry_count += 1
+            if retry_count > max_retries:
+                # a retriable exitcode was produced more than {max_retries} times
+                raise
             log(retry_message)
             time.sleep(CMD_RETRY_DELAY)
 
