@@ -198,6 +198,21 @@ class OSContextGenerator(object):
             return self.related
 
 
+class KeystoneAuditMiddleware(OSContextGenerator):
+    def __init__(self, service: str) -> None:
+        self.service_name = service
+
+    def __call__(self):
+        """Return context dictionary containing configuration status of
+        audit-middleware and the charm service name.
+        """
+        ctxt = {
+            'audit_middleware': config('audit-middleware') or False,
+            'service_name': self.service_name
+        }
+        return ctxt
+
+
 class SharedDBContext(OSContextGenerator):
     interfaces = ['shared-db']
 
@@ -477,7 +492,7 @@ class IdentityServiceContext(OSContextGenerator):
                         'service_project_id': rdata.get('service_tenant_id'),
                         'service_domain_id': rdata.get('service_domain_id')})
 
-                # we keep all veriables in ctxt for compatibility and
+                # we keep all variables in ctxt for compatibility and
                 # add nested dictionary for keystone_authtoken generic
                 # templating
                 if keystonemiddleware_os_release:
@@ -489,6 +504,7 @@ class IdentityServiceContext(OSContextGenerator):
                     # NOTE(jamespage) this is required for >= icehouse
                     # so a missing value just indicates keystone needs
                     # upgrading
+                    ctxt['admin_user_id'] = rdata.get('service_user_id')
                     ctxt['admin_tenant_id'] = rdata.get('service_tenant_id')
                     ctxt['admin_domain_id'] = rdata.get('service_domain_id')
                     return ctxt
@@ -1665,6 +1681,9 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
 
     def __call__(self):
         total_processes = _calculate_workers()
+        enable_wsgi_socket_rotation = config('wsgi-socket-rotation')
+        if enable_wsgi_socket_rotation is None:
+            enable_wsgi_socket_rotation = True
         ctxt = {
             "service_name": self.service_name,
             "user": self.user,
@@ -1678,6 +1697,7 @@ class WSGIWorkerConfigContext(WorkerConfigContext):
             "public_processes": int(math.ceil(self.public_process_weight *
                                               total_processes)),
             "threads": 1,
+            "wsgi_socket_rotation": enable_wsgi_socket_rotation,
         }
         return ctxt
 
