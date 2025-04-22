@@ -134,6 +134,8 @@ def get_address_in_network(network, fallback=None, fatal=False):
 
 def is_ipv6(address):
     """Determine whether provided address is IPv6 or not."""
+    if not address:
+        return False
     try:
         address = netaddr.IPAddress(address)
     except netaddr.AddrFormatError:
