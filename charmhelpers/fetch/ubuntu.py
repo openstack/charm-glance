@@ -270,6 +270,22 @@ CLOUD_ARCHIVE_POCKETS = {
     'epoxy/proposed': 'noble-proposed/epoxy',
     'noble-epoxy/proposed': 'noble-proposed/epoxy',
     'noble-proposed/epoxy': 'noble-proposed/epoxy',
+    # flamingo
+    'flamingo': 'noble-updates/flamingo',
+    'noble-flamingo': 'noble-updates/flamingo',
+    'noble-flamingo/updates': 'noble-updates/flamingo',
+    'noble-updates/flamingo': 'noble-updates/flamingo',
+    'flamingo/proposed': 'noble-proposed/flamingo',
+    'noble-flamingo/proposed': 'noble-proposed/flamingo',
+    'noble-proposed/flamingo': 'noble-proposed/flamingo',
+    # gazpacho
+    'gazpacho': 'noble-updates/gazpacho',
+    'noble-gazpacho': 'noble-updates/gazpacho',
+    'noble-gazpacho/updates': 'noble-updates/gazpacho',
+    'noble-updates/gazpacho': 'noble-updates/gazpacho',
+    'gazpacho/proposed': 'noble-proposed/gazpacho',
+    'noble-gazpacho/proposed': 'noble-proposed/gazpacho',
+    'noble-proposed/gazpacho': 'noble-proposed/gazpacho',
 
     # OVN
     'focal-ovn-22.03': 'focal-updates/ovn-22.03',
@@ -306,6 +322,8 @@ OPENSTACK_RELEASES = (
     'caracal',
     'dalmatian',
     'epoxy',
+    'flamingo',
+    'gazpacho',
 )
 
 
@@ -338,6 +356,8 @@ UBUNTU_OPENSTACK_RELEASE = OrderedDict([
     ('noble', 'caracal'),
     ('oracular', 'dalmatian'),
     ('plucky', 'epoxy'),
+    ('questing', 'flamingo'),
+    ('resolute', 'gazpacho'),
 ])
 
 
