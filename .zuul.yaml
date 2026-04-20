@@ -6,5 +6,5 @@
       jobs:
       - charmbuild
     vars:
-      charmbuild_charmcraft_channel: 2.x/stable
+      charmbuild_charmcraft_channel: 3.x/stable
       charm_build_name: glance
