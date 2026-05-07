@@ -414,6 +414,15 @@ class MultiBackendContext(OSContextGenerator):
         if len(backends) > 0:
             ctxt["enabled_backends"] = ", ".join(backends)
 
+        # We only really need this config if we have multiple backends, when
+        # one of them is not the local backend
+        if ((local_fs and len(backends) > 2) or
+                (not local_fs and len(backends) > 1)):
+            if ceph_ctx:
+                ctxt["rados_connect_timeout"] = config('rados-connect-timeout')
+                ctxt["enabled_backend_configs"]["ceph"][
+                    "rados_connect_timeout"] = config('rados-connect-timeout')
+
         return ctxt
 
 
