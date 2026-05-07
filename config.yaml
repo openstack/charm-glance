@@ -126,6 +126,14 @@ options:
     description: |
       Ceph pool type to use for storage - valid values include ‘replicated’
       and ‘erasure-coded’.
+  rados-connect-timeout:
+    type: int
+    default: 1200
+    description: |
+      The amount of time to wait to try and connect to rados. This allows to
+      connect to other backends if those are also configured.
+      NOTE: This will only be effective if multiple backends are configured,
+      otherwise the value will be ignored.
   ec-profile-name:
     type: string
     default:
