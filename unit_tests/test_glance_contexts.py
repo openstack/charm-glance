@@ -491,6 +491,7 @@ class TestGlanceContexts(CharmTestCase):
         conf_dict = {
             'filesystem-store-datadir': data_dir,
             'rbd-pool-name': 'mypool',
+            'rados-connect-timeout': 1200,
         }
         self.config.side_effect = lambda x: conf_dict.get(x)
         self.assertEqual(
@@ -505,7 +506,7 @@ class TestGlanceContexts(CharmTestCase):
                         "rbd_store_chunk_size": 8,
                         "rbd_store_pool": 'mypool',
                         "rbd_store_user": service,
-                        "rados_connect_timeout": 0,
+                        "rados_connect_timeout": 1200,
                         "rbd_store_ceph_conf": "/etc/ceph/ceph.conf",
                     },
                     'swift': {
@@ -516,6 +517,7 @@ class TestGlanceContexts(CharmTestCase):
                 },
                 'enabled_backends': 'local:file, ceph:rbd, swift:swift',
                 'default_store_backend': 'ceph',
+                'rados_connect_timeout': 1200,
             })
 
     def test_multi_backend_with_ceph_and_cinder(self):
@@ -537,6 +539,7 @@ class TestGlanceContexts(CharmTestCase):
             'rbd-pool-name': 'mypool',
             'cinder-http-retries': 3,
             'cinder-state-transition-timeout': 30,
+            'rados-connect-timeout': 1200,
         }
         self.config.side_effect = lambda x: conf_dict.get(x)
         self.assertEqual(
@@ -551,7 +554,7 @@ class TestGlanceContexts(CharmTestCase):
                         "rbd_store_chunk_size": 8,
                         "rbd_store_pool": 'mypool',
                         "rbd_store_user": service,
-                        "rados_connect_timeout": 0,
+                        "rados_connect_timeout": 1200,
                         "rbd_store_ceph_conf": "/etc/ceph/ceph.conf",
                     },
                     'cinder': {
@@ -561,6 +564,7 @@ class TestGlanceContexts(CharmTestCase):
                 },
                 'enabled_backends': 'local:file, ceph:rbd, cinder:cinder',
                 'default_store_backend': 'ceph',
+                'rados_connect_timeout': 1200,
             })
 
     def test_multi_backend_with_external_s3(self):
