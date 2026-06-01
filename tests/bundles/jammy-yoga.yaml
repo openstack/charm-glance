@@ -110,7 +110,7 @@ applications:
 
   glance:
     expose: True
-    charm: ../../glance.charm
+    charm: ../../charm-glance_ubuntu@22.04-amd64.charm
     num_units: 1
     options:
       openstack-origin: *openstack-origin

@@ -9,7 +9,7 @@
 #
 pyparsing<3.0.0  # aodhclient is pinned in zaza and needs pyparsing < 3.0.0, but cffi also needs it, so pin here.
 cffi==1.14.6; python_version < '3.6'  # cffi 1.15.0 drops support for py35.
-setuptools<50.0.0  # https://github.com/pypa/setuptools/commit/04e3df22df840c6bb244e9b27bc56750c44b7c85
+setuptools<82.0.0
 
 requests>=2.18.4
 
@@ -33,12 +33,9 @@ oslo.utils<=3.41.0;python_version<'3.6'
 
 coverage>=4.5.2
 pyudev              # for ceph-* charm unit tests (need to fix the ceph-* charm unit tests/mocking)
-git+https://github.com/openstack-charmers/zaza.git@stable/yoga#egg=zaza
+zaza==2024.*
 git+https://github.com/openstack-charmers/zaza-openstack-tests.git@stable/yoga#egg=zaza.openstack
 
-# Needed for charm-glance:
-git+https://opendev.org/openstack/tempest.git#egg=tempest;python_version>='3.8'
-tempest<31.0.0;python_version<'3.8' and python_version>='3.6'
-tempest<24.0.0;python_version<'3.6'
-
 croniter            # needed for charm-rabbitmq-server unit tests
+git+https://github.com/juju/charm-tools.git
+flake8==7.1.1
