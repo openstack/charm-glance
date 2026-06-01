@@ -12,7 +12,6 @@ gate_bundles:
 dev_bundles:
   - jammy-yoga
   - jammy-zed
-  - kinetic-zed
 
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
@@ -46,5 +45,3 @@ tests_options:
       smoke: True
   policyd:
     service: glance
-  force_deploy:
-    - kinetic-zed
