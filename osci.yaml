@@ -6,11 +6,7 @@
       jobs:
       - ceph-focal-xena
       - ceph-focal-yoga:
-          voting: false
-      - ceph-impish-xena:
-          voting: false
       - ceph-jammy-yoga:
-          voting: false
     vars:
       needs_charm_build: true
       charm_build_name: glance
@@ -34,13 +30,6 @@
       - ceph-focal-xena
     vars:
       tox_extra_args: ceph:focal-yoga
-- job:
-    name: ceph-impish-xena
-    parent: func-target
-    dependencies:
-      - ceph-focal-xena
-    vars:
-      tox_extra_args: ceph:impish-xena
 - job:
     name: ceph-jammy-yoga
     parent: func-target
